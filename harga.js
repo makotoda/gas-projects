@@ -22,7 +22,15 @@ function getHargaIdr_(symbol) {
     headers: { 'X-CMC_PRO_API_KEY': getCmcApiKey_() }
   });
   const data = JSON.parse(response.getContentText());
-  return data.data[symbol].quote.IDR.price;
+  // Kunci respons CMC memakai simbol kanonik yang bisa beda kapitalisasi
+  // dari request (contoh: request "XAUT" → respons berkunci "XAUt").
+  const key = Object.keys(data.data).find(
+    k => k.toUpperCase() === symbol.toUpperCase()
+  );
+  if (!key) {
+    throw new Error('Simbol ' + symbol + ' tidak ditemukan di respons CMC.');
+  }
+  return data.data[key].quote.IDR.price;
 }
 
 function getPAXG() {
