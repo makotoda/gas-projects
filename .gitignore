@@ -1,0 +1,10 @@
+# Dead code berisi API key bocor — sengaja tidak di-commit (lihat GAPS.md #1).
+# CATATAN: file ini tetap ter-push ke Apps Script live oleh `clasp push`
+# karena tidak ada .claspignore.
+harga.gs.js
+
+# Konfigurasi lokal Claude Code (izin per mesin, bukan bagian dari project)
+.claude/settings.local.json
+
+# Kalau suatu saat pakai npm/node
+node_modules/

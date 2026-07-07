@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kodomo — Pencatat Amalan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #070714;
+    --glass: rgba(255, 255, 255, 0.055);
+    --glass-strong: rgba(255, 255, 255, 0.09);
+    --border: rgba(255, 255, 255, 0.14);
+    --border-soft: rgba(255, 255, 255, 0.08);
+    --text: #f1f0ff;
+    --muted: rgba(226, 224, 255, 0.55);
+    --violet: #8b5cf6;
+    --cyan: #22d3ee;
+    --pink: #f472b6;
+    --mint: #34d399;
+    --rose: #fb7185;
+    --radius: 22px;
+  }
+
+  /* ===== Tema terang (toggle di header; default gelap) ===== */
+  body.light {
+    --bg: #eef0f8;
+    --glass: rgba(255, 255, 255, 0.6);
+    --glass-strong: rgba(255, 255, 255, 0.85);
+    --border: rgba(15, 23, 42, 0.16);
+    --border-soft: rgba(15, 23, 42, 0.09);
+    --text: #1a1633;
+    --muted: rgba(26, 22, 51, 0.58);
+    --violet: #7c3aed;
+    --cyan: #0891b2;
+    --pink: #db2777;
+    --mint: #0d9f6e;
+    --rose: #e11d48;
+  }
+  body.light .orb { opacity: .28; }
+  body.light .orb-3 { opacity: .18; }
+  body.light select option { background: #fff; }
+  body.light select, body.light input[type="text"],
+  body.light .toggle { background: rgba(15, 23, 42, 0.05); }
+  body.light .tab { background: rgba(15, 23, 42, 0.04); }
+  body.light .rank { background: rgba(15, 23, 42, 0.07); }
+  body.light .lb-row:hover { background: rgba(15, 23, 42, 0.05); }
+  body.light .lb-item.open .lb-row { background: rgba(15, 23, 42, 0.06); }
+  body.light .hx-row:hover { background: rgba(15, 23, 42, 0.05); }
+  body.light .hx-row.mini:hover { background: none; }
+  body.light .lb-meter { background: rgba(15, 23, 42, 0.09); }
+  body.light .modal-close, body.light .modal-foot button { background: rgba(15, 23, 42, 0.05); }
+  body.light .stat:hover { border-color: rgba(15, 23, 42, 0.32); }
+  body.light #statModal { background: rgba(238, 240, 248, 0.72); }
+  body.light .modal-card {
+    background: rgba(252, 252, 255, 0.97);
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
+  }
+  /* Aksen light lebih gelap, jadi teks putih terbaca di ketiga slider */
+  body.light .toggle button.active { color: #fff; }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    min-height: 100vh;
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* ===== Latar orbs bercahaya ===== */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(90px);
+    opacity: .55;
+    z-index: 0;
+    pointer-events: none;
+    animation: drift 18s ease-in-out infinite alternate;
+  }
+  .orb-1 { width: 480px; height: 480px; top: -140px; left: -120px;
+    background: radial-gradient(circle, var(--violet), transparent 70%); }
+  .orb-2 { width: 420px; height: 420px; bottom: -160px; right: -100px;
+    background: radial-gradient(circle, var(--cyan), transparent 70%);
+    animation-delay: -6s; }
+  .orb-3 { width: 340px; height: 340px; top: 40%; left: 55%;
+    background: radial-gradient(circle, var(--pink), transparent 70%);
+    opacity: .35; animation-delay: -12s; }
+
+  @keyframes drift {
+    from { transform: translate(0, 0) scale(1); }
+    to   { transform: translate(60px, 40px) scale(1.12); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .orb { animation: none; }
+    * { transition: none !important; }
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 28px 20px 60px;
+  }
+
+  /* ===== Header ===== */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 24px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .logo {
+    width: 46px; height: 46px;
+    border-radius: 14px;
+    display: grid; place-items: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 22px;
+    background: linear-gradient(135deg, var(--violet), var(--cyan));
+    box-shadow: 0 0 24px rgba(139, 92, 246, .5);
+  }
+  .brand h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 22px; font-weight: 700;
+    letter-spacing: .5px;
+  }
+  .brand p { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .live-dot {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--muted);
+    padding: 8px 14px;
+    background: var(--glass);
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .live-dot::before {
+    content: '';
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--mint);
+    box-shadow: 0 0 10px var(--mint);
+  }
+
+  /* ===== Tombol musik ===== */
+  .music-btn {
+    display: flex; align-items: center; gap: 8px;
+    font: inherit; font-size: 12px; font-weight: 500;
+    color: var(--muted);
+    padding: 8px 14px;
+    background: var(--glass);
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color .2s, border-color .2s, box-shadow .2s;
+  }
+  .music-btn:hover { color: var(--text); border-color: var(--border); }
+  .music-btn.playing {
+    color: var(--text);
+    border-color: var(--pink);
+    box-shadow: 0 0 14px rgba(244,114,182,.35);
+  }
+  .music-btn.playing .music-icon { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.25); }
+  }
+  /* #musicDock sengaja disembunyikan di luar layar (bukan display:none,
+     supaya iframe YouTube tetap render dan audio tetap jalan). Playback
+     dikontrol via IFrame Player API dari tombol musik, bukan tap di frame. */
+  #musicDock {
+    position: fixed;
+    left: -9999px; top: -9999px;
+    width: 1px; height: 1px;
+    overflow: hidden;
+  }
+  #musicDock iframe {
+    width: 1px; height: 1px;
+    border: 0;
+  }
+
+  /* ===== Kartu statistik ===== */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .stat {
+    padding: 20px 22px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color .2s, transform .15s;
+  }
+  .stat:hover { border-color: rgba(255,255,255,.28); transform: translateY(-2px); }
+  .stat::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.06) 50%, transparent 70%);
+    pointer-events: none;
+  }
+  .stat .label {
+    font-size: 12px; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--muted);
+  }
+  .stat .value {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 30px; font-weight: 700;
+    margin-top: 8px;
+  }
+  .stat.pahala .value { color: var(--mint); text-shadow: 0 0 18px rgba(52,211,153,.45); }
+  .stat.dosa   .value { color: var(--rose); text-shadow: 0 0 18px rgba(251,113,133,.45); }
+  .stat.trx    .value { color: var(--cyan); text-shadow: 0 0 18px rgba(34,211,238,.45); }
+
+  /* ===== Grid utama ===== */
+  .main {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 16px;
+    margin-top: 16px;
+    align-items: start;
+  }
+
+  .card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    padding: 24px;
+  }
+  .card h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 17px; font-weight: 600;
+    margin-bottom: 18px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .card h2 .bar {
+    width: 4px; height: 18px; border-radius: 4px;
+    background: linear-gradient(180deg, var(--violet), var(--cyan));
+    box-shadow: 0 0 10px var(--violet);
+  }
+
+  /* ===== Form ===== */
+  label {
+    display: block;
+    font-size: 12.5px; font-weight: 500;
+    color: var(--muted);
+    margin: 16px 0 7px;
+  }
+  select, input[type="text"] {
+    width: 100%;
+    padding: 13px 15px;
+    font: inherit; font-size: 14.5px;
+    color: var(--text);
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  select { cursor: pointer; }
+  select option { background: #131328; color: var(--text); }
+  select:focus, input:focus {
+    border-color: var(--violet);
+    box-shadow: 0 0 0 3px rgba(139,92,246,.22);
+  }
+
+  /* Toggle Pahala / Dosa / Transfer — elemen signature */
+  .toggle {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    padding: 4px;
+  }
+  .toggle .slider {
+    position: absolute;
+    top: 4px; bottom: 4px; left: 4px;
+    width: calc((100% - 8px) / 3);
+    border-radius: 11px;
+    background: linear-gradient(135deg, var(--mint), var(--cyan));
+    box-shadow: 0 0 18px rgba(52,211,153,.5);
+    transition: transform .3s cubic-bezier(.4,0,.2,1), background .3s, box-shadow .3s;
+  }
+  .toggle.dosa .slider {
+    transform: translateX(100%);
+    background: linear-gradient(135deg, var(--rose), var(--pink));
+    box-shadow: 0 0 18px rgba(251,113,133,.5);
+  }
+  .toggle.transfer .slider {
+    transform: translateX(200%);
+    background: linear-gradient(135deg, var(--violet), var(--cyan));
+    box-shadow: 0 0 18px rgba(139,92,246,.55);
+  }
+  .toggle button {
+    position: relative; z-index: 1;
+    padding: 11px 2px;
+    font: inherit; font-size: 13px; font-weight: 600;
+    color: var(--muted);
+    background: none; border: none; cursor: pointer;
+    transition: color .3s;
+    white-space: nowrap;
+  }
+  .toggle button.active { color: #06121a; }
+  .toggle.transfer button.active { color: #fff; }
+
+  /* Field tujuan transfer */
+  .tujuan-field {
+    display: none;
+    overflow: hidden;
+  }
+  .tujuan-field.show {
+    display: block;
+    animation: slideIn .3s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .submit-btn {
+    width: 100%;
+    margin-top: 22px;
+    padding: 15px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px; font-weight: 600;
+    letter-spacing: .4px;
+    color: #fff;
+    background: linear-gradient(135deg, var(--violet), var(--cyan));
+    border: none; border-radius: 14px;
+    cursor: pointer;
+    box-shadow: 0 6px 26px rgba(139,92,246,.4);
+    transition: transform .15s, box-shadow .2s, opacity .2s;
+  }
+  .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(139,92,246,.55); }
+  .submit-btn:disabled { opacity: .5; cursor: wait; transform: none; }
+
+  /* ===== Tabs ===== */
+  .tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+  .tab {
+    padding: 9px 18px;
+    font: inherit; font-size: 13.5px; font-weight: 500;
+    color: var(--muted);
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .tab.active {
+    color: var(--text);
+    background: var(--glass-strong);
+    border-color: var(--violet);
+    box-shadow: 0 0 14px rgba(139,92,246,.3);
+  }
+
+  /* ===== Leaderboard ===== */
+  .lb-row {
+    display: grid;
+    grid-template-columns: 34px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 15px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background .2s, border-color .2s;
+    user-select: none;
+  }
+  .lb-row:hover { background: rgba(255,255,255,.045); border-color: var(--border-soft); }
+  .lb-item.open .lb-row {
+    background: rgba(255,255,255,.055);
+    border-color: var(--border);
+  }
+  .rank {
+    width: 34px; height: 34px;
+    display: grid; place-items: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 13.5px;
+    border-radius: 10px;
+    background: rgba(255,255,255,.06);
+    border: 1px solid var(--border-soft);
+    color: var(--muted);
+  }
+  .lb-item:nth-child(1) .rank { background: linear-gradient(135deg,#facc15,#f59e0b); color:#1a1200; border: none; box-shadow: 0 0 14px rgba(250,204,21,.4); }
+  .lb-item:nth-child(2) .rank { background: linear-gradient(135deg,#e2e8f0,#94a3b8); color:#0f172a; border: none; }
+  .lb-item:nth-child(3) .rank { background: linear-gradient(135deg,#fdba74,#ea580c); color:#2a0e00; border: none; }
+  .lb-name { font-weight: 600; font-size: 14.5px; display: flex; align-items: center; gap: 7px; }
+  .lb-name .chev {
+    font-size: 10px; color: var(--muted);
+    transition: transform .25s;
+  }
+  .lb-item.open .lb-name .chev { transform: rotate(180deg); }
+  .lb-meter {
+    height: 5px; border-radius: 5px;
+    margin-top: 7px;
+    background: rgba(255,255,255,.07);
+    overflow: hidden;
+  }
+  .lb-meter i {
+    display: block; height: 100%;
+    border-radius: 5px;
+    background: linear-gradient(90deg, var(--mint), var(--cyan));
+    box-shadow: 0 0 8px rgba(52,211,153,.6);
+  }
+  .lb-meter.neg i {
+    background: linear-gradient(90deg, var(--rose), var(--pink));
+    box-shadow: 0 0 8px rgba(251,113,133,.6);
+  }
+  .lb-saldo {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 15px;
+    text-align: right;
+  }
+  .lb-saldo.pos { color: var(--mint); }
+  .lb-saldo.neg { color: var(--rose); }
+  .lb-sub { font-size: 11px; color: var(--muted); text-align: right; margin-top: 3px; }
+
+  /* Panel expand: 5 transaksi terakhir */
+  .lb-expand {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows .3s ease;
+  }
+  .lb-item.open .lb-expand { grid-template-rows: 1fr; }
+  .lb-expand > div { overflow: hidden; }
+  .lb-expand-inner {
+    margin: 4px 8px 10px 46px;
+    padding: 6px 4px;
+    border-left: 2px solid var(--border);
+    padding-left: 14px;
+  }
+  .lb-expand-title {
+    font-size: 11px; text-transform: uppercase;
+    letter-spacing: 1.2px; color: var(--muted);
+    margin: 4px 0 8px;
+  }
+
+  /* ===== Riwayat ===== */
+  .hx-row {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 13px 14px;
+    border-radius: 15px;
+    border: 1px solid transparent;
+    transition: background .2s, border-color .2s;
+  }
+  .hx-row:hover { background: rgba(255,255,255,.045); border-color: var(--border-soft); }
+  .hx-row.mini { padding: 8px 4px; }
+  .hx-row.mini:hover { background: none; border-color: transparent; }
+  .hx-icon {
+    flex: none;
+    width: 36px; height: 36px;
+    display: grid; place-items: center;
+    border-radius: 11px;
+    font-size: 16px;
+  }
+  .hx-row.mini .hx-icon { width: 28px; height: 28px; font-size: 13px; border-radius: 9px; }
+  .hx-icon.pahala { background: rgba(52,211,153,.13); border: 1px solid rgba(52,211,153,.35); }
+  .hx-icon.dosa   { background: rgba(251,113,133,.13); border: 1px solid rgba(251,113,133,.35); }
+  .hx-main { flex: 1; min-width: 0; }
+  .hx-title { font-size: 14px; font-weight: 600; }
+  .hx-row.mini .hx-title { font-size: 13px; }
+  .hx-ket { font-size: 12.5px; color: var(--muted); margin-top: 3px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hx-row.mini .hx-ket { font-size: 12px; }
+  .hx-time { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .hx-nom {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 14.5px;
+    white-space: nowrap;
+  }
+  .hx-row.mini .hx-nom { font-size: 13px; }
+  .hx-nom.pahala { color: var(--mint); }
+  .hx-nom.dosa { color: var(--rose); }
+
+  .empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .empty.mini { padding: 12px 4px; text-align: left; font-size: 12.5px; }
+
+  /* ===== Modal leaderboard statistik ===== */
+  #statModal {
+    position: fixed; inset: 0;
+    display: grid; place-items: center;
+    padding: 20px;
+    background: rgba(7,7,20,.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 45;
+    opacity: 0; pointer-events: none;
+    transition: opacity .25s;
+  }
+  #statModal.show { opacity: 1; pointer-events: auto; }
+  .modal-card {
+    width: 100%; max-width: 420px;
+    background: rgba(19,19,40,.94);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 20px 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.6);
+  }
+  .modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .modal-head h3 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px; font-weight: 600;
+  }
+  .modal-close {
+    font: inherit; font-size: 14px;
+    width: 32px; height: 32px;
+    display: grid; place-items: center;
+    color: var(--muted);
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: color .2s, border-color .2s;
+  }
+  .modal-close:hover { color: var(--text); border-color: var(--border); }
+  .sm-row {
+    display: grid;
+    grid-template-columns: 34px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 6px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .sm-row:last-child { border-bottom: none; }
+  .sm-name { font-weight: 600; font-size: 14.5px; }
+  .sm-val {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 15px;
+  }
+  .sm-val.pahala  { color: var(--mint); }
+  .sm-val.dosa    { color: var(--rose); }
+  .sm-val.catatan { color: var(--cyan); }
+  .rank.r1 { background: linear-gradient(135deg,#facc15,#f59e0b); color:#1a1200; border: none; box-shadow: 0 0 14px rgba(250,204,21,.4); }
+  .rank.r2 { background: linear-gradient(135deg,#e2e8f0,#94a3b8); color:#0f172a; border: none; }
+  .rank.r3 { background: linear-gradient(135deg,#fdba74,#ea580c); color:#2a0e00; border: none; }
+  .modal-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 12px;
+  }
+  .modal-foot button {
+    font: inherit; font-size: 18px; line-height: 1;
+    width: 42px; height: 36px;
+    color: var(--text);
+    background: rgba(255,255,255,.06);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    cursor: pointer;
+  }
+  .modal-foot button:disabled { opacity: .35; cursor: default; }
+  .modal-foot span { font-size: 12.5px; color: var(--muted); }
+
+  /* ===== Loading & toast ===== */
+  #loader {
+    position: fixed; inset: 0;
+    display: grid; place-items: center;
+    background: var(--bg);
+    z-index: 50;
+    transition: opacity .4s;
+  }
+  #loader.hide { opacity: 0; pointer-events: none; }
+  .spinner {
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,.12);
+    border-top-color: var(--violet);
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #toast {
+    position: fixed;
+    left: 50%; bottom: 28px;
+    transform: translate(-50%, 20px);
+    padding: 13px 22px;
+    font-size: 14px; font-weight: 500;
+    background: var(--glass-strong);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .3s, transform .3s;
+    z-index: 60;
+    max-width: 90vw;
+  }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+  #toast.ok { border-color: rgba(52,211,153,.5); box-shadow: 0 0 24px rgba(52,211,153,.25); }
+  #toast.err { border-color: rgba(251,113,133,.5); box-shadow: 0 0 24px rgba(251,113,133,.25); }
+
+  /* ===== Responsif ===== */
+  @media (max-width: 900px) {
+    .main { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .stat { padding: 16px; }
+    .stat .value { font-size: 22px; }
+    .lb-expand-inner { margin-left: 14px; }
+  }
+  @media (max-width: 560px) {
+    .stats { grid-template-columns: 1fr; }
+    header { flex-direction: column; align-items: flex-start; }
+    .toggle button { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div id="loader"><div class="spinner"></div></div>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo">K</div>
+      <div>
+        <h1>Kodomo</h1>
+        <p>Pencatat pahala &amp; dosa</p>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+      <button class="music-btn" id="themeBtn" type="button">☀️ Terang</button>
+      <button class="music-btn" id="musicBtn" type="button">
+        <span class="music-icon">🎵</span><span id="musicLabel">Putar musik</span>
+      </button>
+      <div class="live-dot">Tercatat secara real-time di Buku Amal</div>
+    </div>
+  </header>
+
+  <section class="stats">
+    <div class="stat pahala" data-metric="pahala" role="button">
+      <div class="label">Total Pahala</div>
+      <div class="value" id="statPahala">0</div>
+    </div>
+    <div class="stat dosa" data-metric="dosa" role="button">
+      <div class="label">Total Dosa</div>
+      <div class="value" id="statDosa">0</div>
+    </div>
+    <div class="stat trx" data-metric="catatan" role="button">
+      <div class="label">Total Catatan</div>
+      <div class="value" id="statTrx">0</div>
+    </div>
+  </section>
+
+  <div class="main">
+    <!-- ===== Form input ===== -->
+    <div class="card">
+      <h2><span class="bar"></span>Catat Amalan</h2>
+
+      <label for="nama">Nama</label>
+      <select id="nama">
+        <option value="">Pilih nama…</option>
+      </select>
+
+      <label>Tipe amalan</label>
+      <div class="toggle" id="toggle">
+        <div class="slider"></div>
+        <button type="button" class="active" data-tipe="Pahala">✨ Pahala</button>
+        <button type="button" data-tipe="Dosa">🔥 Dosa</button>
+        <button type="button" data-tipe="Transfer">💸 Transfer</button>
+      </div>
+
+      <div class="tujuan-field" id="tujuanField">
+        <label for="tujuan">Transfer pahala ke</label>
+        <select id="tujuan">
+          <option value="">Pilih nama tujuan…</option>
+        </select>
+      </div>
+
+      <label for="nominal">Nominal</label>
+      <input type="text" id="nominal" inputmode="numeric" autocomplete="off" placeholder="Contoh: 5.000">
+
+      <label for="keterangan">Keterangan <span style="font-weight:400">(opsional)</span></label>
+      <input type="text" id="keterangan" maxlength="120" placeholder="Contoh: traktir kopi tim">
+
+      <button class="submit-btn" id="submitBtn">Simpan catatan</button>
+    </div>
+
+    <!-- ===== Leaderboard & riwayat ===== -->
+    <div class="card">
+      <div class="tabs">
+        <button class="tab active" data-view="leaderboard">🏆 Leaderboard</button>
+        <button class="tab" data-view="riwayat">🕐 Riwayat</button>
+      </div>
+      <div id="viewLeaderboard"></div>
+      <div id="viewRiwayat" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<div id="statModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3 id="modalTitle"></h3>
+      <button class="modal-close" id="modalClose" type="button">✕</button>
+    </div>
+    <div id="modalList"></div>
+    <div class="modal-foot">
+      <button id="modalPrev" type="button">‹</button>
+      <span id="modalPage"></span>
+      <button id="modalNext" type="button">›</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  let tipeTerpilih = 'Pahala';
+  let dataLeaderboard = [];
+  let dataHistory = [];
+  let expandTerbuka = null; // nama yang sedang di-expand
+
+  const $ = id => document.getElementById(id);
+  const fmt = n => new Intl.NumberFormat('id-ID').format(n);
+  const esc = s => String(s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  /* ---- Nominal: separator ribuan "." saat mengetik ---- */
+  const nominalInput = $('nominal');
+  const nominalValue = () => Number(nominalInput.value.replace(/\./g, '')) || 0;
+
+  nominalInput.addEventListener('input', () => {
+    const digits = nominalInput.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+    nominalInput.value = digits ? Number(digits).toLocaleString('id-ID') : '';
+    // Kursor selalu di akhir setelah format ulang
+    nominalInput.setSelectionRange(nominalInput.value.length, nominalInput.value.length);
+  });
+
+  /* ---- Toggle Pahala / Dosa / Transfer ---- */
+  const toggle = $('toggle');
+  toggle.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      tipeTerpilih = btn.dataset.tipe;
+      toggle.classList.toggle('dosa', tipeTerpilih === 'Dosa');
+      toggle.classList.toggle('transfer', tipeTerpilih === 'Transfer');
+      toggle.querySelectorAll('button').forEach(b =>
+        b.classList.toggle('active', b === btn));
+      $('tujuanField').classList.toggle('show', tipeTerpilih === 'Transfer');
+    });
+  });
+
+  /* ---- Musik latar: LISA - MONEY (YouTube IFrame Player API) ----
+     Player disembunyikan di luar layar; play/pause dipanggil lewat API
+     (player.playVideo()) langsung dari handler klik tombol musik. Gesture
+     di tombol itulah yang jadi izin autoplay-bersuara di mobile, jadi
+     user tidak perlu tap di dalam frame YouTube (yang di HP malah
+     membuka app YouTube). Player dibuat sekali saat halaman dimuat,
+     lalu di-toggle play/pause — bukan dibuat/dihapus tiap klik. */
+  const MUSIC_VIDEO_ID = 'dNCWe_6HAM8'; // LISA - 'MONEY' Exclusive Performance Video (channel resmi)
+  const musicBtn = $('musicBtn');
+  let ytPlayer = null;
+  let ytReady = false;
+  let musicPlaying = false;
+
+  const ytApiTag = document.createElement('script');
+  ytApiTag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(ytApiTag);
+
+  window.onYouTubeIframeAPIReady = () => {
+    const dock = document.createElement('div');
+    dock.id = 'musicDock';
+    dock.innerHTML = '<div id="ytPlayer"></div>';
+    document.body.appendChild(dock);
+    ytPlayer = new YT.Player('ytPlayer', {
+      videoId: MUSIC_VIDEO_ID,
+      playerVars: {
+        playsinline: 1, loop: 1, playlist: MUSIC_VIDEO_ID,
+        controls: 0, disablekb: 1, rel: 0, iv_load_policy: 3, fs: 0
+      },
+      events: {
+        onReady: () => { ytReady = true; },
+        onStateChange: (e) => {
+          // Sinkronkan tombol kalau player berhenti sendiri (error/buffering gagal).
+          if (e.data === YT.PlayerState.PLAYING) setMusicUi_(true);
+          else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED) setMusicUi_(false);
+        }
+      }
+    });
+  };
+
+  function setMusicUi_(playing) {
+    musicPlaying = playing;
+    musicBtn.classList.toggle('playing', playing);
+    $('musicLabel').textContent = playing ? 'Musik: MONEY — LISA' : 'Putar musik';
+  }
+
+  musicBtn.addEventListener('click', () => {
+    if (!ytReady) { toast('Musik masih dimuat, coba lagi sebentar…', 'err'); return; }
+    if (musicPlaying) {
+      ytPlayer.pauseVideo();
+      setMusicUi_(false);
+    } else {
+      ytPlayer.unMute();
+      ytPlayer.playVideo();
+      setMusicUi_(true);
+    }
+  });
+
+  /* ---- Tema terang/gelap (default gelap; tersimpan di localStorage) ----
+     Label tombol menunjukkan tema TUJUAN, bukan tema aktif. */
+  const themeBtn = $('themeBtn');
+  function setTheme_(light) {
+    document.body.classList.toggle('light', light);
+    themeBtn.textContent = light ? '🌙 Gelap' : '☀️ Terang';
+    try { localStorage.setItem('kodomoTheme', light ? 'light' : 'dark'); } catch (e) {}
+  }
+  let temaTersimpan = null;
+  try { temaTersimpan = localStorage.getItem('kodomoTheme'); } catch (e) {}
+  setTheme_(temaTersimpan === 'light');
+  themeBtn.addEventListener('click', () =>
+    setTheme_(!document.body.classList.contains('light')));
+
+  /* ---- Tabs ---- */
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t =>
+        t.classList.toggle('active', t === tab));
+      $('viewLeaderboard').style.display =
+        tab.dataset.view === 'leaderboard' ? '' : 'none';
+      $('viewRiwayat').style.display =
+        tab.dataset.view === 'riwayat' ? '' : 'none';
+    });
+  });
+
+  /* ---- Toast ---- */
+  let toastTimer;
+  function toast(msg, type) {
+    const el = $('toast');
+    el.textContent = msg;
+    el.className = 'show ' + (type || 'ok');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.className = '', 3200);
+  }
+
+  /* ---- Baris riwayat (dipakai riwayat utama & expand) ---- */
+  function hxRowHtml(h, mini) {
+    const isDosa = h.tipe === 'Dosa';
+    return `
+    <div class="hx-row${mini ? ' mini' : ''}">
+      <div class="hx-icon ${isDosa ? 'dosa' : 'pahala'}">${isDosa ? '🔥' : '✨'}</div>
+      <div class="hx-main">
+        <div class="hx-title">${mini ? esc(h.tipe) : esc(h.nama)}</div>
+        ${h.keterangan ? `<div class="hx-ket">${esc(h.keterangan)}</div>` : ''}
+        <div class="hx-time">${esc(h.waktu)}</div>
+      </div>
+      <div class="hx-nom ${isDosa ? 'dosa' : 'pahala'}">${isDosa ? '−' : '+'}${fmt(h.nominal)}</div>
+    </div>`;
+  }
+
+  /* ---- Render leaderboard (dengan expand) ---- */
+  function renderLeaderboard() {
+    const lb = $('viewLeaderboard');
+    if (!dataLeaderboard.length) {
+      lb.innerHTML = '<div class="empty">Belum ada catatan. Mulai catat amalan pertama! ✨</div>';
+      return;
+    }
+    const maxAbs = Math.max(...dataLeaderboard.map(o => Math.abs(o.saldo)), 1);
+    lb.innerHTML = dataLeaderboard.map((o, i) => {
+      const pct = Math.max(4, Math.round(Math.abs(o.saldo) / maxAbs * 100));
+      const neg = o.saldo < 0;
+      const open = expandTerbuka === o.nama;
+      const recentHtml = o.recent.length
+        ? o.recent.map(h => hxRowHtml(h, true)).join('')
+        : '<div class="empty mini">Belum ada transaksi.</div>';
+      return `
+      <div class="lb-item${open ? ' open' : ''}" data-nama="${esc(o.nama)}">
+        <div class="lb-row">
+          <div class="rank">${i + 1}</div>
+          <div>
+            <div class="lb-name">${esc(o.nama)} <span class="chev">▼</span></div>
+            <div class="lb-meter${neg ? ' neg' : ''}"><i style="width:${pct}%"></i></div>
+          </div>
+          <div>
+            <div class="lb-saldo ${neg ? 'neg' : 'pos'}">${neg ? '−' : '+'}${fmt(Math.abs(o.saldo))}</div>
+            <div class="lb-sub">✨ ${fmt(o.pahala)} · 🔥 ${fmt(o.dosa)}</div>
+          </div>
+        </div>
+        <div class="lb-expand"><div>
+          <div class="lb-expand-inner">
+            <div class="lb-expand-title">5 transaksi terakhir</div>
+            ${recentHtml}
+          </div>
+        </div></div>
+      </div>`;
+    }).join('');
+
+    // Klik baris → expand / tutup
+    lb.querySelectorAll('.lb-item').forEach(item => {
+      item.querySelector('.lb-row').addEventListener('click', () => {
+        const nama = item.dataset.nama;
+        expandTerbuka = expandTerbuka === nama ? null : nama;
+        lb.querySelectorAll('.lb-item').forEach(it =>
+          it.classList.toggle('open', it.dataset.nama === expandTerbuka));
+      });
+    });
+  }
+
+  /* ---- Modal leaderboard per statistik (klik kartu Total ...) ---- */
+  const statMeta = {
+    pahala:  { title: '✨ Leaderboard Pahala' },
+    dosa:    { title: '🔥 Leaderboard Dosa' },
+    catatan: { title: '🕐 Riwayat Catatan' }
+  };
+  const PER_SLIDE = 5;
+  let modalMetric = null;
+  let modalPage = 0;
+
+  // Leaderboard pahala/dosa dihitung dari SELISIH (saldo = pahala − dosa):
+  // saldo positif masuk leaderboard pahala, saldo negatif masuk leaderboard
+  // dosa (nilai yang tampil = besar selisihnya). Saldo 0 tidak masuk keduanya.
+  const nilaiMetric_ = o => modalMetric === 'pahala' ? o.saldo : -o.saldo;
+
+  document.querySelectorAll('.stat').forEach(card => {
+    card.addEventListener('click', () => {
+      modalMetric = card.dataset.metric;
+      modalPage = 0;
+      renderStatModal();
+      $('statModal').classList.add('show');
+    });
+  });
+
+  function renderStatModal() {
+    if (!modalMetric) return;
+    const isRiwayat = modalMetric === 'catatan';
+    const list = isRiwayat
+      ? dataHistory // sudah terurut terbaru dulu dari server
+      : dataLeaderboard
+          .filter(o => nilaiMetric_(o) > 0)
+          .sort((a, b) => nilaiMetric_(b) - nilaiMetric_(a));
+    const pages = Math.max(1, Math.ceil(list.length / PER_SLIDE));
+    if (modalPage > pages - 1) modalPage = pages - 1;
+    const slice = list.slice(modalPage * PER_SLIDE, modalPage * PER_SLIDE + PER_SLIDE);
+
+    $('modalTitle').textContent = statMeta[modalMetric].title;
+    $('modalList').innerHTML = !slice.length
+      ? '<div class="empty">Belum ada data.</div>'
+      : isRiwayat
+        ? slice.map(h => hxRowHtml(h, false)).join('')
+        : slice.map((o, i) => {
+            const rank = modalPage * PER_SLIDE + i + 1;
+            return `
+            <div class="sm-row">
+              <div class="rank${rank <= 3 ? ' r' + rank : ''}">${rank}</div>
+              <div class="sm-name">${esc(o.nama)}</div>
+              <div class="sm-val ${modalMetric}">${fmt(nilaiMetric_(o))}</div>
+            </div>`;
+          }).join('');
+    $('modalPage').textContent = (modalPage + 1) + ' / ' + pages;
+    $('modalPrev').disabled = modalPage === 0;
+    $('modalNext').disabled = modalPage >= pages - 1;
+  }
+
+  $('modalPrev').addEventListener('click', () => {
+    if (modalPage > 0) { modalPage--; renderStatModal(); }
+  });
+  $('modalNext').addEventListener('click', () => {
+    modalPage++; renderStatModal();
+  });
+  $('modalClose').addEventListener('click', () => $('statModal').classList.remove('show'));
+  $('statModal').addEventListener('click', e => {
+    if (e.target === $('statModal')) $('statModal').classList.remove('show');
+  });
+
+  // Geser kiri/kanan di HP untuk pindah slide
+  let touchX = null;
+  $('statModal').addEventListener('touchstart', e => { touchX = e.touches[0].clientX; }, { passive: true });
+  $('statModal').addEventListener('touchend', e => {
+    if (touchX == null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    touchX = null;
+    if (dx < -40 && !$('modalNext').disabled) { modalPage++; renderStatModal(); }
+    else if (dx > 40 && modalPage > 0) { modalPage--; renderStatModal(); }
+  }, { passive: true });
+
+  /* ---- Render keseluruhan ---- */
+  function render(data) {
+    $('statPahala').textContent = fmt(data.totalPahala);
+    $('statDosa').textContent = fmt(data.totalDosa);
+    $('statTrx').textContent = fmt(data.totalTransaksi);
+
+    // Dropdown nama & tujuan (pertahankan pilihan)
+    const opts = '<option value="">Pilih nama…</option>' +
+      data.anggota.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    [['nama', opts], ['tujuan', opts.replace('Pilih nama…', 'Pilih nama tujuan…')]]
+      .forEach(([id, html]) => {
+        const sel = $(id);
+        const cur = sel.value;
+        sel.innerHTML = html;
+        if (cur) sel.value = cur;
+      });
+
+    dataLeaderboard = data.leaderboard;
+    dataHistory = data.history;
+    renderLeaderboard();
+
+    // Kalau modal leaderboard sedang terbuka, segarkan isinya juga
+    if ($('statModal').classList.contains('show')) renderStatModal();
+
+    // Riwayat
+    const hx = $('viewRiwayat');
+    hx.innerHTML = data.history.length
+      ? data.history.map(h => hxRowHtml(h, false)).join('')
+      : '<div class="empty">Riwayat masih kosong.</div>';
+  }
+
+  /* ---- Submit ---- */
+  $('submitBtn').addEventListener('click', () => {
+    const nama = $('nama').value;
+    const tujuan = $('tujuan').value;
+    const nominal = nominalValue();
+
+    if (!nama) return toast('Pilih nama dulu ya.', 'err');
+    if (tipeTerpilih === 'Transfer') {
+      if (!tujuan) return toast('Pilih nama tujuan transfer.', 'err');
+      if (tujuan === nama) return toast('Tidak bisa transfer ke diri sendiri.', 'err');
+    }
+    if (!nominal || nominal <= 0) return toast('Nominal harus lebih dari 0.', 'err');
+
+    const btn = $('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Menyimpan…';
+
+    google.script.run
+      .withSuccessHandler(data => {
+        render(data);
+        toast(tipeTerpilih === 'Transfer'
+          ? `Transfer pahala ${fmt(nominal)} dari ${nama} ke ${tujuan} tersimpan ✓`
+          : `${tipeTerpilih} ${fmt(nominal)} untuk ${nama} tersimpan ✓`, 'ok');
+        nominalInput.value = '';
+        $('keterangan').value = '';
+        btn.disabled = false;
+        btn.textContent = 'Simpan catatan';
+      })
+      .withFailureHandler(err => {
+        toast(err.message || 'Gagal menyimpan. Coba lagi.', 'err');
+        btn.disabled = false;
+        btn.textContent = 'Simpan catatan';
+      })
+      .submitAmalan({
+        nama: nama,
+        tipe: tipeTerpilih,
+        tujuan: tujuan,
+        nominal: nominal,
+        keterangan: $('keterangan').value
+      });
+  });
+
+  /* ---- Muat awal ---- */
+  google.script.run
+    .withSuccessHandler(data => {
+      render(data);
+      $('loader').classList.add('hide');
+    })
+    .withFailureHandler(err => {
+      $('loader').classList.add('hide');
+      toast('Gagal memuat data: ' + (err.message || ''), 'err');
+    })
+    .getDashboardData();
+</script>
+</body>
+</html>
