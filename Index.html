@@ -7,23 +7,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  /* ============================================================
-     KODOMO v3 — Futuristic glassmorphism
-     Efek: aurora background, rotating gradient borders, spotlight
-     mengikuti kursor, tilt 3D, count-up, partikel, reveal stagger
-     ============================================================ */
-
-  @property --angle {
-    syntax: '<angle>';
-    initial-value: 0deg;
-    inherits: false;
-  }
-
   :root {
-    --bg: #060612;
-    --glass: rgba(255, 255, 255, 0.05);
+    --bg: #070714;
+    --glass: rgba(255, 255, 255, 0.055);
     --glass-strong: rgba(255, 255, 255, 0.09);
-    --border: rgba(255, 255, 255, 0.13);
+    --border: rgba(255, 255, 255, 0.14);
     --border-soft: rgba(255, 255, 255, 0.08);
     --text: #f1f0ff;
     --muted: rgba(226, 224, 255, 0.55);
@@ -35,15 +23,44 @@
     --radius: 22px;
   }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  html { scrollbar-color: rgba(139,92,246,.4) transparent; }
-  ::-webkit-scrollbar { width: 9px; }
-  ::-webkit-scrollbar-thumb {
-    background: linear-gradient(var(--violet), var(--cyan));
-    border-radius: 9px;
+  /* ===== Tema terang (toggle di header; default gelap) ===== */
+  body.light {
+    --bg: #eef0f8;
+    --glass: rgba(255, 255, 255, 0.6);
+    --glass-strong: rgba(255, 255, 255, 0.85);
+    --border: rgba(15, 23, 42, 0.16);
+    --border-soft: rgba(15, 23, 42, 0.09);
+    --text: #1a1633;
+    --muted: rgba(26, 22, 51, 0.58);
+    --violet: #7c3aed;
+    --cyan: #0891b2;
+    --pink: #db2777;
+    --mint: #0d9f6e;
+    --rose: #e11d48;
   }
-  ::-webkit-scrollbar-track { background: transparent; }
+  body.light .orb { opacity: .28; }
+  body.light .orb-3 { opacity: .18; }
+  body.light select option { background: #fff; }
+  body.light select, body.light input[type="text"],
+  body.light .toggle { background: rgba(15, 23, 42, 0.05); }
+  body.light .tab { background: rgba(15, 23, 42, 0.04); }
+  body.light .rank { background: rgba(15, 23, 42, 0.07); }
+  body.light .lb-row:hover { background: rgba(15, 23, 42, 0.05); }
+  body.light .lb-item.open .lb-row { background: rgba(15, 23, 42, 0.06); }
+  body.light .hx-row:hover { background: rgba(15, 23, 42, 0.05); }
+  body.light .hx-row.mini:hover { background: none; }
+  body.light .lb-meter { background: rgba(15, 23, 42, 0.09); }
+  body.light .modal-close, body.light .modal-foot button { background: rgba(15, 23, 42, 0.05); }
+  body.light .stat:hover { border-color: rgba(15, 23, 42, 0.32); }
+  body.light #statModal { background: rgba(238, 240, 248, 0.72); }
+  body.light .modal-card {
+    background: rgba(252, 252, 255, 0.97);
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
+  }
+  /* Aksen light lebih gelap, jadi teks putih terbaca di ketiga slider */
+  body.light .toggle button.active { color: #fff; }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
     min-height: 100vh;
@@ -54,55 +71,32 @@
     position: relative;
   }
 
-  /* ===== Latar: aurora + grid + noise ===== */
-  .bg-aurora {
-    position: fixed; inset: -20%;
-    z-index: 0; pointer-events: none;
-    background:
-      radial-gradient(38% 42% at 18% 22%, rgba(139,92,246,.32), transparent 70%),
-      radial-gradient(34% 38% at 82% 78%, rgba(34,211,238,.26), transparent 70%),
-      radial-gradient(28% 30% at 62% 34%, rgba(244,114,182,.16), transparent 70%);
-    animation: aurora 26s ease-in-out infinite alternate;
-    filter: blur(40px);
-  }
-  @keyframes aurora {
-    0%   { transform: translate(0,0) rotate(0deg) scale(1); }
-    50%  { transform: translate(3%, -2%) rotate(4deg) scale(1.06); }
-    100% { transform: translate(-3%, 3%) rotate(-3deg) scale(1.1); }
-  }
-  .bg-grid {
-    position: fixed; inset: 0;
-    z-index: 0; pointer-events: none;
-    background-image:
-      linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px);
-    background-size: 44px 44px;
-    mask-image: radial-gradient(75% 60% at 50% 32%, #000 30%, transparent 100%);
-    -webkit-mask-image: radial-gradient(75% 60% at 50% 32%, #000 30%, transparent 100%);
-  }
-  .bg-noise {
-    position: fixed; inset: 0;
-    z-index: 0; pointer-events: none;
-    opacity: .05;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
-  }
+  /* ===== Latar orbs bercahaya ===== */
   .orb {
     position: fixed;
     border-radius: 50%;
     filter: blur(90px);
-    opacity: .4;
+    opacity: .55;
     z-index: 0;
     pointer-events: none;
-    animation: drift 20s ease-in-out infinite alternate;
+    animation: drift 18s ease-in-out infinite alternate;
   }
-  .orb-1 { width: 460px; height: 460px; top: -150px; left: -120px;
+  .orb-1 { width: 480px; height: 480px; top: -140px; left: -120px;
     background: radial-gradient(circle, var(--violet), transparent 70%); }
-  .orb-2 { width: 420px; height: 420px; bottom: -170px; right: -110px;
+  .orb-2 { width: 420px; height: 420px; bottom: -160px; right: -100px;
     background: radial-gradient(circle, var(--cyan), transparent 70%);
-    animation-delay: -7s; }
+    animation-delay: -6s; }
+  .orb-3 { width: 340px; height: 340px; top: 40%; left: 55%;
+    background: radial-gradient(circle, var(--pink), transparent 70%);
+    opacity: .35; animation-delay: -12s; }
+
   @keyframes drift {
-    from { transform: translate(0,0) scale(1); }
-    to   { transform: translate(70px, 45px) scale(1.14); }
+    from { transform: translate(0, 0) scale(1); }
+    to   { transform: translate(60px, 40px) scale(1.12); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .orb { animation: none; }
+    * { transition: none !important; }
   }
 
   .wrap {
@@ -113,58 +107,6 @@
     padding: 28px 20px 60px;
   }
 
-  /* ===== Kartu kaca dengan border gradien berputar + spotlight ===== */
-  .glass {
-    position: relative;
-    background: var(--glass);
-    border-radius: var(--radius);
-    backdrop-filter: blur(22px) saturate(1.3);
-    -webkit-backdrop-filter: blur(22px) saturate(1.3);
-    border: 1px solid var(--border);
-    overflow: hidden;
-  }
-  .glass::before { /* border gradien berputar */
-    content: '';
-    position: absolute; inset: -1px;
-    border-radius: inherit;
-    padding: 1px;
-    background: conic-gradient(from var(--angle),
-      transparent 0%, rgba(139,92,246,.7) 12%,
-      rgba(34,211,238,.7) 24%, transparent 38%);
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    animation: spin-border 7s linear infinite;
-    opacity: 0;
-    transition: opacity .4s;
-    pointer-events: none;
-  }
-  .glass:hover::before { opacity: 1; }
-  @keyframes spin-border { to { --angle: 360deg; } }
-
-  .glass::after { /* spotlight mengikuti kursor */
-    content: '';
-    position: absolute; inset: 0;
-    border-radius: inherit;
-    background: radial-gradient(340px circle at var(--mx, 50%) var(--my, 50%),
-      rgba(255,255,255,.07), transparent 65%);
-    opacity: 0;
-    transition: opacity .35s;
-    pointer-events: none;
-  }
-  .glass:hover::after { opacity: 1; }
-  .glass > * { position: relative; z-index: 1; }
-
-  /* ===== Reveal stagger saat load ===== */
-  .reveal {
-    opacity: 0;
-    transform: translateY(18px);
-    animation: reveal .7s cubic-bezier(.22,.9,.3,1) forwards;
-  }
-  @keyframes reveal {
-    to { opacity: 1; transform: translateY(0); }
-  }
-
   /* ===== Header ===== */
   header {
     display: flex;
@@ -172,43 +114,26 @@
     justify-content: space-between;
     gap: 16px;
     padding: 18px 24px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
   }
   .brand { display: flex; align-items: center; gap: 14px; }
   .logo {
-    width: 48px; height: 48px;
+    width: 46px; height: 46px;
     border-radius: 14px;
     display: grid; place-items: center;
     font-family: 'Space Grotesk', sans-serif;
-    font-weight: 700; font-size: 23px;
+    font-weight: 700; font-size: 22px;
     background: linear-gradient(135deg, var(--violet), var(--cyan));
-    box-shadow: 0 0 26px rgba(139,92,246,.55);
-    position: relative;
-    overflow: hidden;
-    animation: logo-pulse 3.5s ease-in-out infinite;
-  }
-  @keyframes logo-pulse {
-    0%, 100% { box-shadow: 0 0 22px rgba(139,92,246,.45); }
-    50%      { box-shadow: 0 0 34px rgba(34,211,238,.6); }
-  }
-  .logo::after { /* kilau menyapu */
-    content: '';
-    position: absolute; inset: 0;
-    background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.5) 50%, transparent 70%);
-    transform: translateX(-120%);
-    animation: shine 4.5s ease-in-out infinite;
-  }
-  @keyframes shine {
-    0%, 55% { transform: translateX(-120%); }
-    75%, 100% { transform: translateX(130%); }
+    box-shadow: 0 0 24px rgba(139, 92, 246, .5);
   }
   .brand h1 {
     font-family: 'Space Grotesk', sans-serif;
     font-size: 22px; font-weight: 700;
     letter-spacing: .5px;
-    background: linear-gradient(90deg, #fff, #c9c5ff 60%, #9fe8ff);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
   }
   .brand p { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
   .live-dot {
@@ -224,51 +149,85 @@
     content: '';
     width: 8px; height: 8px; border-radius: 50%;
     background: var(--mint);
-    box-shadow: 0 0 0 0 rgba(52,211,153,.7);
-    animation: ping 2s cubic-bezier(0,0,.2,1) infinite;
-  }
-  @keyframes ping {
-    0%   { box-shadow: 0 0 0 0 rgba(52,211,153,.6); }
-    70%  { box-shadow: 0 0 0 9px rgba(52,211,153,0); }
-    100% { box-shadow: 0 0 0 0 rgba(52,211,153,0); }
+    box-shadow: 0 0 10px var(--mint);
   }
 
-  /* ===== Kartu statistik (tilt 3D + count-up) ===== */
+  /* ===== Tombol musik ===== */
+  .music-btn {
+    display: flex; align-items: center; gap: 8px;
+    font: inherit; font-size: 12px; font-weight: 500;
+    color: var(--muted);
+    padding: 8px 14px;
+    background: var(--glass);
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color .2s, border-color .2s, box-shadow .2s;
+  }
+  .music-btn:hover { color: var(--text); border-color: var(--border); }
+  .music-btn.playing {
+    color: var(--text);
+    border-color: var(--pink);
+    box-shadow: 0 0 14px rgba(244,114,182,.35);
+  }
+  .music-btn.playing .music-icon { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.25); }
+  }
+  /* #musicDock sengaja disembunyikan di luar layar (bukan display:none,
+     supaya iframe YouTube tetap render dan audio tetap jalan). Playback
+     dikontrol via IFrame Player API dari tombol musik, bukan tap di frame. */
+  #musicDock {
+    position: fixed;
+    left: -9999px; top: -9999px;
+    width: 1px; height: 1px;
+    overflow: hidden;
+  }
+  #musicDock iframe {
+    width: 1px; height: 1px;
+    border: 0;
+  }
+
+  /* ===== Kartu statistik ===== */
   .stats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 16px;
     margin-top: 20px;
-    perspective: 900px;
   }
   .stat {
     padding: 20px 22px;
-    transform-style: preserve-3d;
-    transition: transform .18s ease-out, box-shadow .3s;
-    will-change: transform;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color .2s, transform .15s;
+  }
+  .stat:hover { border-color: rgba(255,255,255,.28); transform: translateY(-2px); }
+  .stat::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.06) 50%, transparent 70%);
+    pointer-events: none;
   }
   .stat .label {
-    font-size: 11.5px; text-transform: uppercase;
-    letter-spacing: 1.8px; color: var(--muted);
-    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--muted);
   }
-  .stat .label::before {
-    content: '';
-    width: 6px; height: 6px; border-radius: 2px;
-    transform: rotate(45deg);
-  }
-  .stat.pahala .label::before { background: var(--mint); box-shadow: 0 0 8px var(--mint); }
-  .stat.dosa   .label::before { background: var(--rose); box-shadow: 0 0 8px var(--rose); }
-  .stat.trx    .label::before { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
   .stat .value {
     font-family: 'Space Grotesk', sans-serif;
-    font-size: 31px; font-weight: 700;
+    font-size: 30px; font-weight: 700;
     margin-top: 8px;
-    font-variant-numeric: tabular-nums;
   }
-  .stat.pahala .value { color: var(--mint); text-shadow: 0 0 20px rgba(52,211,153,.5); }
-  .stat.dosa   .value { color: var(--rose); text-shadow: 0 0 20px rgba(251,113,133,.5); }
-  .stat.trx    .value { color: var(--cyan); text-shadow: 0 0 20px rgba(34,211,238,.5); }
+  .stat.pahala .value { color: var(--mint); text-shadow: 0 0 18px rgba(52,211,153,.45); }
+  .stat.dosa   .value { color: var(--rose); text-shadow: 0 0 18px rgba(251,113,133,.45); }
+  .stat.trx    .value { color: var(--cyan); text-shadow: 0 0 18px rgba(34,211,238,.45); }
 
   /* ===== Grid utama ===== */
   .main {
@@ -278,7 +237,15 @@
     margin-top: 16px;
     align-items: start;
   }
-  .card { padding: 24px; }
+
+  .card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    padding: 24px;
+  }
   .card h2 {
     font-family: 'Space Grotesk', sans-serif;
     font-size: 17px; font-weight: 600;
@@ -288,12 +255,7 @@
   .card h2 .bar {
     width: 4px; height: 18px; border-radius: 4px;
     background: linear-gradient(180deg, var(--violet), var(--cyan));
-    box-shadow: 0 0 12px var(--violet);
-    animation: bar-glow 2.6s ease-in-out infinite;
-  }
-  @keyframes bar-glow {
-    0%,100% { box-shadow: 0 0 8px var(--violet); }
-    50%     { box-shadow: 0 0 16px var(--cyan); }
+    box-shadow: 0 0 10px var(--violet);
   }
 
   /* ===== Form ===== */
@@ -312,19 +274,18 @@
     border: 1px solid var(--border-soft);
     border-radius: 14px;
     outline: none;
-    transition: border-color .25s, box-shadow .25s, transform .15s;
+    transition: border-color .2s, box-shadow .2s;
     -webkit-appearance: none;
     appearance: none;
   }
   select { cursor: pointer; }
-  select option { background: #12122a; color: var(--text); }
+  select option { background: #131328; color: var(--text); }
   select:focus, input:focus {
     border-color: var(--violet);
-    box-shadow: 0 0 0 3px rgba(139,92,246,.22), 0 0 18px rgba(139,92,246,.18);
-    transform: translateY(-1px);
+    box-shadow: 0 0 0 3px rgba(139,92,246,.22);
   }
 
-  /* Toggle Pahala / Dosa / Transfer */
+  /* Toggle Pahala / Dosa / Transfer — elemen signature */
   .toggle {
     position: relative;
     display: grid;
@@ -340,18 +301,18 @@
     width: calc((100% - 8px) / 3);
     border-radius: 11px;
     background: linear-gradient(135deg, var(--mint), var(--cyan));
-    box-shadow: 0 0 20px rgba(52,211,153,.55);
-    transition: transform .35s cubic-bezier(.34,1.4,.4,1), background .3s, box-shadow .3s;
+    box-shadow: 0 0 18px rgba(52,211,153,.5);
+    transition: transform .3s cubic-bezier(.4,0,.2,1), background .3s, box-shadow .3s;
   }
   .toggle.dosa .slider {
     transform: translateX(100%);
     background: linear-gradient(135deg, var(--rose), var(--pink));
-    box-shadow: 0 0 20px rgba(251,113,133,.55);
+    box-shadow: 0 0 18px rgba(251,113,133,.5);
   }
   .toggle.transfer .slider {
     transform: translateX(200%);
     background: linear-gradient(135deg, var(--violet), var(--cyan));
-    box-shadow: 0 0 20px rgba(139,92,246,.6);
+    box-shadow: 0 0 18px rgba(139,92,246,.55);
   }
   .toggle button {
     position: relative; z-index: 1;
@@ -359,23 +320,27 @@
     font: inherit; font-size: 13px; font-weight: 600;
     color: var(--muted);
     background: none; border: none; cursor: pointer;
-    transition: color .3s, transform .15s;
+    transition: color .3s;
     white-space: nowrap;
   }
-  .toggle button:active { transform: scale(.94); }
   .toggle button.active { color: #06121a; }
   .toggle.transfer button.active { color: #fff; }
 
+  /* Field tujuan transfer */
   .tujuan-field {
-    display: grid;
-    grid-template-rows: 0fr;
-    transition: grid-template-rows .35s cubic-bezier(.22,.9,.3,1);
+    display: none;
+    overflow: hidden;
   }
-  .tujuan-field > div { overflow: hidden; }
-  .tujuan-field.show { grid-template-rows: 1fr; }
+  .tujuan-field.show {
+    display: block;
+    animation: slideIn .3s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
 
   .submit-btn {
-    position: relative;
     width: 100%;
     margin-top: 22px;
     padding: 15px;
@@ -384,44 +349,13 @@
     letter-spacing: .4px;
     color: #fff;
     background: linear-gradient(135deg, var(--violet), var(--cyan));
-    background-size: 180% 180%;
     border: none; border-radius: 14px;
     cursor: pointer;
-    overflow: hidden;
-    box-shadow: 0 6px 28px rgba(139,92,246,.42);
-    transition: transform .15s, box-shadow .25s;
-    animation: grad-move 5s ease infinite;
+    box-shadow: 0 6px 26px rgba(139,92,246,.4);
+    transition: transform .15s, box-shadow .2s, opacity .2s;
   }
-  @keyframes grad-move {
-    0%,100% { background-position: 0% 50%; }
-    50%     { background-position: 100% 50%; }
-  }
-  .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 36px rgba(139,92,246,.6); }
-  .submit-btn:active { transform: translateY(0) scale(.985); }
-  .submit-btn:disabled { opacity: .55; cursor: wait; transform: none; }
-  .ripple {
-    position: absolute;
-    border-radius: 50%;
-    background: rgba(255,255,255,.45);
-    transform: scale(0);
-    animation: ripple .6s ease-out forwards;
-    pointer-events: none;
-  }
-  @keyframes ripple { to { transform: scale(3.2); opacity: 0; } }
-
-  /* Partikel sukses */
-  .particle {
-    position: fixed;
-    width: 7px; height: 7px;
-    border-radius: 2px;
-    z-index: 70;
-    pointer-events: none;
-    animation: burst .9s cubic-bezier(.2,.8,.4,1) forwards;
-  }
-  @keyframes burst {
-    from { transform: translate(0,0) rotate(0deg) scale(1); opacity: 1; }
-    to   { transform: translate(var(--dx), var(--dy)) rotate(540deg) scale(.3); opacity: 0; }
-  }
+  .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(139,92,246,.55); }
+  .submit-btn:disabled { opacity: .5; cursor: wait; transform: none; }
 
   /* ===== Tabs ===== */
   .tabs { display: flex; gap: 8px; margin-bottom: 18px; }
@@ -433,14 +367,13 @@
     border: 1px solid var(--border-soft);
     border-radius: 999px;
     cursor: pointer;
-    transition: all .25s;
+    transition: all .2s;
   }
-  .tab:hover { transform: translateY(-1px); color: var(--text); }
   .tab.active {
     color: var(--text);
     background: var(--glass-strong);
     border-color: var(--violet);
-    box-shadow: 0 0 16px rgba(139,92,246,.35), inset 0 0 12px rgba(139,92,246,.12);
+    box-shadow: 0 0 14px rgba(139,92,246,.3);
   }
 
   /* ===== Leaderboard ===== */
@@ -453,16 +386,12 @@
     border-radius: 15px;
     border: 1px solid transparent;
     cursor: pointer;
-    transition: background .2s, border-color .2s, transform .2s;
+    transition: background .2s, border-color .2s;
     user-select: none;
   }
-  .lb-row:hover {
-    background: rgba(255,255,255,.05);
-    border-color: var(--border-soft);
-    transform: translateX(3px);
-  }
+  .lb-row:hover { background: rgba(255,255,255,.045); border-color: var(--border-soft); }
   .lb-item.open .lb-row {
-    background: rgba(255,255,255,.06);
+    background: rgba(255,255,255,.055);
     border-color: var(--border);
   }
   .rank {
@@ -474,14 +403,15 @@
     background: rgba(255,255,255,.06);
     border: 1px solid var(--border-soft);
     color: var(--muted);
-    transition: transform .2s;
   }
-  .lb-row:hover .rank { transform: scale(1.1) rotate(-4deg); }
-  .lb-item:nth-child(1) .rank { background: linear-gradient(135deg,#facc15,#f59e0b); color:#1a1200; border:none; box-shadow: 0 0 16px rgba(250,204,21,.45); }
-  .lb-item:nth-child(2) .rank { background: linear-gradient(135deg,#e2e8f0,#94a3b8); color:#0f172a; border:none; }
-  .lb-item:nth-child(3) .rank { background: linear-gradient(135deg,#fdba74,#ea580c); color:#2a0e00; border:none; }
+  .lb-item:nth-child(1) .rank { background: linear-gradient(135deg,#facc15,#f59e0b); color:#1a1200; border: none; box-shadow: 0 0 14px rgba(250,204,21,.4); }
+  .lb-item:nth-child(2) .rank { background: linear-gradient(135deg,#e2e8f0,#94a3b8); color:#0f172a; border: none; }
+  .lb-item:nth-child(3) .rank { background: linear-gradient(135deg,#fdba74,#ea580c); color:#2a0e00; border: none; }
   .lb-name { font-weight: 600; font-size: 14.5px; display: flex; align-items: center; gap: 7px; }
-  .lb-name .chev { font-size: 10px; color: var(--muted); transition: transform .3s cubic-bezier(.34,1.4,.4,1); }
+  .lb-name .chev {
+    font-size: 10px; color: var(--muted);
+    transition: transform .25s;
+  }
   .lb-item.open .lb-name .chev { transform: rotate(180deg); }
   .lb-meter {
     height: 5px; border-radius: 5px;
@@ -491,38 +421,36 @@
   }
   .lb-meter i {
     display: block; height: 100%;
-    width: 0;
     border-radius: 5px;
     background: linear-gradient(90deg, var(--mint), var(--cyan));
-    box-shadow: 0 0 10px rgba(52,211,153,.65);
-    transition: width .9s cubic-bezier(.22,.9,.3,1);
+    box-shadow: 0 0 8px rgba(52,211,153,.6);
   }
   .lb-meter.neg i {
     background: linear-gradient(90deg, var(--rose), var(--pink));
-    box-shadow: 0 0 10px rgba(251,113,133,.65);
+    box-shadow: 0 0 8px rgba(251,113,133,.6);
   }
   .lb-saldo {
     font-family: 'Space Grotesk', sans-serif;
     font-weight: 700; font-size: 15px;
     text-align: right;
-    font-variant-numeric: tabular-nums;
   }
   .lb-saldo.pos { color: var(--mint); }
   .lb-saldo.neg { color: var(--rose); }
   .lb-sub { font-size: 11px; color: var(--muted); text-align: right; margin-top: 3px; }
 
+  /* Panel expand: 5 transaksi terakhir */
   .lb-expand {
     display: grid;
     grid-template-rows: 0fr;
-    transition: grid-template-rows .35s cubic-bezier(.22,.9,.3,1);
+    transition: grid-template-rows .3s ease;
   }
   .lb-item.open .lb-expand { grid-template-rows: 1fr; }
   .lb-expand > div { overflow: hidden; }
   .lb-expand-inner {
     margin: 4px 8px 10px 46px;
-    padding: 6px 4px 6px 14px;
-    border-left: 2px solid;
-    border-image: linear-gradient(180deg, var(--violet), var(--cyan)) 1;
+    padding: 6px 4px;
+    border-left: 2px solid var(--border);
+    padding-left: 14px;
   }
   .lb-expand-title {
     font-size: 11px; text-transform: uppercase;
@@ -536,16 +464,11 @@
     padding: 13px 14px;
     border-radius: 15px;
     border: 1px solid transparent;
-    transition: background .2s, border-color .2s, transform .2s;
-    animation: reveal .5s cubic-bezier(.22,.9,.3,1) backwards;
+    transition: background .2s, border-color .2s;
   }
-  .hx-row:hover {
-    background: rgba(255,255,255,.05);
-    border-color: var(--border-soft);
-    transform: translateX(3px);
-  }
-  .hx-row.mini { padding: 8px 4px; animation: none; }
-  .hx-row.mini:hover { background: none; border-color: transparent; transform: none; }
+  .hx-row:hover { background: rgba(255,255,255,.045); border-color: var(--border-soft); }
+  .hx-row.mini { padding: 8px 4px; }
+  .hx-row.mini:hover { background: none; border-color: transparent; }
   .hx-icon {
     flex: none;
     width: 36px; height: 36px;
@@ -567,7 +490,6 @@
     font-family: 'Space Grotesk', sans-serif;
     font-weight: 700; font-size: 14.5px;
     white-space: nowrap;
-    font-variant-numeric: tabular-nums;
   }
   .hx-row.mini .hx-nom { font-size: 13px; }
   .hx-nom.pahala { color: var(--mint); }
@@ -581,36 +503,105 @@
   }
   .empty.mini { padding: 12px 4px; text-align: left; font-size: 12.5px; }
 
+  /* ===== Modal leaderboard statistik ===== */
+  #statModal {
+    position: fixed; inset: 0;
+    display: grid; place-items: center;
+    padding: 20px;
+    background: rgba(7,7,20,.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 45;
+    opacity: 0; pointer-events: none;
+    transition: opacity .25s;
+  }
+  #statModal.show { opacity: 1; pointer-events: auto; }
+  .modal-card {
+    width: 100%; max-width: 420px;
+    background: rgba(19,19,40,.94);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 20px 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.6);
+  }
+  .modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .modal-head h3 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px; font-weight: 600;
+  }
+  .modal-close {
+    font: inherit; font-size: 14px;
+    width: 32px; height: 32px;
+    display: grid; place-items: center;
+    color: var(--muted);
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: color .2s, border-color .2s;
+  }
+  .modal-close:hover { color: var(--text); border-color: var(--border); }
+  .sm-row {
+    display: grid;
+    grid-template-columns: 34px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 6px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .sm-row:last-child { border-bottom: none; }
+  .sm-name { font-weight: 600; font-size: 14.5px; }
+  .sm-val {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 15px;
+  }
+  .sm-val.pahala  { color: var(--mint); }
+  .sm-val.dosa    { color: var(--rose); }
+  .sm-val.catatan { color: var(--cyan); }
+  .rank.r1 { background: linear-gradient(135deg,#facc15,#f59e0b); color:#1a1200; border: none; box-shadow: 0 0 14px rgba(250,204,21,.4); }
+  .rank.r2 { background: linear-gradient(135deg,#e2e8f0,#94a3b8); color:#0f172a; border: none; }
+  .rank.r3 { background: linear-gradient(135deg,#fdba74,#ea580c); color:#2a0e00; border: none; }
+  .modal-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 12px;
+  }
+  .modal-foot button {
+    font: inherit; font-size: 18px; line-height: 1;
+    width: 42px; height: 36px;
+    color: var(--text);
+    background: rgba(255,255,255,.06);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    cursor: pointer;
+  }
+  .modal-foot button:disabled { opacity: .35; cursor: default; }
+  .modal-foot span { font-size: 12.5px; color: var(--muted); }
+
   /* ===== Loading & toast ===== */
   #loader {
     position: fixed; inset: 0;
     display: grid; place-items: center;
     background: var(--bg);
     z-index: 50;
-    transition: opacity .5s;
+    transition: opacity .4s;
   }
   #loader.hide { opacity: 0; pointer-events: none; }
-  .loader-inner { text-align: center; }
   .spinner {
-    width: 52px; height: 52px;
-    margin: 0 auto 16px;
+    width: 46px; height: 46px;
     border-radius: 50%;
-    border: 3px solid rgba(255,255,255,.1);
+    border: 3px solid rgba(255,255,255,.12);
     border-top-color: var(--violet);
-    border-right-color: var(--cyan);
     animation: spin .8s linear infinite;
   }
-  .loader-inner p {
-    font-size: 13px; color: var(--muted);
-    animation: pulse-text 1.5s ease-in-out infinite;
-  }
   @keyframes spin { to { transform: rotate(360deg); } }
-  @keyframes pulse-text { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
 
   #toast {
     position: fixed;
     left: 50%; bottom: 28px;
-    transform: translate(-50%, 20px) scale(.95);
+    transform: translate(-50%, 20px);
     padding: 13px 22px;
     font-size: 14px; font-weight: 500;
     background: var(--glass-strong);
@@ -620,15 +611,15 @@
     -webkit-backdrop-filter: blur(20px);
     opacity: 0;
     pointer-events: none;
-    transition: opacity .3s, transform .35s cubic-bezier(.34,1.4,.4,1);
+    transition: opacity .3s, transform .3s;
     z-index: 60;
     max-width: 90vw;
   }
-  #toast.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
-  #toast.ok { border-color: rgba(52,211,153,.5); box-shadow: 0 0 26px rgba(52,211,153,.3); }
-  #toast.err { border-color: rgba(251,113,133,.5); box-shadow: 0 0 26px rgba(251,113,133,.3); }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+  #toast.ok { border-color: rgba(52,211,153,.5); box-shadow: 0 0 24px rgba(52,211,153,.25); }
+  #toast.err { border-color: rgba(251,113,133,.5); box-shadow: 0 0 24px rgba(251,113,133,.25); }
 
-  /* ===== Responsif & reduced motion ===== */
+  /* ===== Responsif ===== */
   @media (max-width: 900px) {
     .main { grid-template-columns: 1fr; }
     .stats { grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
@@ -641,33 +632,18 @@
     header { flex-direction: column; align-items: flex-start; }
     .toggle button { font-size: 12px; }
   }
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation: none !important;
-      transition: none !important;
-    }
-    .reveal, .hx-row { opacity: 1; transform: none; }
-    .lb-meter i { transition: none; }
-  }
 </style>
 </head>
 <body>
 
-<div class="bg-aurora"></div>
-<div class="bg-grid"></div>
-<div class="bg-noise"></div>
 <div class="orb orb-1"></div>
 <div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
 
-<div id="loader">
-  <div class="loader-inner">
-    <div class="spinner"></div>
-    <p>Memuat data amalan…</p>
-  </div>
-</div>
+<div id="loader"><div class="spinner"></div></div>
 
 <div class="wrap">
-  <header class="glass reveal" style="animation-delay:.05s">
+  <header>
     <div class="brand">
       <div class="logo">K</div>
       <div>
@@ -675,27 +651,33 @@
         <p>Pencatat pahala &amp; dosa</p>
       </div>
     </div>
-    <div class="live-dot">Tersinkron dengan Google Sheets</div>
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+      <button class="music-btn" id="themeBtn" type="button">☀️ Terang</button>
+      <button class="music-btn" id="musicBtn" type="button">
+        <span class="music-icon">🎵</span><span id="musicLabel">Putar musik</span>
+      </button>
+      <div class="live-dot">Tercatat secara real-time di Buku Amal</div>
+    </div>
   </header>
 
   <section class="stats">
-    <div class="stat glass pahala reveal" style="animation-delay:.12s">
+    <div class="stat pahala" data-metric="pahala" role="button">
       <div class="label">Total Pahala</div>
-      <div class="value" id="statPahala" data-v="0">0</div>
+      <div class="value" id="statPahala">0</div>
     </div>
-    <div class="stat glass dosa reveal" style="animation-delay:.19s">
+    <div class="stat dosa" data-metric="dosa" role="button">
       <div class="label">Total Dosa</div>
-      <div class="value" id="statDosa" data-v="0">0</div>
+      <div class="value" id="statDosa">0</div>
     </div>
-    <div class="stat glass trx reveal" style="animation-delay:.26s">
+    <div class="stat trx" data-metric="catatan" role="button">
       <div class="label">Total Catatan</div>
-      <div class="value" id="statTrx" data-v="0">0</div>
+      <div class="value" id="statTrx">0</div>
     </div>
   </section>
 
   <div class="main">
     <!-- ===== Form input ===== -->
-    <div class="card glass reveal" style="animation-delay:.33s">
+    <div class="card">
       <h2><span class="bar"></span>Catat Amalan</h2>
 
       <label for="nama">Nama</label>
@@ -711,12 +693,12 @@
         <button type="button" data-tipe="Transfer">💸 Transfer</button>
       </div>
 
-      <div class="tujuan-field" id="tujuanField"><div>
+      <div class="tujuan-field" id="tujuanField">
         <label for="tujuan">Transfer pahala ke</label>
         <select id="tujuan">
           <option value="">Pilih nama tujuan…</option>
         </select>
-      </div></div>
+      </div>
 
       <label for="nominal">Nominal</label>
       <input type="text" id="nominal" inputmode="numeric" autocomplete="off" placeholder="Contoh: 5.000">
@@ -728,7 +710,7 @@
     </div>
 
     <!-- ===== Leaderboard & riwayat ===== -->
-    <div class="card glass reveal" style="animation-delay:.4s">
+    <div class="card">
       <div class="tabs">
         <button class="tab active" data-view="leaderboard">🏆 Leaderboard</button>
         <button class="tab" data-view="riwayat">🕐 Riwayat</button>
@@ -739,64 +721,33 @@
   </div>
 </div>
 
+<div id="statModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3 id="modalTitle"></h3>
+      <button class="modal-close" id="modalClose" type="button">✕</button>
+    </div>
+    <div id="modalList"></div>
+    <div class="modal-foot">
+      <button id="modalPrev" type="button">‹</button>
+      <span id="modalPage"></span>
+      <button id="modalNext" type="button">›</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
   let tipeTerpilih = 'Pahala';
   let dataLeaderboard = [];
-  let expandTerbuka = null;
-  const motionOk = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let dataHistory = [];
+  let expandTerbuka = null; // nama yang sedang di-expand
 
   const $ = id => document.getElementById(id);
   const fmt = n => new Intl.NumberFormat('id-ID').format(n);
   const esc = s => String(s).replace(/[&<>"']/g, c =>
     ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-  /* ---- Spotlight: kursor menggerakkan cahaya di kartu ---- */
-  document.addEventListener('pointermove', e => {
-    document.querySelectorAll('.glass').forEach(el => {
-      const r = el.getBoundingClientRect();
-      if (e.clientX >= r.left && e.clientX <= r.right &&
-          e.clientY >= r.top && e.clientY <= r.bottom) {
-        el.style.setProperty('--mx', (e.clientX - r.left) + 'px');
-        el.style.setProperty('--my', (e.clientY - r.top) + 'px');
-      }
-    });
-  }, { passive: true });
-
-  /* ---- Tilt 3D pada kartu statistik ---- */
-  if (motionOk) {
-    document.querySelectorAll('.stat').forEach(card => {
-      card.addEventListener('pointermove', e => {
-        const r = card.getBoundingClientRect();
-        const x = (e.clientX - r.left) / r.width - .5;
-        const y = (e.clientY - r.top) / r.height - .5;
-        card.style.transform =
-          `rotateY(${x * 8}deg) rotateX(${-y * 8}deg) translateY(-2px)`;
-      });
-      card.addEventListener('pointerleave', () => {
-        card.style.transform = '';
-      });
-    });
-  }
-
-  /* ---- Count-up angka statistik ---- */
-  function countUp(el, target) {
-    const from = Number(el.dataset.v) || 0;
-    el.dataset.v = target;
-    if (!motionOk || from === target) {
-      el.textContent = fmt(target);
-      return;
-    }
-    const dur = 700;
-    const t0 = performance.now();
-    (function tick(t) {
-      const p = Math.min((t - t0) / dur, 1);
-      const ease = 1 - Math.pow(1 - p, 3);
-      el.textContent = fmt(Math.round(from + (target - from) * ease));
-      if (p < 1) requestAnimationFrame(tick);
-    })(t0);
-  }
 
   /* ---- Nominal: separator ribuan "." saat mengetik ---- */
   const nominalInput = $('nominal');
@@ -805,6 +756,7 @@
   nominalInput.addEventListener('input', () => {
     const digits = nominalInput.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
     nominalInput.value = digits ? Number(digits).toLocaleString('id-ID') : '';
+    // Kursor selalu di akhir setelah format ulang
     nominalInput.setSelectionRange(nominalInput.value.length, nominalInput.value.length);
   });
 
@@ -820,6 +772,77 @@
       $('tujuanField').classList.toggle('show', tipeTerpilih === 'Transfer');
     });
   });
+
+  /* ---- Musik latar: LISA - MONEY (YouTube IFrame Player API) ----
+     Player disembunyikan di luar layar; play/pause dipanggil lewat API
+     (player.playVideo()) langsung dari handler klik tombol musik. Gesture
+     di tombol itulah yang jadi izin autoplay-bersuara di mobile, jadi
+     user tidak perlu tap di dalam frame YouTube (yang di HP malah
+     membuka app YouTube). Player dibuat sekali saat halaman dimuat,
+     lalu di-toggle play/pause — bukan dibuat/dihapus tiap klik. */
+  const MUSIC_VIDEO_ID = 'dNCWe_6HAM8'; // LISA - 'MONEY' Exclusive Performance Video (channel resmi)
+  const musicBtn = $('musicBtn');
+  let ytPlayer = null;
+  let ytReady = false;
+  let musicPlaying = false;
+
+  const ytApiTag = document.createElement('script');
+  ytApiTag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(ytApiTag);
+
+  window.onYouTubeIframeAPIReady = () => {
+    const dock = document.createElement('div');
+    dock.id = 'musicDock';
+    dock.innerHTML = '<div id="ytPlayer"></div>';
+    document.body.appendChild(dock);
+    ytPlayer = new YT.Player('ytPlayer', {
+      videoId: MUSIC_VIDEO_ID,
+      playerVars: {
+        playsinline: 1, loop: 1, playlist: MUSIC_VIDEO_ID,
+        controls: 0, disablekb: 1, rel: 0, iv_load_policy: 3, fs: 0
+      },
+      events: {
+        onReady: () => { ytReady = true; },
+        onStateChange: (e) => {
+          // Sinkronkan tombol kalau player berhenti sendiri (error/buffering gagal).
+          if (e.data === YT.PlayerState.PLAYING) setMusicUi_(true);
+          else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED) setMusicUi_(false);
+        }
+      }
+    });
+  };
+
+  function setMusicUi_(playing) {
+    musicPlaying = playing;
+    musicBtn.classList.toggle('playing', playing);
+    $('musicLabel').textContent = playing ? 'Musik: MONEY — LISA' : 'Putar musik';
+  }
+
+  musicBtn.addEventListener('click', () => {
+    if (!ytReady) { toast('Musik masih dimuat, coba lagi sebentar…', 'err'); return; }
+    if (musicPlaying) {
+      ytPlayer.pauseVideo();
+      setMusicUi_(false);
+    } else {
+      ytPlayer.unMute();
+      ytPlayer.playVideo();
+      setMusicUi_(true);
+    }
+  });
+
+  /* ---- Tema terang/gelap (default gelap; tersimpan di localStorage) ----
+     Label tombol menunjukkan tema TUJUAN, bukan tema aktif. */
+  const themeBtn = $('themeBtn');
+  function setTheme_(light) {
+    document.body.classList.toggle('light', light);
+    themeBtn.textContent = light ? '🌙 Gelap' : '☀️ Terang';
+    try { localStorage.setItem('kodomoTheme', light ? 'light' : 'dark'); } catch (e) {}
+  }
+  let temaTersimpan = null;
+  try { temaTersimpan = localStorage.getItem('kodomoTheme'); } catch (e) {}
+  setTheme_(temaTersimpan === 'light');
+  themeBtn.addEventListener('click', () =>
+    setTheme_(!document.body.classList.contains('light')));
 
   /* ---- Tabs ---- */
   document.querySelectorAll('.tab').forEach(tab => {
@@ -843,47 +866,11 @@
     toastTimer = setTimeout(() => el.className = '', 3200);
   }
 
-  /* ---- Ripple pada tombol simpan ---- */
-  $('submitBtn').addEventListener('pointerdown', function (e) {
-    if (!motionOk) return;
-    const r = this.getBoundingClientRect();
-    const rip = document.createElement('span');
-    const size = Math.max(r.width, r.height);
-    rip.className = 'ripple';
-    rip.style.width = rip.style.height = size + 'px';
-    rip.style.left = (e.clientX - r.left - size / 2) + 'px';
-    rip.style.top = (e.clientY - r.top - size / 2) + 'px';
-    this.appendChild(rip);
-    setTimeout(() => rip.remove(), 650);
-  });
-
-  /* ---- Partikel saat sukses simpan ---- */
-  function burstParticles() {
-    if (!motionOk) return;
-    const btn = $('submitBtn');
-    const r = btn.getBoundingClientRect();
-    const colors = ['#8b5cf6', '#22d3ee', '#f472b6', '#34d399', '#facc15'];
-    for (let i = 0; i < 18; i++) {
-      const p = document.createElement('span');
-      p.className = 'particle';
-      p.style.left = (r.left + r.width / 2) + 'px';
-      p.style.top = (r.top + r.height / 2) + 'px';
-      p.style.background = colors[i % colors.length];
-      const ang = (Math.PI * 2 * i) / 18 + Math.random() * .5;
-      const dist = 60 + Math.random() * 70;
-      p.style.setProperty('--dx', Math.cos(ang) * dist + 'px');
-      p.style.setProperty('--dy', (Math.sin(ang) * dist - 30) + 'px');
-      document.body.appendChild(p);
-      setTimeout(() => p.remove(), 950);
-    }
-  }
-
-  /* ---- Baris riwayat (utama & expand) ---- */
-  function hxRowHtml(h, mini, delayIdx) {
+  /* ---- Baris riwayat (dipakai riwayat utama & expand) ---- */
+  function hxRowHtml(h, mini) {
     const isDosa = h.tipe === 'Dosa';
-    const delay = !mini && motionOk ? ` style="animation-delay:${Math.min(delayIdx * 40, 400)}ms"` : '';
     return `
-    <div class="hx-row${mini ? ' mini' : ''}"${delay}>
+    <div class="hx-row${mini ? ' mini' : ''}">
       <div class="hx-icon ${isDosa ? 'dosa' : 'pahala'}">${isDosa ? '🔥' : '✨'}</div>
       <div class="hx-main">
         <div class="hx-title">${mini ? esc(h.tipe) : esc(h.nama)}</div>
@@ -894,7 +881,7 @@
     </div>`;
   }
 
-  /* ---- Render leaderboard (dengan expand & meter beranimasi) ---- */
+  /* ---- Render leaderboard (dengan expand) ---- */
   function renderLeaderboard() {
     const lb = $('viewLeaderboard');
     if (!dataLeaderboard.length) {
@@ -915,7 +902,7 @@
           <div class="rank">${i + 1}</div>
           <div>
             <div class="lb-name">${esc(o.nama)} <span class="chev">▼</span></div>
-            <div class="lb-meter${neg ? ' neg' : ''}"><i data-w="${pct}"></i></div>
+            <div class="lb-meter${neg ? ' neg' : ''}"><i style="width:${pct}%"></i></div>
           </div>
           <div>
             <div class="lb-saldo ${neg ? 'neg' : 'pos'}">${neg ? '−' : '+'}${fmt(Math.abs(o.saldo))}</div>
@@ -931,13 +918,6 @@
       </div>`;
     }).join('');
 
-    // Animasikan meter dari 0 → nilai
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      lb.querySelectorAll('.lb-meter i').forEach(bar => {
-        bar.style.width = bar.dataset.w + '%';
-      });
-    }));
-
     // Klik baris → expand / tutup
     lb.querySelectorAll('.lb-item').forEach(item => {
       item.querySelector('.lb-row').addEventListener('click', () => {
@@ -949,12 +929,90 @@
     });
   }
 
+  /* ---- Modal leaderboard per statistik (klik kartu Total ...) ---- */
+  const statMeta = {
+    pahala:  { title: '✨ Leaderboard Pahala' },
+    dosa:    { title: '🔥 Leaderboard Dosa' },
+    catatan: { title: '🕐 Riwayat Catatan' }
+  };
+  const PER_SLIDE = 5;
+  let modalMetric = null;
+  let modalPage = 0;
+
+  // Leaderboard pahala/dosa dihitung dari SELISIH (saldo = pahala − dosa):
+  // saldo positif masuk leaderboard pahala, saldo negatif masuk leaderboard
+  // dosa (nilai yang tampil = besar selisihnya). Saldo 0 tidak masuk keduanya.
+  const nilaiMetric_ = o => modalMetric === 'pahala' ? o.saldo : -o.saldo;
+
+  document.querySelectorAll('.stat').forEach(card => {
+    card.addEventListener('click', () => {
+      modalMetric = card.dataset.metric;
+      modalPage = 0;
+      renderStatModal();
+      $('statModal').classList.add('show');
+    });
+  });
+
+  function renderStatModal() {
+    if (!modalMetric) return;
+    const isRiwayat = modalMetric === 'catatan';
+    const list = isRiwayat
+      ? dataHistory // sudah terurut terbaru dulu dari server
+      : dataLeaderboard
+          .filter(o => nilaiMetric_(o) > 0)
+          .sort((a, b) => nilaiMetric_(b) - nilaiMetric_(a));
+    const pages = Math.max(1, Math.ceil(list.length / PER_SLIDE));
+    if (modalPage > pages - 1) modalPage = pages - 1;
+    const slice = list.slice(modalPage * PER_SLIDE, modalPage * PER_SLIDE + PER_SLIDE);
+
+    $('modalTitle').textContent = statMeta[modalMetric].title;
+    $('modalList').innerHTML = !slice.length
+      ? '<div class="empty">Belum ada data.</div>'
+      : isRiwayat
+        ? slice.map(h => hxRowHtml(h, false)).join('')
+        : slice.map((o, i) => {
+            const rank = modalPage * PER_SLIDE + i + 1;
+            return `
+            <div class="sm-row">
+              <div class="rank${rank <= 3 ? ' r' + rank : ''}">${rank}</div>
+              <div class="sm-name">${esc(o.nama)}</div>
+              <div class="sm-val ${modalMetric}">${fmt(nilaiMetric_(o))}</div>
+            </div>`;
+          }).join('');
+    $('modalPage').textContent = (modalPage + 1) + ' / ' + pages;
+    $('modalPrev').disabled = modalPage === 0;
+    $('modalNext').disabled = modalPage >= pages - 1;
+  }
+
+  $('modalPrev').addEventListener('click', () => {
+    if (modalPage > 0) { modalPage--; renderStatModal(); }
+  });
+  $('modalNext').addEventListener('click', () => {
+    modalPage++; renderStatModal();
+  });
+  $('modalClose').addEventListener('click', () => $('statModal').classList.remove('show'));
+  $('statModal').addEventListener('click', e => {
+    if (e.target === $('statModal')) $('statModal').classList.remove('show');
+  });
+
+  // Geser kiri/kanan di HP untuk pindah slide
+  let touchX = null;
+  $('statModal').addEventListener('touchstart', e => { touchX = e.touches[0].clientX; }, { passive: true });
+  $('statModal').addEventListener('touchend', e => {
+    if (touchX == null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    touchX = null;
+    if (dx < -40 && !$('modalNext').disabled) { modalPage++; renderStatModal(); }
+    else if (dx > 40 && modalPage > 0) { modalPage--; renderStatModal(); }
+  }, { passive: true });
+
   /* ---- Render keseluruhan ---- */
   function render(data) {
-    countUp($('statPahala'), data.totalPahala);
-    countUp($('statDosa'), data.totalDosa);
-    countUp($('statTrx'), data.totalTransaksi);
+    $('statPahala').textContent = fmt(data.totalPahala);
+    $('statDosa').textContent = fmt(data.totalDosa);
+    $('statTrx').textContent = fmt(data.totalTransaksi);
 
+    // Dropdown nama & tujuan (pertahankan pilihan)
     const opts = '<option value="">Pilih nama…</option>' +
       data.anggota.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
     [['nama', opts], ['tujuan', opts.replace('Pilih nama…', 'Pilih nama tujuan…')]]
@@ -966,11 +1024,16 @@
       });
 
     dataLeaderboard = data.leaderboard;
+    dataHistory = data.history;
     renderLeaderboard();
 
+    // Kalau modal leaderboard sedang terbuka, segarkan isinya juga
+    if ($('statModal').classList.contains('show')) renderStatModal();
+
+    // Riwayat
     const hx = $('viewRiwayat');
     hx.innerHTML = data.history.length
-      ? data.history.map((h, i) => hxRowHtml(h, false, i)).join('')
+      ? data.history.map(h => hxRowHtml(h, false)).join('')
       : '<div class="empty">Riwayat masih kosong.</div>';
   }
 
@@ -994,7 +1057,6 @@
     google.script.run
       .withSuccessHandler(data => {
         render(data);
-        burstParticles();
         toast(tipeTerpilih === 'Transfer'
           ? `Transfer pahala ${fmt(nominal)} dari ${nama} ke ${tujuan} tersimpan ✓`
           : `${tipeTerpilih} ${fmt(nominal)} untuk ${nama} tersimpan ✓`, 'ok');
