@@ -580,6 +580,46 @@
   .modal-foot button:disabled { opacity: .35; cursor: default; }
   .modal-foot span { font-size: 12.5px; color: var(--muted); }
 
+  /* ===== Trail kursor & hujan uang ===== */
+  .cursor-dot {
+    position: fixed;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(139,92,246,.9), rgba(34,211,238,.4));
+    box-shadow: 0 0 10px rgba(139,92,246,.7);
+    pointer-events: none;
+    z-index: 65;
+    animation: dot-fade .6s ease-out forwards;
+  }
+  @keyframes dot-fade {
+    from { opacity: .9; transform: scale(1); }
+    to   { opacity: 0; transform: scale(.2); }
+  }
+  .money {
+    position: fixed;
+    font-size: 22px;
+    pointer-events: none;
+    z-index: 70;
+    animation: money-fly .95s cubic-bezier(.2,.7,.4,1) forwards;
+  }
+  @keyframes money-fly {
+    0%   { transform: translate(0, 0) rotate(0deg) scale(.6); opacity: 1; }
+    60%  { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(1.1); opacity: 1; }
+    100% { transform: translate(calc(var(--dx) * 1.2), calc(var(--dy) + 90px)) rotate(calc(var(--rot) * 1.6)) scale(.9); opacity: 0; }
+  }
+  .sound-btn {
+    display: grid; place-items: center;
+    width: 38px; height: 38px;
+    font-size: 16px;
+    background: var(--glass);
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: transform .15s, border-color .2s;
+  }
+  .sound-btn:hover { transform: scale(1.08); border-color: var(--violet); }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+
   /* ===== Loading & toast ===== */
   #loader {
     position: fixed; inset: 0;
@@ -656,7 +696,10 @@
       <button class="music-btn" id="musicBtn" type="button">
         <span class="music-icon">🎵</span><span id="musicLabel">Putar musik</span>
       </button>
-      <div class="live-dot">Tercatat secara real-time di Buku Amal</div>
+      <div class="header-right">
+        <div class="live-dot">Tercatat secara real-time di Buku Amal</div>
+        <button type="button" class="sound-btn" id="soundBtn" title="Suara efek">🔊</button>
+      </div>
     </div>
   </header>
 
@@ -1077,6 +1120,76 @@
         nominal: nominal,
         keterangan: $('keterangan').value
       });
+  });
+
+  /* ---- Efek: trail kursor, hujan uang, suara koin ---- */
+  const motionOK = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let soundOn = true;
+
+  $('soundBtn').addEventListener('click', e => {
+    e.stopPropagation();
+    soundOn = !soundOn;
+    $('soundBtn').textContent = soundOn ? '🔊' : '🔇';
+  });
+
+  // Suara koin disintesis via WebAudio — tanpa file eksternal
+  let audioCtx = null;
+  function playCoin() {
+    if (!soundOn) return;
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const t = audioCtx.currentTime;
+      [[987.77, 0], [1318.5, 0.08]].forEach(([freq, delay]) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, t + delay);
+        gain.gain.exponentialRampToValueAtTime(0.12, t + delay + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + delay + 0.3);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(t + delay);
+        osc.stop(t + delay + 0.32);
+      });
+    } catch (e) { /* audio tidak didukung — abaikan */ }
+  }
+
+  // Trail kursor: titik cahaya mengikuti pointer (throttled)
+  let lastTrail = 0;
+  document.addEventListener('pointermove', e => {
+    if (!motionOK) return;
+    const now = performance.now();
+    if (now - lastTrail < 28) return;
+    lastTrail = now;
+    const dot = document.createElement('span');
+    dot.className = 'cursor-dot';
+    dot.style.left = (e.clientX - 4) + 'px';
+    dot.style.top = (e.clientY - 4) + 'px';
+    document.body.appendChild(dot);
+    setTimeout(() => dot.remove(), 620);
+  }, { passive: true });
+
+  // Hujan uang di titik klik/tap
+  const MONEY = ['💸', '💰', '🪙', '💵'];
+  document.addEventListener('click', e => {
+    playCoin();
+    if (!motionOK) return;
+    const count = 8;
+    for (let i = 0; i < count; i++) {
+      const m = document.createElement('span');
+      m.className = 'money';
+      m.textContent = MONEY[Math.floor(Math.random() * MONEY.length)];
+      m.style.left = (e.clientX - 11) + 'px';
+      m.style.top = (e.clientY - 11) + 'px';
+      const ang = (Math.PI * 2 * i) / count + (Math.random() - .5);
+      const dist = 55 + Math.random() * 65;
+      m.style.setProperty('--dx', Math.cos(ang) * dist + 'px');
+      m.style.setProperty('--dy', (Math.sin(ang) * dist - 45) + 'px');
+      m.style.setProperty('--rot', (Math.random() * 360 - 180) + 'deg');
+      document.body.appendChild(m);
+      setTimeout(() => m.remove(), 1000);
+    }
   });
 
   /* ---- Muat awal ---- */
