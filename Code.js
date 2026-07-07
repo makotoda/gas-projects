@@ -1,6 +1,7 @@
 /**
  * KODOMO — Aplikasi Pencatat Amalan (Pahala & Dosa)
  * Google Apps Script Web App — v2
+ * (Tes push dari Claude iPhone via GitHub Actions — 08 Jul 2026)
  *
  * Fitur baru v2:
  * - Transfer pahala (otomatis membuat 2 transaksi: Dosa pengirim + Pahala penerima)
