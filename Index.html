@@ -379,7 +379,7 @@
   /* ===== Leaderboard ===== */
   .lb-row {
     display: grid;
-    grid-template-columns: 34px 1fr auto;
+    grid-template-columns: 34px 34px 1fr auto;
     align-items: center;
     gap: 12px;
     padding: 12px 14px;
@@ -407,6 +407,25 @@
   .lb-item:nth-child(1) .rank { background: linear-gradient(135deg,#facc15,#f59e0b); color:#1a1200; border: none; box-shadow: 0 0 14px rgba(250,204,21,.4); }
   .lb-item:nth-child(2) .rank { background: linear-gradient(135deg,#e2e8f0,#94a3b8); color:#0f172a; border: none; }
   .lb-item:nth-child(3) .rank { background: linear-gradient(135deg,#fdba74,#ea580c); color:#2a0e00; border: none; }
+  /* Avatar: foto profil dari kolom Foto sheet Anggota; kalau gambar gagal
+     dimuat (link bukan gambar / tidak publik), <img> dihapus via onerror dan
+     inisial di belakangnya yang tampil. */
+  .lb-ava {
+    position: relative;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: grid; place-items: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 14px;
+    color: #fff;
+    background: linear-gradient(135deg, var(--violet), var(--cyan));
+  }
+  .lb-ava img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
   .lb-name { font-weight: 600; font-size: 14.5px; display: flex; align-items: center; gap: 7px; }
   .lb-name .chev {
     font-size: 10px; color: var(--muted);
@@ -447,7 +466,7 @@
   .lb-item.open .lb-expand { grid-template-rows: 1fr; }
   .lb-expand > div { overflow: hidden; }
   .lb-expand-inner {
-    margin: 4px 8px 10px 46px;
+    margin: 4px 8px 10px 92px;
     padding: 6px 4px;
     border-left: 2px solid var(--border);
     padding-left: 14px;
@@ -546,7 +565,7 @@
   .modal-close:hover { color: var(--text); border-color: var(--border); }
   .sm-row {
     display: grid;
-    grid-template-columns: 34px 1fr auto;
+    grid-template-columns: 34px 34px 1fr auto;
     align-items: center;
     gap: 12px;
     padding: 10px 6px;
@@ -924,6 +943,13 @@
     </div>`;
   }
 
+  /* ---- Avatar (dipakai leaderboard utama & modal statistik) ---- */
+  function avaHtml(o) {
+    return `<div class="lb-ava">${o.foto
+      ? `<img src="${esc(o.foto)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
+      : ''}<span>${esc(o.nama.trim().charAt(0).toUpperCase())}</span></div>`;
+  }
+
   /* ---- Render leaderboard (dengan expand) ---- */
   function renderLeaderboard() {
     const lb = $('viewLeaderboard');
@@ -943,6 +969,7 @@
       <div class="lb-item${open ? ' open' : ''}" data-nama="${esc(o.nama)}">
         <div class="lb-row">
           <div class="rank">${i + 1}</div>
+          ${avaHtml(o)}
           <div>
             <div class="lb-name">${esc(o.nama)} <span class="chev">▼</span></div>
             <div class="lb-meter${neg ? ' neg' : ''}"><i style="width:${pct}%"></i></div>
@@ -1018,6 +1045,7 @@
             return `
             <div class="sm-row">
               <div class="rank${rank <= 3 ? ' r' + rank : ''}">${rank}</div>
+              ${avaHtml(o)}
               <div class="sm-name">${esc(o.nama)}</div>
               <div class="sm-val ${modalMetric}">${fmt(nilaiMetric_(o))}</div>
             </div>`;
@@ -1104,7 +1132,8 @@
           ? `Transfer pahala ${fmt(nominal)} dari ${nama} ke ${tujuan} tersimpan ✓`
           : `${tipeTerpilih} ${fmt(nominal)} untuk ${nama} tersimpan ✓`, 'ok');
         nominalInput.value = '';
-        $('keterangan').value = '';
+        // Keterangan sengaja TIDAK dikosongkan — biar bisa dipakai lagi
+        // untuk catatan berikutnya yang serupa.
         btn.disabled = false;
         btn.textContent = 'Simpan catatan';
       })
