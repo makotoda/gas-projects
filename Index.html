@@ -129,7 +129,9 @@
     font-weight: 700; font-size: 22px;
     background: linear-gradient(135deg, var(--violet), var(--cyan));
     box-shadow: 0 0 24px rgba(139, 92, 246, .5);
+    overflow: hidden;
   }
+  .logo canvas { width: 100%; height: 100%; display: block; }
   .brand h1 {
     font-family: 'Space Grotesk', sans-serif;
     font-size: 22px; font-weight: 700;
@@ -657,6 +659,10 @@
   }
   body.light #loader.overlay { background: rgba(238, 240, 248, .6); }
   .loader-box { display: grid; place-items: center; gap: 18px; }
+  /* Slot logo 3D di loader: menggantikan logo "K" + spinner kalau Three.js siap */
+  #loaderLogo { width: min(240px, 65vw); height: min(240px, 65vw); display: none; }
+  #loader.logo3d #loaderLogo { display: block; }
+  #loader.logo3d .loader-logo, #loader.logo3d .spinner { display: none; }
   .loader-logo {
     width: 64px; height: 64px;
     border-radius: 20px;
@@ -720,6 +726,7 @@
 
 <div id="loader">
   <div class="loader-box">
+    <div id="loaderLogo"></div>
     <div class="logo loader-logo">K</div>
     <div class="spinner"></div>
   </div>
@@ -728,7 +735,7 @@
 <div class="wrap">
   <header>
     <div class="brand">
-      <div class="logo">K</div>
+      <div class="logo" id="logoSlot">K</div>
       <div>
         <h1>Kodomo</h1>
         <p>Pencatat pahala &amp; dosa</p>
@@ -834,6 +841,27 @@
   const fmt = n => new Intl.NumberFormat('id-ID').format(n);
   const esc = s => String(s).replace(/[&<>"']/g, c =>
     ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  /* ---- Efek angka berjalan (count-up) ----
+     Setiap angka dianimasikan dari nilai render sebelumnya (atau 0 saat
+     muat pertama) ke nilai baru, di-key per elemen supaya render ulang
+     tidak mengulang animasi kalau nilainya tidak berubah. */
+  const angkaSebelum = new Map();
+  function animasiAngka(el, ke, kunci, awalan) {
+    if (!el) return;
+    const dari = angkaSebelum.has(kunci) ? angkaSebelum.get(kunci) : 0;
+    angkaSebelum.set(kunci, ke);
+    const pre = awalan || '';
+    if (dari === ke) { el.textContent = pre + fmt(ke); return; }
+    const t0 = performance.now(), durasi = 900;
+    function tick(now) {
+      const p = Math.min(1, (now - t0) / durasi);
+      const e = 1 - Math.pow(1 - p, 3); // ease-out cubic
+      el.textContent = pre + fmt(Math.round(dari + (ke - dari) * e));
+      if (p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
 
   /* ---- Nominal: separator ribuan "." saat mengetik ---- */
   const nominalInput = $('nominal');
@@ -999,8 +1027,8 @@
             <div class="lb-meter${neg ? ' neg' : ''}"><i style="width:${pct}%"></i></div>
           </div>
           <div>
-            <div class="lb-saldo ${neg ? 'neg' : 'pos'}">${neg ? '−' : '+'}${fmt(Math.abs(o.saldo))}</div>
-            <div class="lb-sub">✨ ${fmt(o.pahala)} · 🔥 ${fmt(o.dosa)}</div>
+            <div class="lb-saldo ${neg ? 'neg' : 'pos'}" data-angka="saldo">${neg ? '−' : '+'}${fmt(Math.abs(o.saldo))}</div>
+            <div class="lb-sub">✨ <span data-angka="pahala">${fmt(o.pahala)}</span> · 🔥 <span data-angka="dosa">${fmt(o.dosa)}</span></div>
           </div>
         </div>
         <div class="lb-expand"><div>
@@ -1020,6 +1048,16 @@
         lb.querySelectorAll('.lb-item').forEach(it =>
           it.classList.toggle('open', it.dataset.nama === expandTerbuka));
       });
+    });
+
+    // Angka berjalan untuk saldo & rincian pahala/dosa tiap baris
+    lb.querySelectorAll('.lb-item').forEach(item => {
+      const o = dataLeaderboard.find(x => x.nama === item.dataset.nama);
+      if (!o) return;
+      animasiAngka(item.querySelector('[data-angka="saldo"]'), Math.abs(o.saldo),
+        'lb:' + o.nama + ':saldo', o.saldo < 0 ? '−' : '+');
+      animasiAngka(item.querySelector('[data-angka="pahala"]'), o.pahala, 'lb:' + o.nama + ':pahala');
+      animasiAngka(item.querySelector('[data-angka="dosa"]'), o.dosa, 'lb:' + o.nama + ':dosa');
     });
   }
 
@@ -1074,6 +1112,11 @@
               <div class="sm-val ${modalMetric}">${fmt(nilaiMetric_(o))}</div>
             </div>`;
           }).join('');
+    if (!isRiwayat && slice.length) {
+      const els = $('modalList').querySelectorAll('.sm-val');
+      slice.forEach((o, i) =>
+        animasiAngka(els[i], nilaiMetric_(o), 'modal:' + modalMetric + ':' + o.nama));
+    }
     $('modalPage').textContent = (modalPage + 1) + ' / ' + pages;
     $('modalPrev').disabled = modalPage === 0;
     $('modalNext').disabled = modalPage >= pages - 1;
@@ -1103,9 +1146,9 @@
 
   /* ---- Render keseluruhan ---- */
   function render(data) {
-    $('statPahala').textContent = fmt(data.totalPahala);
-    $('statDosa').textContent = fmt(data.totalDosa);
-    $('statTrx').textContent = fmt(data.totalTransaksi);
+    animasiAngka($('statPahala'), data.totalPahala, 'stat:pahala');
+    animasiAngka($('statDosa'), data.totalDosa, 'stat:dosa');
+    animasiAngka($('statTrx'), data.totalTransaksi, 'stat:trx');
 
     // Dropdown nama & tujuan (pertahankan pilihan)
     const opts = '<option value="">Pilih nama…</option>' +
@@ -1148,8 +1191,13 @@
     const btn = $('submitBtn');
     btn.disabled = true;
     btn.textContent = 'Menyimpan…';
-    // Loading overlay dengan logo animasi selama menyimpan
+    // Loading overlay dengan logo animasi selama menyimpan; kalau Three.js
+    // siap, logo 3D dipindah ke slot loader (menggantikan K + spinner)
     const loader = $('loader');
+    if (window.KodomoLogo3D) {
+      loader.classList.add('logo3d');
+      window.KodomoLogo3D.pasang($('loaderLogo'));
+    }
     loader.classList.add('overlay');
     loader.classList.remove('hide');
 
@@ -1157,6 +1205,7 @@
       .withSuccessHandler(data => {
         render(data);
         loader.classList.add('hide');
+        if (window.KodomoLogo3D) window.KodomoLogo3D.keHeader();
         toast(tipeTerpilih === 'Transfer'
           ? `Transfer pahala ${fmt(nominal)} dari ${nama} ke ${tujuan} tersimpan ✓`
           : `${tipeTerpilih} ${fmt(nominal)} untuk ${nama} tersimpan ✓`, 'ok');
@@ -1172,6 +1221,7 @@
       })
       .withFailureHandler(err => {
         loader.classList.add('hide');
+        if (window.KodomoLogo3D) window.KodomoLogo3D.keHeader();
         toast(err.message || 'Gagal menyimpan. Coba lagi.', 'err');
         btn.disabled = false;
         btn.textContent = 'Simpan catatan';
@@ -1268,12 +1318,364 @@
     .withSuccessHandler(data => {
       render(data);
       $('loader').classList.add('hide');
+      // Setelah loader ditutup, logo 3D (kalau sudah siap) pindah ke header
+      if (window.KodomoLogo3D) window.KodomoLogo3D.keHeader();
     })
     .withFailureHandler(err => {
       $('loader').classList.add('hide');
+      if (window.KodomoLogo3D) window.KodomoLogo3D.keHeader();
       toast('Gagal memuat data: ' + (err.message || ''), 'err');
     })
     .getDashboardData();
 </script>
+
+<!-- ===== Logo 3D Kodomo (Three.js) =====
+     Porting 3D dari logo SVG animasi: timbangan kayu berayun, koin
+     malaikat emas (halo mengambang) vs koin setan merah (tanduk + ekor
+     goyang), kilau emas kiri / pink kanan, mata berkedip tiap 4 detik.
+     Dimuat async: kalau CDN gagal, spinner & logo "K" tetap dipakai. -->
+<script>
+function initKodomoLogo3D() {
+  'use strict';
+  if (typeof THREE === 'undefined') return;
+
+  var C = {
+    kayu:      0x5A4632,
+    krem:      0xFCEFD4,
+    emas:      0xFFD35C,
+    emasTua:   0xD69A22,
+    halo:      0xF5B940,
+    setan:     0xF0705A,
+    setanTua:  0xA83A26,
+    tanduk:    0xE4573D,
+    kilauEmas: 0xF5B940,
+    kilauPink: 0xF08AAE
+  };
+
+  /* ---------- Tekstur wajah chibi (canvas 256x256) ---------- */
+  function buatWajah(tipe) {
+    var cv = document.createElement('canvas');
+    cv.width = cv.height = 256;
+    var tex = new THREE.CanvasTexture(cv);
+    tex.anisotropy = 4;
+
+    function gambar(kedip) {
+      var x = cv.getContext('2d');
+      var M = 128; // pusat
+      x.clearRect(0, 0, 256, 256);
+
+      // Koin + ring pinggir
+      x.beginPath(); x.arc(M, M, 122, 0, 7);
+      x.fillStyle = tipe === 'angel' ? '#FFD35C' : '#F0705A'; x.fill();
+      x.lineWidth = 14;
+      x.strokeStyle = tipe === 'angel' ? '#D69A22' : '#A83A26';
+      x.beginPath(); x.arc(M, M, 114, 0, 7); x.stroke();
+
+      function elips(cx, cy, rx, ry, warna) {
+        x.beginPath(); x.ellipse(cx, cy, rx, ry, 0, 0, 7);
+        x.fillStyle = warna; x.fill();
+      }
+
+      var sMata = kedip ? 0.12 : 1; // kedip = mata menyipit
+      if (tipe === 'angel') {
+        elips(M - 42, M - 16, 21, 27 * sMata, '#3A2A18');
+        elips(M + 42, M - 16, 21, 27 * sMata, '#3A2A18');
+        if (!kedip) {
+          elips(M - 34, M - 27, 8, 8, '#FFFFFF');
+          elips(M + 50, M - 27, 8, 8, '#FFFFFF');
+        }
+        elips(M - 74, M + 25, 20, 12, '#F7A6A6');
+        elips(M + 74, M + 25, 20, 12, '#F7A6A6');
+        // Mulut senyum terbuka
+        x.beginPath();
+        x.moveTo(M - 29, M + 33);
+        x.quadraticCurveTo(M, M + 66, M + 29, M + 33);
+        x.closePath();
+        x.fillStyle = '#7A3B1E'; x.fill();
+        x.lineWidth = 8; x.strokeStyle = '#3A2A18'; x.stroke();
+      } else {
+        // Alis marah
+        x.lineWidth = 12; x.strokeStyle = '#3A2A18'; x.lineCap = 'round';
+        x.beginPath(); x.moveTo(M - 58, M - 33); x.lineTo(M - 17, M - 17); x.stroke();
+        x.beginPath(); x.moveTo(M + 58, M - 33); x.lineTo(M + 17, M - 17); x.stroke();
+        elips(M - 33, M - 4, 17, 21 * sMata, '#3A2A18');
+        elips(M + 33, M - 4, 17, 21 * sMata, '#3A2A18');
+        if (!kedip) {
+          elips(M - 27, M - 12, 6.5, 6.5, '#FFFFFF');
+          elips(M + 39, M - 12, 6.5, 6.5, '#FFFFFF');
+        }
+        elips(M - 74, M + 33, 20, 12, '#F7A6A6');
+        elips(M + 74, M + 33, 20, 12, '#F7A6A6');
+        // Seringai bergelombang
+        x.beginPath();
+        x.moveTo(M - 33, M + 50);
+        x.quadraticCurveTo(M - 17, M + 33, M, M + 50);
+        x.quadraticCurveTo(M + 17, M + 33, M + 33, M + 50);
+        x.lineWidth = 10; x.strokeStyle = '#3A2A18';
+        x.lineJoin = 'round'; x.stroke();
+      }
+      tex.needsUpdate = true;
+    }
+    gambar(false);
+    return { tekstur: tex, gambar: gambar };
+  }
+
+  /* ---------- Tekstur bintang kilau (sprite) ---------- */
+  function buatBintang() {
+    var cv = document.createElement('canvas');
+    cv.width = cv.height = 128;
+    var x = cv.getContext('2d');
+    x.beginPath();
+    x.moveTo(64, 4);
+    x.quadraticCurveTo(70, 58, 124, 64);
+    x.quadraticCurveTo(70, 70, 64, 124);
+    x.quadraticCurveTo(58, 70, 4, 64);
+    x.quadraticCurveTo(58, 58, 64, 4);
+    x.fillStyle = '#FFFFFF'; x.fill();
+    return new THREE.CanvasTexture(cv);
+  }
+
+  function matte(warna, opsi) {
+    return new THREE.MeshStandardMaterial(Object.assign(
+      { color: warna, roughness: 0.55, metalness: 0.08 }, opsi || {}));
+  }
+
+  /* ---------- Scene, kamera, cahaya ---------- */
+  var scene = new THREE.Scene();
+  var kamera = new THREE.PerspectiveCamera(30, 1, 0.1, 60);
+  kamera.position.set(0, 3.5, 14);
+  kamera.lookAt(0, 2.0, 0);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+  scene.add(new THREE.HemisphereLight(0xfff6e8, 0x8880a0, 0.55));
+  var key = new THREE.DirectionalLight(0xffffff, 0.85);
+  key.position.set(4, 7, 6);
+  scene.add(key);
+
+  var timbangan = new THREE.Group();
+  scene.add(timbangan);
+
+  // Alas + tiang + poros
+  var alas = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.6, 0.34, 40), matte(C.kayu));
+  alas.position.y = 0.17;
+  timbangan.add(alas);
+  var alas2 = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.95, 0.3, 32), matte(C.kayu));
+  alas2.position.y = 0.45;
+  timbangan.add(alas2);
+  var tiang = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.21, 3.1, 24), matte(C.kayu));
+  tiang.position.y = 2.05;
+  timbangan.add(tiang);
+  var poros = new THREE.Mesh(new THREE.SphereGeometry(0.3, 24, 18), matte(C.kayu));
+  poros.position.y = 3.62;
+  timbangan.add(poros);
+  var porosDot = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 12), matte(C.krem, { roughness: 0.4 }));
+  porosDot.position.set(0, 3.62, 0.26);
+  timbangan.add(porosDot);
+
+  // Beam berayun
+  var beam = new THREE.Group();
+  beam.position.y = 3.62;
+  timbangan.add(beam);
+  var batang = new THREE.Mesh(new THREE.CapsuleGeometry(0.115, 4.7, 6, 20), matte(C.kayu));
+  batang.rotation.z = Math.PI / 2;
+  beam.add(batang);
+
+  /* ---------- Satu sisi gantungan: tali + piring + koin ---------- */
+  function buatGantungan(sisiX, tipe) {
+    var g = new THREE.Group();          // pivot di ujung beam (counter-rotate)
+    g.position.set(sisiX, 0, 0);
+    beam.add(g);
+
+    var taliMat = matte(C.kayu, { roughness: 0.8 });
+    var rTepi = 0.92, yPiring = -1.32;
+    // Tali hanya di sisi belakang piring supaya tidak menutupi wajah koin
+    for (var i = 0; i < 3; i++) {
+      var a = Math.PI * (7 / 6 + i / 3); // 210°, 270°, 330°
+      var ujung = new THREE.Vector3(Math.cos(a) * rTepi * 0.92, yPiring + 0.06, Math.sin(a) * rTepi * 0.92);
+      var arah = ujung.clone();
+      var tali = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, arah.length(), 8), taliMat);
+      tali.position.copy(ujung).multiplyScalar(0.5);
+      tali.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), arah.normalize());
+      g.add(tali);
+    }
+
+    // Piring: mangkuk setengah bola pipih + bibir
+    var piring = new THREE.Mesh(
+      new THREE.SphereGeometry(rTepi, 40, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
+      matte(C.krem, { side: THREE.DoubleSide, roughness: 0.5 }));
+    piring.scale.y = 0.5;
+    piring.position.y = yPiring;
+    g.add(piring);
+    var bibir = new THREE.Mesh(new THREE.TorusGeometry(rTepi, 0.045, 12, 48), matte(C.kayu));
+    bibir.rotation.x = Math.PI / 2;
+    bibir.position.y = yPiring;
+    g.add(bibir);
+
+    // Koin chibi menghadap kamera
+    var koin = new THREE.Group();
+    koin.position.set(0, yPiring + 0.42, 0.05);
+    g.add(koin);
+
+    var wajah = buatWajah(tipe);
+    var rKoin = 0.72;
+    var sisiMat = matte(tipe === 'angel' ? C.emasTua : C.setanTua, { metalness: 0.3, roughness: 0.35 });
+    var mukaMat = new THREE.MeshStandardMaterial({ map: wajah.tekstur, metalness: 0.15, roughness: 0.4 });
+    var badanMat = matte(tipe === 'angel' ? C.emas : C.setan, { metalness: 0.25, roughness: 0.4 });
+    var silinder = new THREE.Mesh(new THREE.CylinderGeometry(rKoin, rKoin, 0.26, 48),
+      [sisiMat, mukaMat, badanMat]);
+    // Rebahkan tutup silinder ke arah kamera (rot X), lalu putar 90° pada
+    // sumbu Y lokal supaya sumbu-atas tekstur UV tutup (yang default-nya
+    // menunjuk ke samping) jadi tegak vertikal — tanpa ini muka terbaring.
+    silinder.rotation.set(Math.PI / 2, Math.PI / 2, 0);
+    koin.add(silinder);
+
+    var hasil = { grup: g, koin: koin, wajah: wajah };
+
+    if (tipe === 'angel') {
+      var halo = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.075, 14, 40),
+        matte(C.halo, { metalness: 0.35, roughness: 0.3,
+          emissive: C.halo, emissiveIntensity: 0.25 }));
+      halo.rotation.x = Math.PI / 2.4;
+      halo.position.y = rKoin + 0.3;
+      koin.add(halo);
+      hasil.halo = halo;
+    } else {
+      var tandukGeo = new THREE.ConeGeometry(0.14, 0.4, 16);
+      var tandukMat = matte(C.tanduk, { roughness: 0.45 });
+      [-1, 1].forEach(function (s) {
+        var t = new THREE.Mesh(tandukGeo, tandukMat);
+        t.position.set(0.5 * s, rKoin - 0.08, 0);
+        t.rotation.z = -0.75 * s;
+        koin.add(t);
+      });
+      // Ekor: tabung kurva + ujung panah, pivot di sisi kanan koin
+      var ekor = new THREE.Group();
+      ekor.position.set(rKoin * 0.75, -0.25, -0.12);
+      var kurva = new THREE.QuadraticBezierCurve3(
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0.55, -0.15, -0.1),
+        new THREE.Vector3(0.62, -0.75, -0.15));
+      ekor.add(new THREE.Mesh(new THREE.TubeGeometry(kurva, 20, 0.05, 8), tandukMat));
+      var ujungEkor = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.28, 12), tandukMat);
+      ujungEkor.position.set(0.63, -0.86, -0.15);
+      ujungEkor.rotation.z = Math.PI;
+      ekor.add(ujungEkor);
+      koin.add(ekor);
+      hasil.ekor = ekor;
+    }
+    return hasil;
+  }
+
+  var kiri = buatGantungan(-2.45, 'angel');
+  var kanan = buatGantungan(2.45, 'devil');
+
+  /* ---------- Kilau bintang: emas kiri, pink kanan ---------- */
+  var texBintang = buatBintang();
+  var kilau = [
+    { x: -3.0, y: 4.15, s: 0.6, warna: C.kilauEmas, fase: 0.0 },
+    { x: -2.9, y: 1.45, s: 0.42, warna: C.kilauEmas, fase: 0.3 },
+    { x:  3.0, y: 4.3, s: 0.52, warna: C.kilauPink, fase: 0.6 },
+    { x:  2.95, y: 1.6, s: 0.44, warna: C.kilauPink, fase: 1.1 }
+  ].map(function (k) {
+    var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: texBintang, color: k.warna, transparent: true }));
+    sp.position.set(k.x, k.y, 0.6);
+    sp.userData = k;
+    timbangan.add(sp);
+    return sp;
+  });
+
+  /* ---------- Renderer ---------- */
+  var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setClearColor(0x000000, 0);
+  var kanvas = renderer.domElement;
+  kanvas.style.width = '100%';
+  kanvas.style.height = '100%';
+  kanvas.style.display = 'block';
+
+  var wadah = null;
+  function pasangKe(container) {
+    wadah = container;
+    container.appendChild(kanvas);
+    ukur();
+  }
+  function ukur() {
+    if (!wadah) return;
+    var s = Math.max(1, Math.min(wadah.clientWidth, wadah.clientHeight));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(s, s, false);
+  }
+  window.addEventListener('resize', ukur);
+
+  /* ---------- Animasi ---------- */
+  var jam = new THREE.Clock();
+  var kedipSedang = false;
+  var gerakKurang = window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function frame() {
+    var t = jam.getElapsedTime();
+
+    // Sway beam 3.2s (±6°), piring counter-rotate agar menggantung lurus
+    var ayun = Math.sin(t * Math.PI * 2 / 3.2) * 0.105;
+    beam.rotation.z = ayun;
+    kiri.grup.rotation.z = -ayun;
+    kanan.grup.rotation.z = -ayun;
+
+    // Putaran pelan seluruh timbangan biar kelihatan 3D; koin di-counter
+    // supaya emotnya tetap tegak lurus menghadap depan, tidak ikut miring
+    var yaw = Math.sin(t * 0.4) * 0.32;
+    timbangan.rotation.y = yaw;
+    kiri.koin.rotation.y = -yaw;
+    kanan.koin.rotation.y = -yaw;
+
+    // Halo mengambang 2.2s
+    kiri.halo.position.y = 1.02 + Math.sin(t * Math.PI * 2 / 2.2) * 0.05;
+
+    // Ekor goyang 1.4s
+    kanan.ekor.rotation.z = Math.sin(t * Math.PI * 2 / 1.4) * 0.22 + 0.1;
+
+    // Kilau twinkle 1.8s dengan fase beda-beda
+    kilau.forEach(function (sp) {
+      var k = sp.userData;
+      var w = (Math.sin((t / 1.8 - k.fase) * Math.PI * 2) + 1) / 2; // 0..1
+      sp.material.opacity = 0.15 + w * 0.85;
+      var s = k.s * (0.55 + w * 0.45);
+      sp.scale.set(s, s, 1);
+    });
+
+    // Kedip tiap 4 detik (fase 3.7–3.85)
+    var faseKedip = t % 4;
+    var kedip = faseKedip > 3.7 && faseKedip < 3.85;
+    if (kedip !== kedipSedang) {
+      kedipSedang = kedip;
+      kiri.wajah.gambar(kedip);
+      kanan.wajah.gambar(kedip);
+    }
+
+    renderer.render(scene, kamera);
+    if (!gerakKurang) requestAnimationFrame(frame);
+  }
+
+  /* ---------- Penempatan: loader dulu, lalu pindah ke header ---------- */
+  function keHeader() {
+    var slot = document.getElementById('logoSlot');
+    if (!slot || wadah === slot) return;
+    slot.textContent = ''; // buang huruf "K" fallback
+    pasangKe(slot);
+  }
+
+  window.KodomoLogo3D = { keHeader: keHeader, ukur: ukur, pasang: pasangKe };
+
+  var loader = document.getElementById('loader');
+  if (loader && !loader.classList.contains('hide')) {
+    loader.classList.add('logo3d');
+    pasangKe(document.getElementById('loaderLogo'));
+  } else {
+    keHeader(); // data sudah termuat sebelum Three.js siap
+  }
+  requestAnimationFrame(frame);
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js" async onload="initKodomoLogo3D()"></script>
 </body>
 </html>
