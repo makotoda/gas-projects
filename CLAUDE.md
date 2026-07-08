@@ -2,9 +2,24 @@
 
 Project ini adalah Google Apps Script yang disinkronkan via clasp.
 
+## Aturan alur kerja — GIT ADALAH SUMBER KEBENARAN, BUKAN GAS
+
+Repo ini diedit dari BANYAK tempat (Claude Code lokal di PC, Claude via iPhone/cloud yang
+commit langsung ke GitHub). GitHub Actions otomatis `clasp push -f` ke Apps Script pada
+SETIAP push ke `main` — artinya **perubahan yang hanya di-`clasp push` dari lokal tanpa
+di-commit + push ke GitHub akan TERTIMPA oleh deploy Actions berikutnya** (ini sudah
+pernah terjadi: modul logo 3D hilang dari produksi karena hal ini).
+
+Alur wajib untuk SEMUA sesi (lokal maupun remote):
+1. **Sebelum edit:** `git fetch origin` lalu rekonsiliasi dengan `origin/main` (fast-forward
+   atau merge). Jangan mengandalkan `clasp pull` saja — GAS bisa tertinggal ATAU lebih baru
+   dari checkout-mu, tapi git-lah yang menang pada deploy berikutnya.
+2. **Setelah edit:** commit ke `main` dan `git push origin main`. Actions akan auto-deploy
+   ke Apps Script.
+3. `clasp push -f` manual boleh dilakukan SETELAH langkah 2 kalau ingin hasil instan tanpa
+   menunggu Actions — tapi jangan pernah sebagai pengganti langkah 2.
+
 ## Aturan asli (preserved)
-- Setelah selesai mengubah code, selalu jalankan `clasp push` untuk sinkron ke Apps Script.
-- Sebelum mulai mengedit, jalankan `clasp pull` dulu untuk menarik versi terbaru dari server.
 - File .js di sini adalah file .gs di editor Apps Script.
 
 ## What this project is
@@ -25,9 +40,11 @@ node --version                     # verify Node/npm exist; install if missing
 npm install -g @google/clasp       # install clasp CLI
 clasp login                        # authenticate with the Google account that owns the script
 
-# Day-to-day
-clasp pull                         # ALWAYS run before editing — pulls latest from the live Apps Script editor
-clasp push                         # ALWAYS run after finishing an edit — pushes local files live
+# Day-to-day (see "Aturan alur kerja" above — git first, clasp second)
+git fetch origin && git merge --ff-only origin/main   # BEFORE editing — sync with GitHub
+git push origin main               # AFTER editing (committed) — triggers auto-deploy via Actions
+clasp push -f                      # optional, AFTER git push — instant deploy without waiting for Actions
+clasp pull                         # diagnostic only: inspect what's currently live on GAS
 clasp open                         # opens the Apps Script editor in a browser, for manual test runs
 ```
 
