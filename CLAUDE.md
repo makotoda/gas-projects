@@ -98,6 +98,12 @@ Do this deliberately, not casually — it's user-visible and affects everyone wi
   `data.nama`/`data.tujuan` as-is; it does not check against `getAnggota()`. Don't assume
   "the UI only offers valid names" means the server enforces it too — it currently doesn't
   (see [GAPS.md](GAPS.md) #2).
+- **Profile photos come from column B (`Foto`) of the `Anggota` sheet**, matched by exact
+  name against leaderboard entries. The value must be a **direct image URL** (something an
+  `<img src>` can load) or a **Google Drive share link** (auto-converted to a thumbnail URL
+  by `normalizeFotoUrl_` in `Code.js`). Links to social-media *pages* (e.g.
+  `instagram.com/p/...`) are HTML pages, not images — they will never render; the UI falls
+  back to the person's initial. Non-http(s) values are ignored server-side.
 - **Editing the roster is NOT done in code.** `DEFAULT_ANGGOTA` only seeds the `Anggota`
   sheet on first run. To add/remove a person on a live deployment, edit the `Anggota` sheet
   directly in Google Sheets — editing `DEFAULT_ANGGOTA` in `Code.js` and pushing does

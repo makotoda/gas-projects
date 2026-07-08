@@ -50,10 +50,10 @@ function setupSheets() {
   let agt = ss.getSheetByName(SHEET_ANGGOTA);
   if (!agt) {
     agt = ss.insertSheet(SHEET_ANGGOTA);
-    agt.getRange(1, 1).setValue('Nama').setFontWeight('bold');
+    agt.getRange(1, 1, 1, 2).setValues([['Nama', 'Foto']]).setFontWeight('bold');
     agt.setFrozenRows(1);
-    agt.getRange(2, 1, DEFAULT_ANGGOTA.length, 1)
-      .setValues(DEFAULT_ANGGOTA.map(n => [n]));
+    agt.getRange(2, 1, DEFAULT_ANGGOTA.length, 2)
+      .setValues(DEFAULT_ANGGOTA.map(n => [n, '']));
   }
 }
 
@@ -77,6 +77,35 @@ function getAnggota() {
     .map(r => String(r[0]).trim())
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b, 'id'));
+}
+
+/**
+ * Normalisasi URL foto profil (kolom B sheet Anggota).
+ * - Hanya menerima URL http(s); nilai lain dianggap kosong.
+ * - Link share Google Drive (file/d/... atau ?id=...) diubah otomatis ke URL
+ *   thumbnail yang bisa dipakai langsung di <img>. Link halaman web lain
+ *   (mis. halaman post Instagram) BUKAN gambar dan tidak akan tampil —
+ *   pakai URL gambar langsung atau link share Google Drive.
+ */
+function normalizeFotoUrl_(raw) {
+  const url = String(raw || '').trim();
+  if (!/^https?:\/\//i.test(url)) return '';
+  const m = url.match(/drive\.google\.com\/(?:file\/d\/([-\w]{20,})|(?:open|uc|thumbnail)\?[^#]*\bid=([-\w]{20,}))/i);
+  if (m) return 'https://drive.google.com/thumbnail?id=' + (m[1] || m[2]) + '&sz=w200';
+  return url;
+}
+
+/** Peta nama → URL foto profil dari sheet Anggota */
+function getFotoMap_() {
+  const sheet = getSheet_(SHEET_ANGGOTA);
+  const last = sheet.getLastRow();
+  const map = {};
+  if (last < 2) return map;
+  sheet.getRange(2, 1, last - 1, 2).getValues().forEach(r => {
+    const nama = String(r[0]).trim();
+    if (nama) map[nama] = normalizeFotoUrl_(r[1]);
+  });
+  return map;
 }
 
 /** Validasi nominal */
@@ -165,9 +194,11 @@ function getDashboardData() {
     saldoMap[nm].recent.push(item);
   });
 
+  const fotoMap = getFotoMap_();
   const leaderboard = Object.values(saldoMap)
     .map(o => ({
       nama: o.nama,
+      foto: fotoMap[o.nama] || '',
       pahala: o.pahala,
       dosa: o.dosa,
       saldo: o.pahala - o.dosa,
