@@ -746,7 +746,7 @@
     -webkit-backdrop-filter: blur(24px);
     opacity: 0;
     transform: scale(0.95);
-    transition: opacity 0.3s ease, transform 0.3s ease, left 0.3s ease, top 0.3s ease;
+    transition: opacity 0.3s ease, transform 0.3s ease;
     color: var(--text);
     pointer-events: none;
   }
@@ -1573,6 +1573,7 @@
 
   function positionTooltip(target) {
     const tooltip = $('tutorialTooltip');
+    const overlay = $('tutorialOverlay');
     
     tooltip.style.visibility = 'hidden';
     tooltip.classList.add('show');
@@ -1580,6 +1581,33 @@
     const th = tooltip.offsetHeight;
     tooltip.classList.remove('show');
     tooltip.style.visibility = 'visible';
+
+    // Update Overlay Clip Path (cutout) to prevent blurring and dimming the target element
+    if (target) {
+      const rect = target.getBoundingClientRect();
+      const pad = 6;
+      const x0 = Math.max(0, rect.left - pad);
+      const y0 = Math.max(0, rect.top - pad);
+      const x1 = Math.min(window.innerWidth, rect.right + pad);
+      const y1 = Math.min(window.innerHeight, rect.bottom + pad);
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      
+      overlay.style.clipPath = `polygon(
+        0px 0px, 
+        0px ${h}px, 
+        ${x0}px ${h}px, 
+        ${x0}px ${y0}px, 
+        ${x1}px ${y0}px, 
+        ${x1}px ${y1}px, 
+        ${x0}px ${y1}px, 
+        ${x0}px ${h}px, 
+        ${w}px ${h}px, 
+        ${w}px 0px
+      )`;
+    } else {
+      overlay.style.clipPath = 'none';
+    }
 
     if (window.innerWidth < 680) {
       tooltip.classList.add('show');
@@ -1597,8 +1625,10 @@
 
     const rect = target.getBoundingClientRect();
     const pad = 20;
-    let top = rect.top + window.scrollY;
-    let left = rect.left + window.scrollX;
+    
+    // Position using viewport-relative coordinates (since it's position: fixed)
+    let top = rect.top;
+    let left = rect.left;
 
     const spaceRight = window.innerWidth - rect.right;
     const spaceLeft = rect.left;
@@ -1606,20 +1636,21 @@
 
     if (spaceRight > 360) {
       left = rect.right + pad;
-      top = rect.top + window.scrollY + (rect.height - th) / 2;
+      top = rect.top + (rect.height - th) / 2;
     } else if (spaceLeft > 360) {
       left = rect.left - tw - pad;
-      top = rect.top + window.scrollY + (rect.height - th) / 2;
+      top = rect.top + (rect.height - th) / 2;
     } else if (spaceBottom > 240) {
-      left = rect.left + window.scrollX + (rect.width - tw) / 2;
-      top = rect.bottom + window.scrollY + pad;
+      left = rect.left + (rect.width - tw) / 2;
+      top = rect.bottom + pad;
     } else {
-      left = rect.left + window.scrollX + (rect.width - tw) / 2;
-      top = rect.top + window.scrollY - th - pad;
+      left = rect.left + (rect.width - tw) / 2;
+      top = rect.top - th - pad;
     }
 
+    // Constrain tooltip bounds inside viewport
     left = Math.max(10, Math.min(window.innerWidth - tw - 10, left));
-    top = Math.max(10, Math.min(window.document.documentElement.scrollHeight - th - 10, top));
+    top = Math.max(10, Math.min(window.innerHeight - th - 10, top));
 
     tooltip.style.left = left + 'px';
     tooltip.style.top = top + 'px';
@@ -1658,6 +1689,14 @@
   }
 
   window.addEventListener('resize', () => {
+    if ($('tutorialTooltip').classList.contains('show')) {
+      const step = tutorialSteps[currentTutorialStep];
+      const target = step && step.targetId ? $(step.targetId) : null;
+      positionTooltip(target);
+    }
+  });
+
+  window.addEventListener('scroll', () => {
     if ($('tutorialTooltip').classList.contains('show')) {
       const step = tutorialSteps[currentTutorialStep];
       const target = step && step.targetId ? $(step.targetId) : null;
