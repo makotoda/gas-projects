@@ -716,6 +716,134 @@
     header { flex-direction: column; align-items: flex-start; }
     .toggle button { font-size: 12px; }
   }
+
+  /* ===== Tutorial Walkthrough Style ===== */
+  #tutorialOverlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(7, 7, 20, 0.7);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    z-index: 10000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  #tutorialOverlay.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  #tutorialTooltip {
+    position: fixed;
+    z-index: 10002;
+    width: 320px;
+    background: var(--glass-strong);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.05);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    opacity: 0;
+    transform: scale(0.95);
+    transition: opacity 0.3s ease, transform 0.3s ease, left 0.3s ease, top 0.3s ease;
+    color: var(--text);
+    pointer-events: none;
+  }
+  #tutorialTooltip.show {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+  }
+  .tutorial-step-indicator {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--violet);
+    margin-bottom: 6px;
+  }
+  .tutorial-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: var(--text);
+  }
+  .tutorial-desc {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+  .tutorial-nav {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .tutorial-btn {
+    flex: 1;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s, transform 0.1s;
+    text-align: center;
+  }
+  .tutorial-btn.primary {
+    background: linear-gradient(135deg, var(--violet), var(--cyan));
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+  }
+  .tutorial-btn.primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
+  }
+  .tutorial-btn.secondary {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .tutorial-btn.secondary:hover {
+    background: var(--glass-strong);
+  }
+  .tutorial-close-btn {
+    position: absolute;
+    top: 14px; right: 14px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 14px;
+    cursor: pointer;
+    transition: color 0.2s;
+    line-height: 1;
+  }
+  .tutorial-close-btn:hover {
+    color: var(--text);
+  }
+  .tutorial-highlight {
+    position: relative !important;
+    z-index: 10001 !important;
+    box-shadow: 0 0 0 4px var(--violet), 0 4px 30px rgba(139, 92, 246, 0.4) !important;
+    pointer-events: none !important;
+  }
+
+  @media (max-width: 680px) {
+    #tutorialTooltip {
+      width: calc(100% - 32px) !important;
+      left: 16px !important;
+      right: 16px !important;
+      bottom: 16px !important;
+      top: auto !important;
+      transform: translateY(20px);
+    }
+    #tutorialTooltip.show {
+      transform: translateY(0);
+    }
+  }
 </style>
 </head>
 <body>
@@ -742,6 +870,7 @@
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+      <button class="music-btn" id="tutorialBtn" type="button">❓ Bantuan</button>
       <button class="music-btn" id="themeBtn" type="button">☀️ Terang</button>
       <button class="music-btn" id="musicBtn" type="button">
         <span class="music-icon">🎵</span><span id="musicLabel">Putar musik</span>
@@ -753,7 +882,7 @@
     </div>
   </header>
 
-  <section class="stats">
+  <section class="stats" id="statsContainer">
     <div class="stat pahala" data-metric="pahala" role="button">
       <div class="label">Total Pahala</div>
       <div class="value" id="statPahala">0</div>
@@ -770,7 +899,7 @@
 
   <div class="main">
     <!-- ===== Form input ===== -->
-    <div class="card">
+    <div class="card" id="formCard">
       <h2><span class="bar"></span>Catat Amalan</h2>
 
       <label for="nama">Nama</label>
@@ -803,7 +932,7 @@
     </div>
 
     <!-- ===== Leaderboard & riwayat ===== -->
-    <div class="card">
+    <div class="card" id="boardCard">
       <div class="tabs">
         <button class="tab active" data-view="leaderboard">🏆 Leaderboard</button>
         <button class="tab" data-view="riwayat">🕐 Riwayat</button>
@@ -830,6 +959,19 @@
 </div>
 
 <div id="toast"></div>
+
+<!-- ===== Tutorial Walkthrough ===== -->
+<div id="tutorialOverlay"></div>
+<div id="tutorialTooltip">
+  <button class="tutorial-close-btn" id="tutorialSkipBtn" aria-label="Lewati tutorial">✕</button>
+  <div class="tutorial-step-indicator" id="tutorialStepIndicator"></div>
+  <h4 class="tutorial-title" id="tutorialTitle"></h4>
+  <p class="tutorial-desc" id="tutorialDesc"></p>
+  <div class="tutorial-nav">
+    <button class="tutorial-btn secondary" id="tutorialPrevBtn">Kembali</button>
+    <button class="tutorial-btn primary" id="tutorialNextBtn">Lanjut</button>
+  </div>
+</div>
 
 <script>
   let tipeTerpilih = 'Pahala';
@@ -1320,6 +1462,8 @@
       $('loader').classList.add('hide');
       // Setelah loader ditutup, logo 3D (kalau sudah siap) pindah ke header
       if (window.KodomoLogo3D) window.KodomoLogo3D.keHeader();
+      // Jalankan tutorial otomatis jika kunjungan pertama
+      checkAutoStartTutorial();
     })
     .withFailureHandler(err => {
       $('loader').classList.add('hide');
@@ -1327,6 +1471,199 @@
       toast('Gagal memuat data: ' + (err.message || ''), 'err');
     })
     .getDashboardData();
+
+  /* ---- Logika Tutorial Interaktif ---- */
+  let currentTutorialStep = 0;
+  const tutorialSteps = [
+    {
+      title: "Selamat Datang di Kodomo! 🏆",
+      desc: "Kodomo adalah aplikasi pencatat amalan (Pahala & Dosa) untuk kelompok kita. Mari ikuti tur singkat 1 menit untuk memahami cara kerjanya!",
+      targetId: null
+    },
+    {
+      title: "Statistik Kumulatif 📊",
+      desc: "Di sini kamu bisa melihat total Pahala, Dosa, dan jumlah Catatan transaksi yang terkumpul dari seluruh anggota.",
+      targetId: "statsContainer"
+    },
+    {
+      title: "Catat Amalan ✍️",
+      desc: "Gunakan form ini untuk mencatat amalan baru. Pilih nama, tentukan tipe amalan (Pahala/Dosa) atau **Transfer** untuk mengirim pahala ke orang lain, isi nominal & keterangan, lalu simpan.",
+      targetId: "formCard"
+    },
+    {
+      title: "Papan Peringkat 🏆",
+      desc: "Tab **Leaderboard** menyusun peringkat anggota berdasarkan saldo bersih mereka (Pahala − Dosa). Klik nama anggota untuk melihat 5 transaksi terakhir mereka!",
+      targetId: "boardCard",
+      action: () => activateTab("leaderboard")
+    },
+    {
+      title: "Riwayat Buku Amal 🕐",
+      desc: "Tab **Riwayat** menunjukkan 30 transaksi terbaru dari seluruh anggota secara kronologis. Di sinilah semua perbuatan tercatat secara transparan.",
+      targetId: "boardCard",
+      action: () => activateTab("riwayat")
+    },
+    {
+      title: "Siap Memulai! 🎉",
+      desc: "Tur selesai! Kamu siap mencatat amalan bersama teman-teman. Klik tombol **❓ Bantuan** di kanan atas kapan saja jika ingin mengulang panduan ini.",
+      targetId: null
+    }
+  ];
+
+  function activateTab(view) {
+    document.querySelectorAll('.tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.view === view);
+    });
+    $('viewLeaderboard').style.display = view === 'leaderboard' ? '' : 'none';
+    $('viewRiwayat').style.display = view === 'riwayat' ? '' : 'none';
+  }
+
+  function startTutorial() {
+    currentTutorialStep = 0;
+    showTutorialStep();
+  }
+
+  function endTutorial() {
+    document.querySelectorAll('.tutorial-highlight').forEach(el => {
+      el.classList.remove('tutorial-highlight');
+    });
+    $('tutorialOverlay').classList.remove('show');
+    $('tutorialTooltip').classList.remove('show');
+    activateTab("leaderboard");
+    try {
+      localStorage.setItem('kodomo_tutorial_seen', 'true');
+    } catch(e) {}
+  }
+
+  function showTutorialStep() {
+    const step = tutorialSteps[currentTutorialStep];
+    if (!step) {
+      endTutorial();
+      return;
+    }
+
+    document.querySelectorAll('.tutorial-highlight').forEach(el => {
+      el.classList.remove('tutorial-highlight');
+    });
+
+    if (typeof step.action === 'function') {
+      step.action();
+    }
+
+    $('tutorialStepIndicator').textContent = `Langkah ${currentTutorialStep + 1} dari ${tutorialSteps.length}`;
+    $('tutorialTitle').textContent = step.title;
+    $('tutorialDesc').innerHTML = step.desc;
+
+    $('tutorialPrevBtn').style.display = currentTutorialStep === 0 ? 'none' : '';
+    $('tutorialNextBtn').textContent = currentTutorialStep === tutorialSteps.length - 1 ? 'Selesai' : 'Lanjut';
+
+    $('tutorialOverlay').classList.add('show');
+
+    const tooltip = $('tutorialTooltip');
+    const target = step.targetId ? $(step.targetId) : null;
+
+    if (target) {
+      target.classList.add('tutorial-highlight');
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    setTimeout(() => {
+      positionTooltip(target);
+    }, 150);
+  }
+
+  function positionTooltip(target) {
+    const tooltip = $('tutorialTooltip');
+    
+    tooltip.style.visibility = 'hidden';
+    tooltip.classList.add('show');
+    const tw = tooltip.offsetWidth;
+    const th = tooltip.offsetHeight;
+    tooltip.classList.remove('show');
+    tooltip.style.visibility = 'visible';
+
+    if (window.innerWidth < 680) {
+      tooltip.classList.add('show');
+      return;
+    }
+
+    if (!target) {
+      tooltip.style.left = '50%';
+      tooltip.style.top = '50%';
+      tooltip.style.bottom = 'auto';
+      tooltip.style.transform = 'translate(-50%, -50%) scale(1)';
+      tooltip.classList.add('show');
+      return;
+    }
+
+    const rect = target.getBoundingClientRect();
+    const pad = 20;
+    let top = rect.top + window.scrollY;
+    let left = rect.left + window.scrollX;
+
+    const spaceRight = window.innerWidth - rect.right;
+    const spaceLeft = rect.left;
+    const spaceBottom = window.innerHeight - rect.bottom;
+
+    if (spaceRight > 360) {
+      left = rect.right + pad;
+      top = rect.top + window.scrollY + (rect.height - th) / 2;
+    } else if (spaceLeft > 360) {
+      left = rect.left - tw - pad;
+      top = rect.top + window.scrollY + (rect.height - th) / 2;
+    } else if (spaceBottom > 240) {
+      left = rect.left + window.scrollX + (rect.width - tw) / 2;
+      top = rect.bottom + window.scrollY + pad;
+    } else {
+      left = rect.left + window.scrollX + (rect.width - tw) / 2;
+      top = rect.top + window.scrollY - th - pad;
+    }
+
+    left = Math.max(10, Math.min(window.innerWidth - tw - 10, left));
+    top = Math.max(10, Math.min(window.document.documentElement.scrollHeight - th - 10, top));
+
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+    tooltip.style.bottom = 'auto';
+    tooltip.style.transform = 'scale(1)';
+    tooltip.classList.add('show');
+  }
+
+  $('tutorialNextBtn').addEventListener('click', () => {
+    currentTutorialStep++;
+    if (currentTutorialStep >= tutorialSteps.length) {
+      endTutorial();
+    } else {
+      showTutorialStep();
+    }
+  });
+
+  $('tutorialPrevBtn').addEventListener('click', () => {
+    if (currentTutorialStep > 0) {
+      currentTutorialStep--;
+      showTutorialStep();
+    }
+  });
+
+  $('tutorialSkipBtn').addEventListener('click', endTutorial);
+  $('tutorialOverlay').addEventListener('click', endTutorial);
+  $('tutorialBtn').addEventListener('click', startTutorial);
+
+  function checkAutoStartTutorial() {
+    try {
+      const seen = localStorage.getItem('kodomo_tutorial_seen');
+      if (!seen) {
+        setTimeout(startTutorial, 800);
+      }
+    } catch(e) {}
+  }
+
+  window.addEventListener('resize', () => {
+    if ($('tutorialTooltip').classList.contains('show')) {
+      const step = tutorialSteps[currentTutorialStep];
+      const target = step && step.targetId ? $(step.targetId) : null;
+      positionTooltip(target);
+    }
+  });
 </script>
 
 <!-- ===== Logo 3D Kodomo (Three.js) =====
