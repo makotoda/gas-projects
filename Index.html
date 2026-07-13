@@ -845,9 +845,310 @@
       transform: translateY(0);
     }
   }
+
+  /* ===== Landing Page Cinematic ===== */
+  #landingPage {
+    position: fixed;
+    inset: 0;
+    z-index: 20000;
+    display: flex;
+    overflow: hidden;
+    background: #050505;
+    transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1), transform 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  #landingPage.hide {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(1.05);
+  }
+
+  .lp-side {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    transition: flex 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+  }
+  .lp-side:hover {
+    flex: 1.3;
+  }
+
+  #hellSide {
+    background: radial-gradient(circle at bottom, #3a0000 0%, #1a0000 50%, #050000 100%);
+    border-right: 1px solid rgba(255, 0, 0, 0.1);
+  }
+  #heavenSide {
+    background: radial-gradient(circle at top, #002244 0%, #001122 50%, #00050a 100%);
+    border-left: 1px solid rgba(0, 255, 255, 0.1);
+  }
+
+  .lp-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .lp-content {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    color: #fff;
+    padding: 40px;
+    margin-top: -10vh;
+    opacity: 0.9;
+    transition: transform 0.5s ease, opacity 0.5s ease;
+  }
+  .lp-side:hover .lp-content {
+    transform: translateY(-10px);
+    opacity: 1;
+  }
+
+  .lp-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(36px, 5vw, 64px);
+    font-weight: 700;
+    margin-bottom: 20px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+  }
+  #hellSide .lp-title { 
+    color: #ff3333; 
+    text-shadow: 0 0 20px rgba(255, 51, 51, 0.6), 0 0 40px rgba(255, 0, 0, 0.4); 
+  }
+  #heavenSide .lp-title { 
+    color: #ccffff; 
+    text-shadow: 0 0 20px rgba(204, 255, 255, 0.6), 0 0 40px rgba(0, 255, 255, 0.4); 
+  }
+
+  .lp-desc {
+    font-size: clamp(14px, 1.5vw, 18px);
+    color: rgba(255, 255, 255, 0.8);
+    max-width: 450px;
+    margin: 0 auto;
+    line-height: 1.6;
+    font-weight: 400;
+  }
+
+  .lp-character {
+    position: absolute;
+    bottom: 5%;
+    width: clamp(200px, 25vw, 350px);
+    height: clamp(300px, 35vw, 450px);
+    z-index: 3;
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.5s ease;
+    filter: drop-shadow(0 20px 30px rgba(0,0,0,0.8));
+  }
+  #hellSide .lp-character { right: 5%; transform-origin: bottom center; }
+  #heavenSide .lp-character { left: 5%; transform-origin: bottom center; }
+  
+  .lp-side:hover .lp-character { 
+    transform: scale(1.08) translateY(-15px); 
+  }
+  #hellSide:hover .lp-character {
+    filter: drop-shadow(0 0 30px rgba(255, 0, 0, 0.4));
+  }
+  #heavenSide:hover .lp-character {
+    filter: drop-shadow(0 0 30px rgba(0, 255, 255, 0.4));
+  }
+
+  @keyframes floatHeaven {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-20px); }
+  }
+  @keyframes shakeHell {
+    0%, 100% { transform: translateX(0) rotate(0deg); }
+    25% { transform: translateX(-2px) rotate(-1deg); }
+    75% { transform: translateX(2px) rotate(1deg); }
+  }
+  #heavenSide .lp-character svg { animation: floatHeaven 5s ease-in-out infinite; }
+  #hellSide .lp-character svg { animation: shakeHell 3s ease-in-out infinite; }
+
+  .lp-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    width: 100%;
+    pointer-events: none; /* Let clicks pass through except for buttons */
+  }
+
+  .lp-enter-btn {
+    pointer-events: auto;
+    padding: 20px 48px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    background: rgba(10, 10, 15, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 40px;
+    cursor: pointer;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.6), inset 0 0 20px rgba(255,255,255,0.05);
+    position: relative;
+    overflow: hidden;
+  }
+  .lp-enter-btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 50%; height: 100%;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.2), transparent);
+    transform: skewX(-25deg);
+    transition: left 0.6s ease;
+  }
+  .lp-enter-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 40px rgba(255, 255, 255, 0.15), inset 0 0 20px rgba(255,255,255,0.1);
+    transform: scale(1.05);
+  }
+  .lp-enter-btn:hover::before {
+    left: 200%;
+  }
+
+  .lp-skip {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+  .lp-skip:hover {
+    color: rgba(255, 255, 255, 0.9);
+  }
+  .lp-skip input {
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--violet);
+  }
+
+  @media (max-width: 800px) {
+    #landingPage { flex-direction: column; }
+    .lp-side { flex: 1; border: none; }
+    #hellSide { border-bottom: 1px solid rgba(255, 0, 0, 0.1); }
+    #heavenSide { border-top: 1px solid rgba(0, 255, 255, 0.1); }
+    .lp-content { margin-top: 0; padding: 20px; }
+    .lp-character { width: 150px; height: 225px; bottom: -5%; }
+    #hellSide .lp-character { right: 10%; }
+    #heavenSide .lp-character { left: 10%; }
+  }
 </style>
 </head>
 <body>
+
+<!-- ===== Cinematic Landing Page ===== -->
+<div id="landingPage">
+  <!-- Hell Side -->
+  <div class="lp-side" id="hellSide">
+    <canvas class="lp-canvas" id="canvasHell"></canvas>
+    <div class="lp-content">
+      <h2 class="lp-title">NERAKA</h2>
+      <p class="lp-desc">Tempat bagi mereka yang banyak menumpuk dosa. Panas, membara, dan penuh penyesalan atas hutang yang belum dibayar.</p>
+    </div>
+    <div class="lp-character" id="charHell">
+      <svg viewBox="0 0 300 450" width="100%" height="100%">
+        <defs>
+          <linearGradient id="devilBody" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#110000" />
+            <stop offset="100%" stop-color="#000000" />
+          </linearGradient>
+          <radialGradient id="hellEye" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#ff0000" />
+            <stop offset="50%" stop-color="#ff4d4d" />
+            <stop offset="100%" stop-color="#330000" />
+          </radialGradient>
+        </defs>
+        <!-- Aura -->
+        <circle cx="150" cy="180" r="120" fill="#ff0000" opacity="0.1" filter="blur(20px)" />
+        <!-- Horns -->
+        <path d="M120 100 Q80 30 140 60 Z" fill="#0a0000" />
+        <path d="M180 100 Q220 30 160 60 Z" fill="#0a0000" />
+        <!-- Body/Cloak -->
+        <path d="M40 450 Q150 220 260 450 Z" fill="url(#devilBody)" />
+        <!-- Head -->
+        <circle cx="150" cy="160" r="60" fill="#0a0000" />
+        <!-- Eyes (Angry & Glowing) -->
+        <path d="M115 145 L140 155 L115 165 Z" fill="url(#hellEye)" />
+        <path d="M185 145 L160 155 L185 165 Z" fill="url(#hellEye)" />
+        <circle cx="125" cy="155" r="3" fill="#fff" opacity="0.8" />
+        <circle cx="175" cy="155" r="3" fill="#fff" opacity="0.8" />
+        <!-- Expression lines -->
+        <path d="M110 135 L135 145" stroke="#ff0000" stroke-width="2" opacity="0.5" />
+        <path d="M190 135 L165 145" stroke="#ff0000" stroke-width="2" opacity="0.5" />
+        <!-- Mouth (Screaming/Grimace) -->
+        <path d="M135 185 Q150 175 165 185 Q150 200 135 185" fill="#330000" />
+        <path d="M140 185 Q150 180 160 185" stroke="#fff" stroke-width="1.5" fill="none" opacity="0.6" />
+      </svg>
+    </div>
+  </div>
+  
+  <!-- Heaven Side -->
+  <div class="lp-side" id="heavenSide">
+    <canvas class="lp-canvas" id="canvasHeaven"></canvas>
+    <div class="lp-content">
+      <h2 class="lp-title">SURGA</h2>
+      <p class="lp-desc">Tempat damai bagi mereka yang gemar beramal. Terang, sejuk, dan penuh kebahagiaan (serta saldo melimpah).</p>
+    </div>
+    <div class="lp-character" id="charHeaven">
+      <svg viewBox="0 0 300 450" width="100%" height="100%">
+        <defs>
+          <linearGradient id="angelBody" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#ffffff" />
+            <stop offset="100%" stop-color="#ccffff" opacity="0.3" />
+          </linearGradient>
+          <radialGradient id="heavenHalo" cx="50%" cy="50%" r="50%">
+            <stop offset="70%" stop-color="#ffcc00" stop-opacity="1" />
+            <stop offset="100%" stop-color="#ffcc00" stop-opacity="0" />
+          </radialGradient>
+        </defs>
+        <!-- Aura -->
+        <circle cx="150" cy="180" r="130" fill="#ffffff" opacity="0.15" filter="blur(25px)" />
+        <!-- Wings (Simplified elegant) -->
+        <path d="M140 220 Q50 100 20 250 Q80 280 130 250 Z" fill="#ffffff" opacity="0.4" filter="blur(2px)" />
+        <path d="M160 220 Q250 100 280 250 Q220 280 170 250 Z" fill="#ffffff" opacity="0.4" filter="blur(2px)" />
+        <!-- Halo -->
+        <ellipse cx="150" cy="70" rx="45" ry="12" fill="none" stroke="url(#heavenHalo)" stroke-width="6" />
+        <!-- Body/Robes -->
+        <path d="M60 450 Q150 200 240 450 Z" fill="url(#angelBody)" />
+        <!-- Head -->
+        <circle cx="150" cy="160" r="55" fill="#f2f2f2" />
+        <!-- Eyes (Peaceful, closed) -->
+        <path d="M115 155 Q125 165 135 155" fill="none" stroke="#003366" stroke-width="3" stroke-linecap="round" />
+        <path d="M165 155 Q175 165 185 155" fill="none" stroke="#003366" stroke-width="3" stroke-linecap="round" />
+        <!-- Mouth (Gentle smile) -->
+        <path d="M135 180 Q150 195 165 180" fill="none" stroke="#003366" stroke-width="2.5" stroke-linecap="round" />
+      </svg>
+    </div>
+  </div>
+
+  <div class="lp-center">
+    <button class="lp-enter-btn" id="lpEnterBtn">Masuk Buku Amal</button>
+    <label class="lp-skip">
+      <input type="checkbox" id="lpSkipCheck">
+      Lewati halaman ini di kemudian hari
+    </label>
+  </div>
+</div>
 
 <div class="orb orb-1"></div>
 <div class="orb orb-2"></div>
@@ -2052,6 +2353,156 @@ function initKodomoLogo3D() {
   }
   requestAnimationFrame(frame);
 }
+
+/* ---------- Cinematic Landing Page Logic ---------- */
+function initLandingPage() {
+  const lp = document.getElementById('landingPage');
+  if (!lp) return;
+
+  // Cek preferensi user
+  let skipLp = false;
+  try { skipLp = localStorage.getItem('kodomoSkipLanding') === 'true'; } catch(e) {}
+  
+  if (skipLp) {
+    lp.style.display = 'none';
+    return;
+  }
+
+  // --- Canvas Neraka (Efek Api Realistis) ---
+  const cHell = document.getElementById('canvasHell');
+  const ctxH = cHell.getContext('2d');
+  let wH, hH;
+  const particlesH = [];
+
+  function resizeH() {
+    wH = cHell.width = cHell.parentElement.clientWidth;
+    hH = cHell.height = cHell.parentElement.clientHeight;
+  }
+  window.addEventListener('resize', resizeH);
+  resizeH();
+
+  class FireParticle {
+    constructor() { this.reset(true); }
+    reset(initial = false) {
+      this.x = Math.random() * wH;
+      this.y = initial ? Math.random() * hH : hH + Math.random() * 50;
+      this.size = Math.random() * 30 + 10;
+      this.speedY = Math.random() * 4 + 2;
+      this.speedX = (Math.random() - 0.5) * 1.5;
+      this.life = initial ? Math.random() : 1;
+      this.decay = Math.random() * 0.015 + 0.005;
+      this.hue = Math.random() * 30; // 0-30 = merah ke oranye
+    }
+    update() {
+      this.y -= this.speedY;
+      this.x += this.speedX;
+      this.life -= this.decay;
+      this.size *= 0.98;
+      if (this.life <= 0 || this.size < 1) this.reset();
+    }
+    draw() {
+      ctxH.beginPath();
+      // Buat gradient radial untuk setiap partikel api biar lebih halus
+      const grad = ctxH.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size);
+      grad.addColorStop(0, `hsla(${this.hue}, 100%, 60%, ${this.life})`);
+      grad.addColorStop(0.4, `hsla(${this.hue}, 100%, 40%, ${this.life * 0.6})`);
+      grad.addColorStop(1, `hsla(${this.hue}, 100%, 20%, 0)`);
+      
+      ctxH.fillStyle = grad;
+      ctxH.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      ctxH.fill();
+    }
+  }
+  for(let i=0; i<80; i++) particlesH.push(new FireParticle());
+
+  // --- Canvas Surga (Efek Cahaya Ilahi) ---
+  const cHeaven = document.getElementById('canvasHeaven');
+  const ctxV = cHeaven.getContext('2d');
+  let wV, hV;
+  const particlesV = [];
+
+  function resizeV() {
+    wV = cHeaven.width = cHeaven.parentElement.clientWidth;
+    hV = cHeaven.height = cHeaven.parentElement.clientHeight;
+  }
+  window.addEventListener('resize', resizeV);
+  resizeV();
+
+  class LightParticle {
+    constructor() { this.reset(true); }
+    reset(initial = false) {
+      this.x = Math.random() * wV;
+      this.y = Math.random() * hV;
+      this.size = Math.random() * 4 + 1;
+      this.speedY = (Math.random() - 0.5) * 0.5 - 0.5; // Mengapung perlahan ke atas
+      this.life = initial ? Math.random() : 0;
+      this.decay = Math.random() * 0.01 + 0.005;
+      this.alphaInc = !initial;
+    }
+    update() {
+      this.y += this.speedY;
+      if (this.alphaInc) {
+        this.life += this.decay;
+        if (this.life >= 1) this.alphaInc = false;
+      } else {
+        this.life -= this.decay;
+        if (this.life <= 0) this.reset();
+      }
+    }
+    draw() {
+      ctxV.beginPath();
+      const grad = ctxV.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size * 2);
+      grad.addColorStop(0, `rgba(255, 255, 255, ${this.life})`);
+      grad.addColorStop(1, `rgba(255, 255, 255, 0)`);
+      
+      ctxV.fillStyle = grad;
+      ctxV.arc(this.x, this.y, this.size * 2, 0, Math.PI * 2);
+      ctxV.fill();
+    }
+  }
+  for(let i=0; i<120; i++) particlesV.push(new LightParticle());
+
+  let animId;
+  function animateLp() {
+    // Bersihkan canvas dengan fill hitam pekat untuk neraka (dengan opacity biar ada efek trail)
+    ctxH.fillStyle = 'rgba(5, 0, 0, 0.4)';
+    ctxH.fillRect(0, 0, wH, hH);
+    ctxH.globalCompositeOperation = 'lighter';
+    particlesH.forEach(p => { p.update(); p.draw(); });
+    ctxH.globalCompositeOperation = 'source-over'; // Kembalikan ke normal
+
+    // Bersihkan canvas surga
+    ctxV.clearRect(0, 0, wV, hV);
+    particlesV.forEach(p => { p.update(); p.draw(); });
+
+    animId = requestAnimationFrame(animateLp);
+  }
+  animateLp();
+
+  // Handle Masuk Button
+  document.getElementById('lpEnterBtn').addEventListener('click', () => {
+    if (document.getElementById('lpSkipCheck').checked) {
+      try { localStorage.setItem('kodomoSkipLanding', 'true'); } catch(e) {}
+    }
+    lp.classList.add('hide');
+    setTimeout(() => {
+      cancelAnimationFrame(animId);
+      lp.style.display = 'none';
+      
+      // Auto-start tutorial jika belum pernah selesai dan baru masuk dari landing page
+      let tutorialDone = false;
+      try { tutorialDone = localStorage.getItem('kodomoTutorialDone') === 'true'; } catch(e) {}
+      if (!tutorialDone && typeof startTutorial === 'function') {
+         // Beri jeda sebentar agar transisi landing page selesai
+         setTimeout(startTutorial, 500);
+      }
+    }, 1200);
+  });
+}
+
+// Jalankan init
+initLandingPage();
+
 </script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js" async onload="initKodomoLogo3D()"></script>
 </body>
