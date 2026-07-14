@@ -880,9 +880,36 @@
     background: radial-gradient(circle at bottom, #3a0000 0%, #1a0000 50%, #050000 100%);
     border-right: 1px solid rgba(255, 0, 0, 0.1);
   }
+  #hellSide::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: radial-gradient(circle at 50% 100%, rgba(255, 90, 0, 0.35) 0%, transparent 60%);
+    animation: hellFlicker 2.4s ease-in-out infinite;
+  }
+  @keyframes hellFlicker {
+    0%, 100% { opacity: 0.7; }
+    45% { opacity: 1; }
+    50% { opacity: 0.55; }
+    72% { opacity: 0.9; }
+  }
   #heavenSide {
     background: radial-gradient(circle at top, #002244 0%, #001122 50%, #00050a 100%);
     border-left: 1px solid rgba(0, 255, 255, 0.1);
+  }
+  #heavenSide::before {
+    content: '';
+    position: absolute;
+    inset: -20%;
+    z-index: 0;
+    background: conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,0.08) 8deg, transparent 20deg, transparent 180deg, rgba(255,255,255,0.06) 190deg, transparent 205deg, transparent 360deg);
+    mix-blend-mode: screen;
+    animation: heavenRays 40s linear infinite;
+  }
+  @keyframes heavenRays {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
   }
 
   .lp-canvas {
@@ -896,11 +923,11 @@
 
   .lp-content {
     position: relative;
-    z-index: 2;
+    z-index: 3;
     text-align: center;
     color: #fff;
     padding: 40px;
-    margin-top: -10vh;
+    margin-top: -22vh;
     opacity: 0.9;
     transition: transform 0.5s ease, opacity 0.5s ease;
   }
@@ -911,25 +938,25 @@
 
   .lp-title {
     font-family: 'Space Grotesk', sans-serif;
-    font-size: clamp(36px, 5vw, 64px);
+    font-size: clamp(32px, 4.2vw, 56px);
     font-weight: 700;
     margin-bottom: 20px;
     letter-spacing: 4px;
     text-transform: uppercase;
   }
-  #hellSide .lp-title { 
-    color: #ff3333; 
-    text-shadow: 0 0 20px rgba(255, 51, 51, 0.6), 0 0 40px rgba(255, 0, 0, 0.4); 
+  #hellSide .lp-title {
+    color: #ff3333;
+    text-shadow: 0 0 20px rgba(255, 51, 51, 0.6), 0 0 40px rgba(255, 0, 0, 0.4);
   }
-  #heavenSide .lp-title { 
-    color: #ccffff; 
-    text-shadow: 0 0 20px rgba(204, 255, 255, 0.6), 0 0 40px rgba(0, 255, 255, 0.4); 
+  #heavenSide .lp-title {
+    color: #ccffff;
+    text-shadow: 0 0 20px rgba(204, 255, 255, 0.6), 0 0 40px rgba(0, 255, 255, 0.4);
   }
 
   .lp-desc {
-    font-size: clamp(14px, 1.5vw, 18px);
+    font-size: clamp(13px, 1.3vw, 16px);
     color: rgba(255, 255, 255, 0.8);
-    max-width: 450px;
+    max-width: 320px;
     margin: 0 auto;
     line-height: 1.6;
     font-weight: 400;
@@ -937,18 +964,20 @@
 
   .lp-character {
     position: absolute;
-    bottom: 5%;
-    width: clamp(200px, 25vw, 350px);
-    height: clamp(300px, 35vw, 450px);
-    z-index: 3;
-    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.5s ease;
-    filter: drop-shadow(0 20px 30px rgba(0,0,0,0.8));
+    bottom: 0;
+    width: clamp(130px, 15vw, 220px);
+    height: clamp(195px, 22vw, 330px);
+    z-index: 1;
+    opacity: 0.55;
+    filter: blur(0.5px) drop-shadow(0 10px 20px rgba(0,0,0,0.7));
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.5s ease, opacity 0.5s ease;
   }
-  #hellSide .lp-character { right: 5%; transform-origin: bottom center; }
-  #heavenSide .lp-character { left: 5%; transform-origin: bottom center; }
-  
-  .lp-side:hover .lp-character { 
-    transform: scale(1.08) translateY(-15px); 
+  #hellSide .lp-character { right: 3%; transform-origin: bottom center; }
+  #heavenSide .lp-character { left: 3%; transform-origin: bottom center; }
+
+  .lp-side:hover .lp-character {
+    transform: scale(1.05) translateY(-10px);
+    opacity: 0.85;
   }
   #hellSide:hover .lp-character {
     filter: drop-shadow(0 0 30px rgba(255, 0, 0, 0.4));
@@ -1048,9 +1077,9 @@
     #hellSide { border-bottom: 1px solid rgba(255, 0, 0, 0.1); }
     #heavenSide { border-top: 1px solid rgba(0, 255, 255, 0.1); }
     .lp-content { margin-top: 0; padding: 20px; }
-    .lp-character { width: 150px; height: 225px; bottom: -5%; }
-    #hellSide .lp-character { right: 10%; }
-    #heavenSide .lp-character { left: 10%; }
+    .lp-character { width: 110px; height: 165px; bottom: 0; opacity: 0.35; }
+    #hellSide .lp-character { right: 4%; }
+    #heavenSide .lp-character { left: 4%; }
   }
 </style>
 </head>
@@ -1069,39 +1098,34 @@
       <svg viewBox="0 0 300 450" width="100%" height="100%">
         <defs>
           <linearGradient id="devilBody" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#110000" />
-            <stop offset="100%" stop-color="#000000" />
+            <stop offset="0%" stop-color="#2a0505" />
+            <stop offset="100%" stop-color="#050000" />
           </linearGradient>
-          <radialGradient id="hellEye" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="#ff0000" />
-            <stop offset="50%" stop-color="#ff4d4d" />
-            <stop offset="100%" stop-color="#330000" />
+          <radialGradient id="hellGlow" cx="50%" cy="35%" r="60%">
+            <stop offset="0%" stop-color="#ff2200" stop-opacity="0.55" />
+            <stop offset="100%" stop-color="#ff2200" stop-opacity="0" />
           </radialGradient>
         </defs>
         <!-- Aura -->
-        <circle cx="150" cy="180" r="120" fill="#ff0000" opacity="0.1" filter="blur(20px)" />
+        <ellipse cx="150" cy="170" rx="140" ry="150" fill="url(#hellGlow)" />
+        <!-- Tail -->
+        <path d="M195 430 Q235 400 220 350 Q212 325 230 320" stroke="#1a0000" stroke-width="10" fill="none" stroke-linecap="round" />
+        <!-- Cloak silhouette -->
+        <path d="M150 250 C90 250 55 320 45 430 C45 445 255 445 255 430 C245 320 210 250 150 250 Z" fill="url(#devilBody)" />
         <!-- Horns -->
-        <path d="M120 100 Q80 30 140 60 Z" fill="#0a0000" />
-        <path d="M180 100 Q220 30 160 60 Z" fill="#0a0000" />
-        <!-- Body/Cloak -->
-        <path d="M40 450 Q150 220 260 450 Z" fill="url(#devilBody)" />
-        <!-- Head -->
-        <circle cx="150" cy="160" r="60" fill="#0a0000" />
-        <!-- Eyes (Angry & Glowing) -->
-        <path d="M115 145 L140 155 L115 165 Z" fill="url(#hellEye)" />
-        <path d="M185 145 L160 155 L185 165 Z" fill="url(#hellEye)" />
-        <circle cx="125" cy="155" r="3" fill="#fff" opacity="0.8" />
-        <circle cx="175" cy="155" r="3" fill="#fff" opacity="0.8" />
-        <!-- Expression lines -->
-        <path d="M110 135 L135 145" stroke="#ff0000" stroke-width="2" opacity="0.5" />
-        <path d="M190 135 L165 145" stroke="#ff0000" stroke-width="2" opacity="0.5" />
-        <!-- Mouth (Screaming/Grimace) -->
-        <path d="M135 185 Q150 175 165 185 Q150 200 135 185" fill="#330000" />
-        <path d="M140 185 Q150 180 160 185" stroke="#fff" stroke-width="1.5" fill="none" opacity="0.6" />
+        <path d="M118 95 Q95 40 132 65 Q128 85 122 108 Z" fill="#1a0000" />
+        <path d="M182 95 Q205 40 168 65 Q172 85 178 108 Z" fill="#1a0000" />
+        <!-- Head silhouette -->
+        <path d="M150 100 C112 100 95 135 100 168 C104 198 122 222 150 222 C178 222 196 198 200 168 C205 135 188 100 150 100 Z" fill="#150202" />
+        <!-- Eyes glowing -->
+        <ellipse cx="128" cy="162" rx="7" ry="4" fill="#ff5533" />
+        <ellipse cx="172" cy="162" rx="7" ry="4" fill="#ff5533" />
+        <!-- Smirk -->
+        <path d="M128 190 Q150 202 174 188" stroke="#4d0f0f" stroke-width="3" fill="none" stroke-linecap="round" />
       </svg>
     </div>
   </div>
-  
+
   <!-- Heaven Side -->
   <div class="lp-side" id="heavenSide">
     <canvas class="lp-canvas" id="canvasHeaven"></canvas>
@@ -1114,29 +1138,29 @@
         <defs>
           <linearGradient id="angelBody" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="#ffffff" />
-            <stop offset="100%" stop-color="#ccffff" opacity="0.3" />
+            <stop offset="100%" stop-color="#dff5ff" />
           </linearGradient>
-          <radialGradient id="heavenHalo" cx="50%" cy="50%" r="50%">
-            <stop offset="70%" stop-color="#ffcc00" stop-opacity="1" />
-            <stop offset="100%" stop-color="#ffcc00" stop-opacity="0" />
+          <radialGradient id="heavenGlow" cx="50%" cy="30%" r="60%">
+            <stop offset="0%" stop-color="#aeefff" stop-opacity="0.55" />
+            <stop offset="100%" stop-color="#aeefff" stop-opacity="0" />
           </radialGradient>
         </defs>
         <!-- Aura -->
-        <circle cx="150" cy="180" r="130" fill="#ffffff" opacity="0.15" filter="blur(25px)" />
-        <!-- Wings (Simplified elegant) -->
-        <path d="M140 220 Q50 100 20 250 Q80 280 130 250 Z" fill="#ffffff" opacity="0.4" filter="blur(2px)" />
-        <path d="M160 220 Q250 100 280 250 Q220 280 170 250 Z" fill="#ffffff" opacity="0.4" filter="blur(2px)" />
+        <ellipse cx="150" cy="170" rx="150" ry="160" fill="url(#heavenGlow)" />
+        <!-- Wings -->
+        <path d="M130 230 C70 210 30 150 35 90 C70 110 108 150 122 210 Z" fill="#ffffff" opacity="0.5" filter="blur(1px)" />
+        <path d="M170 230 C230 210 270 150 265 90 C230 110 192 150 178 210 Z" fill="#ffffff" opacity="0.5" filter="blur(1px)" />
         <!-- Halo -->
-        <ellipse cx="150" cy="70" rx="45" ry="12" fill="none" stroke="url(#heavenHalo)" stroke-width="6" />
-        <!-- Body/Robes -->
-        <path d="M60 450 Q150 200 240 450 Z" fill="url(#angelBody)" />
-        <!-- Head -->
-        <circle cx="150" cy="160" r="55" fill="#f2f2f2" />
-        <!-- Eyes (Peaceful, closed) -->
-        <path d="M115 155 Q125 165 135 155" fill="none" stroke="#003366" stroke-width="3" stroke-linecap="round" />
-        <path d="M165 155 Q175 165 185 155" fill="none" stroke="#003366" stroke-width="3" stroke-linecap="round" />
-        <!-- Mouth (Gentle smile) -->
-        <path d="M135 180 Q150 195 165 180" fill="none" stroke="#003366" stroke-width="2.5" stroke-linecap="round" />
+        <ellipse cx="150" cy="80" rx="38" ry="10" fill="none" stroke="#ffe89e" stroke-width="5" opacity="0.9" />
+        <!-- Robe silhouette -->
+        <path d="M150 250 C104 250 70 320 60 430 C60 445 240 445 240 430 C230 320 196 250 150 250 Z" fill="url(#angelBody)" />
+        <!-- Head silhouette -->
+        <path d="M150 108 C116 108 100 140 104 170 C108 198 124 220 150 220 C176 220 192 198 196 170 C200 140 184 108 150 108 Z" fill="#f7fbff" />
+        <!-- Eyes (peaceful, closed) -->
+        <path d="M126 165 Q136 173 146 165" fill="none" stroke="#356" stroke-width="3" stroke-linecap="round" />
+        <path d="M154 165 Q164 173 174 165" fill="none" stroke="#356" stroke-width="3" stroke-linecap="round" />
+        <!-- Smile -->
+        <path d="M132 192 Q150 204 168 192" stroke="#356" stroke-width="2.5" fill="none" stroke-linecap="round" />
       </svg>
     </div>
   </div>
