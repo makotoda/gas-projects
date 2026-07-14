@@ -1293,7 +1293,7 @@
       </div>
 
       <div class="kas-field" id="kasField">
-        <label>Siapa saja yang infaq ke KAS?</label>
+        <label>Siapa yang ikut infaq otomatis Rp 500 tiap catat dosa?</label>
         <div class="kas-list" id="kasList"></div>
       </div>
 
@@ -1313,11 +1313,13 @@
         </select>
       </div>
 
-      <label for="nominal">Nominal</label>
-      <input type="text" id="nominal" inputmode="numeric" autocomplete="off" placeholder="Contoh: 5.000">
+      <div id="umumField">
+        <label for="nominal">Nominal</label>
+        <input type="text" id="nominal" inputmode="numeric" autocomplete="off" placeholder="Contoh: 5.000">
 
-      <label for="keterangan">Keterangan <span style="font-weight:400">(opsional)</span></label>
-      <input type="text" id="keterangan" maxlength="120" placeholder="Contoh: traktir kopi tim">
+        <label for="keterangan">Keterangan <span style="font-weight:400">(opsional)</span></label>
+        <input type="text" id="keterangan" maxlength="120" placeholder="Contoh: traktir kopi tim">
+      </div>
 
       <button class="submit-btn" id="submitBtn">Simpan catatan</button>
     </div>
@@ -1432,13 +1434,18 @@
       toggle.querySelectorAll('button').forEach(b =>
         b.classList.toggle('active', b === btn));
       $('tujuanField').classList.toggle('show', tipeTerpilih === 'Transfer');
-      // Mode Kas: nama tunggal diganti daftar centang, keterangan otomatis "kas"
+      // Mode Kas: kelola daftar langganan infaq otomatis — nama tunggal,
+      // nominal, dan keterangan tidak relevan, diganti daftar centang.
       const isKas = tipeTerpilih === 'Kas';
       $('namaField').style.display = isKas ? 'none' : '';
+      $('umumField').style.display = isKas ? 'none' : '';
       $('kasField').classList.toggle('show', isKas);
-      if (isKas && !$('keterangan').value.trim()) $('keterangan').value = 'kas';
+      $('submitBtn').textContent = labelSubmit();
     });
   });
+
+  // Label tombol simpan mengikuti mode form
+  const labelSubmit = () => tipeTerpilih === 'Kas' ? 'Simpan daftar infaq' : 'Simpan catatan';
 
   /* ---- Rekening: daftar rekening donasi + tombol salin ---- */
   const REKENING = [
@@ -1724,13 +1731,13 @@
         if (cur) sel.value = cur;
       });
 
-    // Daftar centang infaq kas (pertahankan centang saat render ulang)
-    const dicentang = new Set([...document.querySelectorAll('#kasList input[data-nama]:checked')]
-      .map(i => i.dataset.nama));
+    // Daftar centang langganan infaq otomatis — status centang = yang
+    // tersimpan di server (kolom Infaq sheet Anggota), bukan pilihan lokal.
+    const langganan = new Set(data.infaqList || []);
     $('kasList').innerHTML =
       '<label class="kas-semua"><input type="checkbox" id="kasSemua"> Pilih semua</label>' +
       anggotaOrang.map(n =>
-        `<label><input type="checkbox" data-nama="${esc(n)}"${dicentang.has(n) ? ' checked' : ''}> ${esc(n)}</label>`
+        `<label><input type="checkbox" data-nama="${esc(n)}"${langganan.has(n) ? ' checked' : ''}> ${esc(n)}</label>`
       ).join('');
     $('kasSemua').addEventListener('change', e => {
       document.querySelectorAll('#kasList input[data-nama]').forEach(i => i.checked = e.target.checked);
@@ -1762,16 +1769,15 @@
       ? [...document.querySelectorAll('#kasList input[data-nama]:checked')].map(i => i.dataset.nama)
       : [];
 
-    if (isKas) {
-      if (!kasNamaList.length) return toast('Centang minimal satu nama.', 'err');
-    } else if (!nama) {
-      return toast('Pilih nama dulu ya.', 'err');
+    // Mode Kas: simpan daftar langganan — boleh kosong (semua berhenti ikut)
+    if (!isKas) {
+      if (!nama) return toast('Pilih nama dulu ya.', 'err');
+      if (tipeTerpilih === 'Transfer') {
+        if (!tujuan) return toast('Pilih nama tujuan transfer.', 'err');
+        if (tujuan === nama) return toast('Tidak bisa transfer ke diri sendiri.', 'err');
+      }
+      if (!nominal || nominal <= 0) return toast('Nominal harus lebih dari 0.', 'err');
     }
-    if (tipeTerpilih === 'Transfer') {
-      if (!tujuan) return toast('Pilih nama tujuan transfer.', 'err');
-      if (tujuan === nama) return toast('Tidak bisa transfer ke diri sendiri.', 'err');
-    }
-    if (!nominal || nominal <= 0) return toast('Nominal harus lebih dari 0.', 'err');
 
     const btn = $('submitBtn');
     btn.disabled = true;
@@ -1789,12 +1795,10 @@
     const runner = google.script.run
       .withSuccessHandler(data => {
         render(data);
-        // Selesai satu batch infaq — kosongkan centang biar tidak terkirim dobel
-        if (isKas) document.querySelectorAll('#kasList input').forEach(i => i.checked = false);
         loader.classList.add('hide');
         if (window.KodomoLogo3D) window.KodomoLogo3D.keHeader();
         toast(isKas
-          ? `Infaq kas ${fmt(nominal)} × ${kasNamaList.length} orang tersimpan ✓`
+          ? `Daftar infaq otomatis tersimpan ✓ (${kasNamaList.length} orang ikut)`
           : tipeTerpilih === 'Transfer'
             ? `Transfer pahala ${fmt(nominal)} dari ${nama} ke ${tujuan} tersimpan ✓`
             : `${tipeTerpilih} ${fmt(nominal)} untuk ${nama} tersimpan ✓`, 'ok');
@@ -1806,21 +1810,17 @@
         // Keterangan sengaja TIDAK dikosongkan — biar bisa dipakai lagi
         // untuk catatan berikutnya yang serupa.
         btn.disabled = false;
-        btn.textContent = 'Simpan catatan';
+        btn.textContent = labelSubmit();
       })
       .withFailureHandler(err => {
         loader.classList.add('hide');
         if (window.KodomoLogo3D) window.KodomoLogo3D.keHeader();
         toast(err.message || 'Gagal menyimpan. Coba lagi.', 'err');
         btn.disabled = false;
-        btn.textContent = 'Simpan catatan';
+        btn.textContent = labelSubmit();
       });
     if (isKas) {
-      runner.submitKas({
-        namaList: kasNamaList,
-        nominal: nominal,
-        keterangan: $('keterangan').value
-      });
+      runner.saveInfaqList(kasNamaList);
     } else {
       runner.submitAmalan({
         nama: nama,

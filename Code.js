@@ -20,6 +20,9 @@ const SHEET_ANGGOTA = 'Anggota';
 // Infaq = transfer biasa ke KAS; leaderboard kas dihitung dari prefix
 // keterangan 'Transfer pahala ke KAS' (transfer tidak punya tipe sendiri).
 const KAS_NAMA = 'KAS';
+// Nominal infaq otomatis per entri Dosa manual, untuk orang yang langganan
+// (kolom C 'Infaq' di sheet Anggota berisi 1). Kesepakatan polling Jul 2026.
+const INFAQ_NOMINAL = 500;
 
 const DEFAULT_ANGGOTA = [
   'Ajeng', 'Andik', 'Andri', 'Ari', 'Aris', 'Ayu', 'Budek Yudha', 'Dayu',
@@ -54,7 +57,7 @@ function setupSheets() {
   let agt = ss.getSheetByName(SHEET_ANGGOTA);
   if (!agt) {
     agt = ss.insertSheet(SHEET_ANGGOTA);
-    agt.getRange(1, 1, 1, 2).setValues([['Nama', 'Foto']]).setFontWeight('bold');
+    agt.getRange(1, 1, 1, 3).setValues([['Nama', 'Foto', 'Infaq']]).setFontWeight('bold');
     agt.setFrozenRows(1);
     agt.getRange(2, 1, DEFAULT_ANGGOTA.length, 2)
       .setValues(DEFAULT_ANGGOTA.map(n => [n, '']));
@@ -147,6 +150,15 @@ function submitAmalan(data) {
     } else {
       const tipe = data.tipe === 'Dosa' ? 'Dosa' : 'Pahala';
       sheet.appendRow([now, nama, tipe, nominal, ket]);
+      // Infaq otomatis: entri Dosa manual dari orang yang langganan memicu
+      // transfer INFAQ_NOMINAL ke KAS. Barisnya ditulis langsung (bukan lewat
+      // submitAmalan lagi), jadi tidak bisa memicu berantai.
+      if (tipe === 'Dosa' && nama !== KAS_NAMA && getInfaqList_().indexOf(nama) !== -1) {
+        sheet.getRange(sheet.getLastRow() + 1, 1, 2, 5).setValues([
+          [now, nama, 'Dosa', INFAQ_NOMINAL, 'Transfer pahala ke ' + KAS_NAMA + ' — infaq otomatis'],
+          [now, KAS_NAMA, 'Pahala', INFAQ_NOMINAL, 'Transfer pahala dari ' + nama + ' — infaq otomatis']
+        ]);
+      }
     }
   } finally {
     lock.releaseLock();
@@ -154,29 +166,33 @@ function submitAmalan(data) {
   return getDashboardData();
 }
 
-/**
- * Infaq kas massal: tiap nama terpilih = 1 transfer ke KAS
- * (baris Dosa pengirim + baris Pahala KAS, sama seperti Transfer biasa).
- */
-function submitKas(data) {
-  const namaList = (data && Array.isArray(data.namaList) ? data.namaList : [])
-    .map(n => String(n).trim())
+/** Daftar nama yang langganan infaq otomatis (kolom C 'Infaq' berisi nilai truthy) */
+function getInfaqList_() {
+  const sheet = getSheet_(SHEET_ANGGOTA);
+  const last = sheet.getLastRow();
+  if (last < 2) return [];
+  return sheet.getRange(2, 1, last - 1, 3).getValues()
+    .filter(r => r[2])
+    .map(r => String(r[0]).trim())
     .filter(n => n && n !== KAS_NAMA);
-  if (!namaList.length) throw new Error('Pilih minimal satu nama.');
-  const nominal = parseNominal_(data.nominal);
-  const ket = String(data.keterangan || '').trim() || 'kas';
+}
+
+/** Simpan daftar langganan infaq otomatis (centang di menu Kas) ke kolom C Anggota */
+function saveInfaqList(namaList) {
+  const dipilih = {};
+  (Array.isArray(namaList) ? namaList : []).forEach(n => { dipilih[String(n).trim()] = true; });
 
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    const sheet = getSheet_(SHEET_TRANSAKSI);
-    const now = new Date();
-    const rows = [];
-    namaList.forEach(nama => {
-      rows.push([now, nama, 'Dosa', nominal, 'Transfer pahala ke ' + KAS_NAMA + ' — ' + ket]);
-      rows.push([now, KAS_NAMA, 'Pahala', nominal, 'Transfer pahala dari ' + nama + ' — ' + ket]);
-    });
-    sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 5).setValues(rows);
+    const sheet = getSheet_(SHEET_ANGGOTA);
+    sheet.getRange(1, 3).setValue('Infaq');
+    const last = sheet.getLastRow();
+    if (last >= 2) {
+      const nama = sheet.getRange(2, 1, last - 1, 1).getValues();
+      sheet.getRange(2, 3, last - 1, 1)
+        .setValues(nama.map(r => [dipilih[String(r[0]).trim()] ? 1 : '']));
+    }
   } finally {
     lock.releaseLock();
   }
@@ -259,6 +275,7 @@ function getDashboardData() {
         .map(nm => ({ nama: nm, foto: fotoMap[nm] || '', total: infaqMap[nm] }))
         .sort((a, b) => b.total - a.total)
     },
+    infaqList: getInfaqList_(),
     anggota: getAnggota()
   };
 }
