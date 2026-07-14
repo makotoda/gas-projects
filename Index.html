@@ -1691,12 +1691,12 @@
     animasiAngka($('statKas'), data.kas.saldo, 'stat:kas');
 
     // Dropdown nama & tujuan (pertahankan pilihan).
-    // KAS bukan orang: tidak muncul sebagai pelaku amalan, tapi tetap bisa
-    // jadi tujuan transfer manual.
+    // KAS ikut di dropdown nama supaya pengeluaran operasional bisa dicatat
+    // sebagai Dosa atas nama KAS; tapi KAS tidak masuk daftar centang infaq.
     const anggotaOrang = data.anggota.filter(n => n !== KAS_NAMA);
     const optFor = (list, ph) => `<option value="">${ph}</option>` +
       list.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
-    [['nama', optFor(anggotaOrang, 'Pilih nama…')],
+    [['nama', optFor(data.anggota, 'Pilih nama…')],
      ['tujuan', optFor(data.anggota, 'Pilih nama tujuan…')]]
       .forEach(([id, html]) => {
         const sel = $(id);
