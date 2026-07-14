@@ -1384,6 +1384,7 @@
   let dataLeaderboard = [];
   let dataHistory = [];
   let dataKas = { saldo: 0, history: [], leaderboard: [] };
+  let namaOptsDenganKas = '', namaOptsTanpaKas = '';
   let expandTerbuka = null; // nama yang sedang di-expand
 
   const $ = id => document.getElementById(id);
@@ -1441,11 +1442,21 @@
       $('umumField').style.display = isKas ? 'none' : '';
       $('kasField').classList.toggle('show', isKas);
       $('submitBtn').textContent = labelSubmit();
+      refreshNamaOptions();
     });
   });
 
   // Label tombol simpan mengikuti mode form
   const labelSubmit = () => tipeTerpilih === 'Kas' ? 'Simpan daftar infaq' : 'Simpan catatan';
+
+  // KAS hanya relevan sebagai pelaku Dosa; disaring dari dropdown Nama
+  // untuk Pahala & Transfer (lihat catatan di render()).
+  function refreshNamaOptions() {
+    const sel = $('nama');
+    const cur = sel.value;
+    sel.innerHTML = tipeTerpilih === 'Dosa' ? namaOptsDenganKas : namaOptsTanpaKas;
+    if (cur && cur !== KAS_NAMA) sel.value = cur;
+  }
 
   /* ---- Rekening: daftar rekening donasi + tombol salin ---- */
   const REKENING = [
@@ -1717,13 +1728,17 @@
     animasiAngka($('statKas'), data.kas.saldo, 'stat:kas');
 
     // Dropdown nama & tujuan (pertahankan pilihan).
-    // KAS ikut di dropdown nama supaya pengeluaran operasional bisa dicatat
-    // sebagai Dosa atas nama KAS; tapi KAS tidak masuk daftar centang infaq.
+    // KAS bukan orang: hanya masuk akal sebagai pelaku "Dosa" (pengeluaran
+    // operasional) atau tujuan Transfer (infaq masuk). KAS tidak boleh jadi
+    // penerima Pahala manual atau pengirim Transfer — itu akan merusak
+    // asumsi "saldo KAS hanya naik lewat transfer masuk".
     const anggotaOrang = data.anggota.filter(n => n !== KAS_NAMA);
     const optFor = (list, ph) => `<option value="">${ph}</option>` +
       list.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
-    [['nama', optFor(data.anggota, 'Pilih nama…')],
-     ['tujuan', optFor(data.anggota, 'Pilih nama tujuan…')]]
+    namaOptsDenganKas = optFor(data.anggota, 'Pilih nama…');
+    namaOptsTanpaKas = optFor(anggotaOrang, 'Pilih nama…');
+    refreshNamaOptions();
+    [['tujuan', optFor(data.anggota, 'Pilih nama tujuan…')]]
       .forEach(([id, html]) => {
         const sel = $(id);
         const cur = sel.value;
