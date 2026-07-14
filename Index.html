@@ -52,7 +52,7 @@
   body.light .lb-meter { background: rgba(15, 23, 42, 0.09); }
   body.light .modal-close, body.light .modal-foot button { background: rgba(15, 23, 42, 0.05); }
   body.light .stat:hover { border-color: rgba(15, 23, 42, 0.32); }
-  body.light #statModal { background: rgba(238, 240, 248, 0.72); }
+  body.light #statModal, body.light #rekModal { background: rgba(238, 240, 248, 0.72); }
   body.light .modal-card {
     background: rgba(252, 252, 255, 0.97);
     box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
@@ -168,29 +168,45 @@
     transition: color .2s, border-color .2s, box-shadow .2s;
   }
   .music-btn:hover { color: var(--text); border-color: var(--border); }
-  .music-btn.playing {
+
+  /* ===== Modal Rekening ===== */
+  .rek-list { display: flex; flex-direction: column; gap: 10px; }
+  .rek-row {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--glass);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+  }
+  .rek-badge {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 12px;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .rek-info { min-width: 0; }
+  .rek-bank { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .rek-nomor { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; word-break: break-all; }
+  .rek-copy {
+    display: flex; align-items: center; gap: 6px;
+    font: inherit; font-size: 12.5px; font-weight: 600;
     color: var(--text);
-    border-color: var(--pink);
-    box-shadow: 0 0 14px rgba(244,114,182,.35);
+    padding: 8px 12px;
+    background: rgba(255,255,255,.06);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: border-color .2s, color .2s;
+    white-space: nowrap;
   }
-  .music-btn.playing .music-icon { animation: pulse 1s ease-in-out infinite; }
-  @keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.25); }
-  }
-  /* #musicDock sengaja disembunyikan di luar layar (bukan display:none,
-     supaya iframe YouTube tetap render dan audio tetap jalan). Playback
-     dikontrol via IFrame Player API dari tombol musik, bukan tap di frame. */
-  #musicDock {
-    position: fixed;
-    left: -9999px; top: -9999px;
-    width: 1px; height: 1px;
-    overflow: hidden;
-  }
-  #musicDock iframe {
-    width: 1px; height: 1px;
-    border: 0;
-  }
+  .rek-copy:hover { border-color: var(--violet); }
+  .rek-copy.copied { color: var(--mint); border-color: var(--mint); }
 
   /* ===== Kartu statistik ===== */
   .stats {
@@ -568,7 +584,7 @@
   .empty.mini { padding: 12px 4px; text-align: left; font-size: 12.5px; }
 
   /* ===== Modal leaderboard statistik ===== */
-  #statModal {
+  #statModal, #rekModal {
     position: fixed; inset: 0;
     display: grid; place-items: center;
     padding: 20px;
@@ -579,7 +595,7 @@
     opacity: 0; pointer-events: none;
     transition: opacity .25s;
   }
-  #statModal.show { opacity: 1; pointer-events: auto; }
+  #statModal.show, #rekModal.show { opacity: 1; pointer-events: auto; }
   .modal-card {
     width: 100%; max-width: 420px;
     background: rgba(19,19,40,.94);
@@ -1241,9 +1257,7 @@
     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
       <button class="music-btn" id="tutorialBtn" type="button">❓ Bantuan</button>
       <button class="music-btn" id="themeBtn" type="button">☀️ Terang</button>
-      <button class="music-btn" id="musicBtn" type="button">
-        <span class="music-icon">🎵</span><span id="musicLabel">Putar musik</span>
-      </button>
+      <button class="music-btn" id="rekeningBtn" type="button">🏦 Rekening</button>
       <div class="header-right">
         <div class="live-dot">Tercatat secara real-time di Buku Amal</div>
         <button type="button" class="sound-btn" id="soundBtn" title="Suara efek">🔊</button>
@@ -1337,6 +1351,16 @@
   </div>
 </div>
 
+<div id="rekModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>🏦 Rekening</h3>
+      <button class="modal-close" id="rekModalClose" type="button">✕</button>
+    </div>
+    <div class="rek-list" id="rekList"></div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <!-- ===== Tutorial Walkthrough ===== -->
@@ -1416,61 +1440,56 @@
     });
   });
 
-  /* ---- Musik latar: LISA - MONEY (YouTube IFrame Player API) ----
-     Player disembunyikan di luar layar; play/pause dipanggil lewat API
-     (player.playVideo()) langsung dari handler klik tombol musik. Gesture
-     di tombol itulah yang jadi izin autoplay-bersuara di mobile, jadi
-     user tidak perlu tap di dalam frame YouTube (yang di HP malah
-     membuka app YouTube). Player dibuat sekali saat halaman dimuat,
-     lalu di-toggle play/pause — bukan dibuat/dihapus tiap klik. */
-  const MUSIC_VIDEO_ID = 'dNCWe_6HAM8'; // LISA - 'MONEY' Exclusive Performance Video (channel resmi)
-  const musicBtn = $('musicBtn');
-  let ytPlayer = null;
-  let ytReady = false;
-  let musicPlaying = false;
+  /* ---- Rekening: daftar rekening donasi + tombol salin ---- */
+  const REKENING = [
+    { bank: 'BRI', nomor: '124201005028507', warna: '#00529c', kode: 'BRI' },
+    { bank: 'Mandiri', nomor: '1030007970953', warna: '#003d79', kode: 'MDR' },
+    { bank: 'BNI', nomor: '0302940000', warna: '#f7941d', kode: 'BNI' },
+    { bank: 'BSI', nomor: '7339979604', warna: '#00815d', kode: 'BSI' },
+    { bank: 'Jago Syariah', nomor: '501556735269', warna: '#ff6b2c', kode: 'JGO' },
+    { bank: 'Krom', nomor: '770000600000', warna: '#6c2eb9', kode: 'KRM' },
+    { bank: 'Gopay / OVO / Dana', nomor: '082240206548', warna: '#0f8a5f', kode: 'e-W' }
+  ];
 
-  const ytApiTag = document.createElement('script');
-  ytApiTag.src = 'https://www.youtube.com/iframe_api';
-  document.head.appendChild(ytApiTag);
+  $('rekList').innerHTML = REKENING.map((r, i) => `
+    <div class="rek-row">
+      <div class="rek-badge" style="background:${r.warna}">${esc(r.kode)}</div>
+      <div class="rek-info">
+        <div class="rek-bank">${esc(r.bank)}</div>
+        <div class="rek-nomor">${esc(r.nomor)}</div>
+      </div>
+      <button class="rek-copy" type="button" data-idx="${i}">📋 Salin</button>
+    </div>`).join('');
 
-  window.onYouTubeIframeAPIReady = () => {
-    const dock = document.createElement('div');
-    dock.id = 'musicDock';
-    dock.innerHTML = '<div id="ytPlayer"></div>';
-    document.body.appendChild(dock);
-    ytPlayer = new YT.Player('ytPlayer', {
-      videoId: MUSIC_VIDEO_ID,
-      playerVars: {
-        playsinline: 1, loop: 1, playlist: MUSIC_VIDEO_ID,
-        controls: 0, disablekb: 1, rel: 0, iv_load_policy: 3, fs: 0
-      },
-      events: {
-        onReady: () => { ytReady = true; },
-        onStateChange: (e) => {
-          // Sinkronkan tombol kalau player berhenti sendiri (error/buffering gagal).
-          if (e.data === YT.PlayerState.PLAYING) setMusicUi_(true);
-          else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.ENDED) setMusicUi_(false);
-        }
+  $('rekList').querySelectorAll('.rek-copy').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const nomor = REKENING[btn.dataset.idx].nomor;
+      const selesai = () => {
+        const asli = btn.textContent;
+        btn.textContent = '✓ Tersalin';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = asli; btn.classList.remove('copied'); }, 1500);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(nomor).then(selesai).catch(() => toast('Gagal menyalin.', 'err'));
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = nomor;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        selesai();
       }
     });
-  };
+  });
 
-  function setMusicUi_(playing) {
-    musicPlaying = playing;
-    musicBtn.classList.toggle('playing', playing);
-    $('musicLabel').textContent = playing ? 'Musik: MONEY — LISA' : 'Putar musik';
-  }
-
-  musicBtn.addEventListener('click', () => {
-    if (!ytReady) { toast('Musik masih dimuat, coba lagi sebentar…', 'err'); return; }
-    if (musicPlaying) {
-      ytPlayer.pauseVideo();
-      setMusicUi_(false);
-    } else {
-      ytPlayer.unMute();
-      ytPlayer.playVideo();
-      setMusicUi_(true);
-    }
+  $('rekeningBtn').addEventListener('click', () => $('rekModal').classList.add('show'));
+  $('rekModalClose').addEventListener('click', () => $('rekModal').classList.remove('show'));
+  $('rekModal').addEventListener('click', e => {
+    if (e.target === $('rekModal')) $('rekModal').classList.remove('show');
   });
 
   /* ---- Tema terang/gelap (default gelap; tersimpan di localStorage) ----
