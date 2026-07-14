@@ -16,6 +16,10 @@
 
 const SHEET_TRANSAKSI = 'Transaksi';
 const SHEET_ANGGOTA = 'Anggota';
+// Entitas kas infaq — baris di sheet Anggota bernama persis 'KAS'.
+// Infaq = transfer biasa ke KAS; leaderboard kas dihitung dari prefix
+// keterangan 'Transfer pahala ke KAS' (transfer tidak punya tipe sendiri).
+const KAS_NAMA = 'KAS';
 
 const DEFAULT_ANGGOTA = [
   'Ajeng', 'Andik', 'Andri', 'Ari', 'Aris', 'Ayu', 'Budek Yudha', 'Dayu',
@@ -150,6 +154,35 @@ function submitAmalan(data) {
   return getDashboardData();
 }
 
+/**
+ * Infaq kas massal: tiap nama terpilih = 1 transfer ke KAS
+ * (baris Dosa pengirim + baris Pahala KAS, sama seperti Transfer biasa).
+ */
+function submitKas(data) {
+  const namaList = (data && Array.isArray(data.namaList) ? data.namaList : [])
+    .map(n => String(n).trim())
+    .filter(n => n && n !== KAS_NAMA);
+  if (!namaList.length) throw new Error('Pilih minimal satu nama.');
+  const nominal = parseNominal_(data.nominal);
+  const ket = String(data.keterangan || '').trim() || 'kas';
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet = getSheet_(SHEET_TRANSAKSI);
+    const now = new Date();
+    const rows = [];
+    namaList.forEach(nama => {
+      rows.push([now, nama, 'Dosa', nominal, 'Transfer pahala ke ' + KAS_NAMA + ' — ' + ket]);
+      rows.push([now, KAS_NAMA, 'Pahala', nominal, 'Transfer pahala dari ' + nama + ' — ' + ket]);
+    });
+    sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 5).setValues(rows);
+  } finally {
+    lock.releaseLock();
+  }
+  return getDashboardData();
+}
+
 /** Data lengkap untuk dashboard: statistik, leaderboard (+5 transaksi terakhir per orang), riwayat */
 function getDashboardData() {
   const sheet = getSheet_(SHEET_TRANSAKSI);
@@ -161,7 +194,9 @@ function getDashboardData() {
   let totalPahala = 0;
   let totalDosa = 0;
   const saldoMap = {};
+  const infaqMap = {}; // nama → total infaq ke KAS
   const history = [];
+  const KET_INFAQ = 'Transfer pahala ke ' + KAS_NAMA;
 
   rows.forEach(r => {
     const [ts, nama, tipe, nominal, ket] = r;
@@ -175,6 +210,9 @@ function getDashboardData() {
     if (isDosa) {
       saldoMap[nm].dosa += val;
       totalDosa += val;
+      if (String(ket || '').indexOf(KET_INFAQ) === 0) {
+        infaqMap[nm] = (infaqMap[nm] || 0) + val;
+      }
     } else {
       saldoMap[nm].pahala += val;
       totalPahala += val;
@@ -195,7 +233,9 @@ function getDashboardData() {
   });
 
   const fotoMap = getFotoMap_();
+  const kasData = saldoMap[KAS_NAMA];
   const leaderboard = Object.values(saldoMap)
+    .filter(o => o.nama !== KAS_NAMA)
     .map(o => ({
       nama: o.nama,
       foto: fotoMap[o.nama] || '',
@@ -212,6 +252,13 @@ function getDashboardData() {
     totalTransaksi: history.length,
     leaderboard: leaderboard,
     history: history.slice(-30).reverse(), // 30 transaksi terbaru
+    kas: {
+      saldo: kasData ? kasData.pahala - kasData.dosa : 0,
+      history: kasData ? kasData.recent.slice(-30).reverse() : [],
+      leaderboard: Object.keys(infaqMap)
+        .map(nm => ({ nama: nm, foto: fotoMap[nm] || '', total: infaqMap[nm] }))
+        .sort((a, b) => b.total - a.total)
+    },
     anggota: getAnggota()
   };
 }

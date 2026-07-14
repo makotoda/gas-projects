@@ -287,11 +287,11 @@
     box-shadow: 0 0 0 3px rgba(139,92,246,.22);
   }
 
-  /* Toggle Pahala / Dosa / Transfer — elemen signature */
+  /* Toggle Pahala / Dosa / Transfer / Kas — elemen signature */
   .toggle {
     position: relative;
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(4, 1fr);
     background: rgba(255,255,255,.05);
     border: 1px solid var(--border-soft);
     border-radius: 14px;
@@ -300,7 +300,7 @@
   .toggle .slider {
     position: absolute;
     top: 4px; bottom: 4px; left: 4px;
-    width: calc((100% - 8px) / 3);
+    width: calc((100% - 8px) / 4);
     border-radius: 11px;
     background: linear-gradient(135deg, var(--mint), var(--cyan));
     box-shadow: 0 0 18px rgba(52,211,153,.5);
@@ -316,6 +316,11 @@
     background: linear-gradient(135deg, var(--violet), var(--cyan));
     box-shadow: 0 0 18px rgba(139,92,246,.55);
   }
+  .toggle.kas .slider {
+    transform: translateX(300%);
+    background: linear-gradient(135deg, #facc15, #f59e0b);
+    box-shadow: 0 0 18px rgba(250,204,21,.5);
+  }
   .toggle button {
     position: relative; z-index: 1;
     padding: 11px 2px;
@@ -327,6 +332,7 @@
   }
   .toggle button.active { color: #06121a; }
   .toggle.transfer button.active { color: #fff; }
+  .toggle.kas button.active { color: #1a1200; }
 
   /* Field tujuan transfer */
   .tujuan-field {
@@ -336,6 +342,43 @@
   .tujuan-field.show {
     display: block;
     animation: slideIn .3s ease;
+  }
+
+  /* Field daftar centang infaq kas */
+  .kas-field { display: none; }
+  .kas-field.show {
+    display: block;
+    animation: slideIn .3s ease;
+  }
+  .kas-list {
+    max-height: 220px;
+    overflow-y: auto;
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    padding: 6px;
+  }
+  .kas-list label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    padding: 9px 10px;
+    border-radius: 10px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .kas-list label:hover { background: rgba(255,255,255,.06); }
+  body.light .kas-list label:hover { background: rgba(15,23,42,.05); }
+  .kas-list input {
+    width: 16px; height: 16px;
+    accent-color: #f59e0b;
+    cursor: pointer;
+  }
+  .kas-list .kas-semua {
+    border-bottom: 1px solid var(--border-soft);
+    border-radius: 10px 10px 0 0;
+    font-weight: 600;
   }
   @keyframes slideIn {
     from { opacity: 0; transform: translateY(-8px); }
@@ -1217,9 +1260,9 @@
       <div class="label">Total Dosa</div>
       <div class="value" id="statDosa">0</div>
     </div>
-    <div class="stat trx" data-metric="catatan" role="button">
-      <div class="label">Total Catatan</div>
-      <div class="value" id="statTrx">0</div>
+    <div class="stat trx" data-metric="kas" role="button">
+      <div class="label">Saldo KAS</div>
+      <div class="value" id="statKas">0</div>
     </div>
   </section>
 
@@ -1228,10 +1271,17 @@
     <div class="card" id="formCard">
       <h2><span class="bar"></span>Catat Amalan</h2>
 
-      <label for="nama">Nama</label>
-      <select id="nama">
-        <option value="">Pilih nama…</option>
-      </select>
+      <div id="namaField">
+        <label for="nama">Nama</label>
+        <select id="nama">
+          <option value="">Pilih nama…</option>
+        </select>
+      </div>
+
+      <div class="kas-field" id="kasField">
+        <label>Siapa saja yang infaq ke KAS?</label>
+        <div class="kas-list" id="kasList"></div>
+      </div>
 
       <label>Tipe amalan</label>
       <div class="toggle" id="toggle">
@@ -1239,6 +1289,7 @@
         <button type="button" class="active" data-tipe="Pahala">✨ Pahala</button>
         <button type="button" data-tipe="Dosa">🔥 Dosa</button>
         <button type="button" data-tipe="Transfer">💸 Transfer</button>
+        <button type="button" data-tipe="Kas">💰 Kas</button>
       </div>
 
       <div class="tujuan-field" id="tujuanField">
@@ -1262,9 +1313,11 @@
       <div class="tabs">
         <button class="tab active" data-view="leaderboard">🏆 Leaderboard</button>
         <button class="tab" data-view="riwayat">🕐 Riwayat</button>
+        <button class="tab" data-view="kas">💰 Kas</button>
       </div>
       <div id="viewLeaderboard"></div>
       <div id="viewRiwayat" style="display:none"></div>
+      <div id="viewKas" style="display:none"></div>
     </div>
   </div>
 </div>
@@ -1300,9 +1353,11 @@
 </div>
 
 <script>
+  const KAS_NAMA = 'KAS';
   let tipeTerpilih = 'Pahala';
   let dataLeaderboard = [];
   let dataHistory = [];
+  let dataKas = { saldo: 0, history: [], leaderboard: [] };
   let expandTerbuka = null; // nama yang sedang di-expand
 
   const $ = id => document.getElementById(id);
@@ -1342,16 +1397,22 @@
     nominalInput.setSelectionRange(nominalInput.value.length, nominalInput.value.length);
   });
 
-  /* ---- Toggle Pahala / Dosa / Transfer ---- */
+  /* ---- Toggle Pahala / Dosa / Transfer / Kas ---- */
   const toggle = $('toggle');
   toggle.querySelectorAll('button').forEach(btn => {
     btn.addEventListener('click', () => {
       tipeTerpilih = btn.dataset.tipe;
       toggle.classList.toggle('dosa', tipeTerpilih === 'Dosa');
       toggle.classList.toggle('transfer', tipeTerpilih === 'Transfer');
+      toggle.classList.toggle('kas', tipeTerpilih === 'Kas');
       toggle.querySelectorAll('button').forEach(b =>
         b.classList.toggle('active', b === btn));
       $('tujuanField').classList.toggle('show', tipeTerpilih === 'Transfer');
+      // Mode Kas: nama tunggal diganti daftar centang, keterangan otomatis "kas"
+      const isKas = tipeTerpilih === 'Kas';
+      $('namaField').style.display = isKas ? 'none' : '';
+      $('kasField').classList.toggle('show', isKas);
+      if (isKas && !$('keterangan').value.trim()) $('keterangan').value = 'kas';
     });
   });
 
@@ -1428,14 +1489,7 @@
 
   /* ---- Tabs ---- */
   document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach(t =>
-        t.classList.toggle('active', t === tab));
-      $('viewLeaderboard').style.display =
-        tab.dataset.view === 'leaderboard' ? '' : 'none';
-      $('viewRiwayat').style.display =
-        tab.dataset.view === 'riwayat' ? '' : 'none';
-    });
+    tab.addEventListener('click', () => activateTab(tab.dataset.view));
   });
 
   /* ---- Toast ---- */
@@ -1529,11 +1583,29 @@
     });
   }
 
+  /* ---- Render leaderboard infaq kas (tab 💰 Kas) ---- */
+  function renderKasBoard() {
+    const el = $('viewKas');
+    if (!dataKas.leaderboard.length) {
+      el.innerHTML = '<div class="empty">Belum ada infaq ke KAS. Jadilah yang pertama! 💰</div>';
+      return;
+    }
+    el.innerHTML = dataKas.leaderboard.map((o, i) => `
+      <div class="sm-row">
+        <div class="rank${i < 3 ? ' r' + (i + 1) : ''}">${i + 1}</div>
+        ${avaHtml(o)}
+        <div class="sm-name">${esc(o.nama)}</div>
+        <div class="sm-val pahala" data-kas-total>${fmt(o.total)}</div>
+      </div>`).join('');
+    el.querySelectorAll('[data-kas-total]').forEach((v, i) =>
+      animasiAngka(v, dataKas.leaderboard[i].total, 'kasboard:' + dataKas.leaderboard[i].nama));
+  }
+
   /* ---- Modal leaderboard per statistik (klik kartu Total ...) ---- */
   const statMeta = {
-    pahala:  { title: '✨ Leaderboard Pahala' },
-    dosa:    { title: '🔥 Leaderboard Dosa' },
-    catatan: { title: '🕐 Riwayat Catatan' }
+    pahala: { title: '✨ Leaderboard Pahala' },
+    dosa:   { title: '🔥 Leaderboard Dosa' },
+    kas:    { title: '💰 Riwayat KAS' }
   };
   const PER_SLIDE = 5;
   let modalMetric = null;
@@ -1555,9 +1627,9 @@
 
   function renderStatModal() {
     if (!modalMetric) return;
-    const isRiwayat = modalMetric === 'catatan';
+    const isRiwayat = modalMetric === 'kas';
     const list = isRiwayat
-      ? dataHistory // sudah terurut terbaru dulu dari server
+      ? dataKas.history // riwayat transaksi KAS, terbaru dulu dari server
       : dataLeaderboard
           .filter(o => nilaiMetric_(o) > 0)
           .sort((a, b) => nilaiMetric_(b) - nilaiMetric_(a));
@@ -1616,12 +1688,16 @@
   function render(data) {
     animasiAngka($('statPahala'), data.totalPahala, 'stat:pahala');
     animasiAngka($('statDosa'), data.totalDosa, 'stat:dosa');
-    animasiAngka($('statTrx'), data.totalTransaksi, 'stat:trx');
+    animasiAngka($('statKas'), data.kas.saldo, 'stat:kas');
 
-    // Dropdown nama & tujuan (pertahankan pilihan)
-    const opts = '<option value="">Pilih nama…</option>' +
-      data.anggota.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
-    [['nama', opts], ['tujuan', opts.replace('Pilih nama…', 'Pilih nama tujuan…')]]
+    // Dropdown nama & tujuan (pertahankan pilihan).
+    // KAS bukan orang: tidak muncul sebagai pelaku amalan, tapi tetap bisa
+    // jadi tujuan transfer manual.
+    const anggotaOrang = data.anggota.filter(n => n !== KAS_NAMA);
+    const optFor = (list, ph) => `<option value="">${ph}</option>` +
+      list.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    [['nama', optFor(anggotaOrang, 'Pilih nama…')],
+     ['tujuan', optFor(data.anggota, 'Pilih nama tujuan…')]]
       .forEach(([id, html]) => {
         const sel = $(id);
         const cur = sel.value;
@@ -1629,9 +1705,23 @@
         if (cur) sel.value = cur;
       });
 
+    // Daftar centang infaq kas (pertahankan centang saat render ulang)
+    const dicentang = new Set([...document.querySelectorAll('#kasList input[data-nama]:checked')]
+      .map(i => i.dataset.nama));
+    $('kasList').innerHTML =
+      '<label class="kas-semua"><input type="checkbox" id="kasSemua"> Pilih semua</label>' +
+      anggotaOrang.map(n =>
+        `<label><input type="checkbox" data-nama="${esc(n)}"${dicentang.has(n) ? ' checked' : ''}> ${esc(n)}</label>`
+      ).join('');
+    $('kasSemua').addEventListener('change', e => {
+      document.querySelectorAll('#kasList input[data-nama]').forEach(i => i.checked = e.target.checked);
+    });
+
     dataLeaderboard = data.leaderboard;
     dataHistory = data.history;
+    dataKas = data.kas;
     renderLeaderboard();
+    renderKasBoard();
 
     // Kalau modal leaderboard sedang terbuka, segarkan isinya juga
     if ($('statModal').classList.contains('show')) renderStatModal();
@@ -1648,8 +1738,16 @@
     const nama = $('nama').value;
     const tujuan = $('tujuan').value;
     const nominal = nominalValue();
+    const isKas = tipeTerpilih === 'Kas';
+    const kasNamaList = isKas
+      ? [...document.querySelectorAll('#kasList input[data-nama]:checked')].map(i => i.dataset.nama)
+      : [];
 
-    if (!nama) return toast('Pilih nama dulu ya.', 'err');
+    if (isKas) {
+      if (!kasNamaList.length) return toast('Centang minimal satu nama.', 'err');
+    } else if (!nama) {
+      return toast('Pilih nama dulu ya.', 'err');
+    }
     if (tipeTerpilih === 'Transfer') {
       if (!tujuan) return toast('Pilih nama tujuan transfer.', 'err');
       if (tujuan === nama) return toast('Tidak bisa transfer ke diri sendiri.', 'err');
@@ -1669,14 +1767,18 @@
     loader.classList.add('overlay');
     loader.classList.remove('hide');
 
-    google.script.run
+    const runner = google.script.run
       .withSuccessHandler(data => {
         render(data);
+        // Selesai satu batch infaq — kosongkan centang biar tidak terkirim dobel
+        if (isKas) document.querySelectorAll('#kasList input').forEach(i => i.checked = false);
         loader.classList.add('hide');
         if (window.KodomoLogo3D) window.KodomoLogo3D.keHeader();
-        toast(tipeTerpilih === 'Transfer'
-          ? `Transfer pahala ${fmt(nominal)} dari ${nama} ke ${tujuan} tersimpan ✓`
-          : `${tipeTerpilih} ${fmt(nominal)} untuk ${nama} tersimpan ✓`, 'ok');
+        toast(isKas
+          ? `Infaq kas ${fmt(nominal)} × ${kasNamaList.length} orang tersimpan ✓`
+          : tipeTerpilih === 'Transfer'
+            ? `Transfer pahala ${fmt(nominal)} dari ${nama} ke ${tujuan} tersimpan ✓`
+            : `${tipeTerpilih} ${fmt(nominal)} untuk ${nama} tersimpan ✓`, 'ok');
         // Perayaan sukses: krincing koin beruntun + hujan uang dari tombol
         playCoinBurst();
         const r = btn.getBoundingClientRect();
@@ -1693,14 +1795,22 @@
         toast(err.message || 'Gagal menyimpan. Coba lagi.', 'err');
         btn.disabled = false;
         btn.textContent = 'Simpan catatan';
-      })
-      .submitAmalan({
+      });
+    if (isKas) {
+      runner.submitKas({
+        namaList: kasNamaList,
+        nominal: nominal,
+        keterangan: $('keterangan').value
+      });
+    } else {
+      runner.submitAmalan({
         nama: nama,
         tipe: tipeTerpilih,
         tujuan: tujuan,
         nominal: nominal,
         keterangan: $('keterangan').value
       });
+    }
   });
 
   /* ---- Efek: trail kursor, hujan uang, suara koin ---- */
@@ -1841,6 +1951,7 @@
     });
     $('viewLeaderboard').style.display = view === 'leaderboard' ? '' : 'none';
     $('viewRiwayat').style.display = view === 'riwayat' ? '' : 'none';
+    $('viewKas').style.display = view === 'kas' ? '' : 'none';
   }
 
   function startTutorial() {
