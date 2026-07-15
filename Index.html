@@ -922,12 +922,28 @@
       width: calc(100% - 32px) !important;
       left: 16px !important;
       right: 16px !important;
-      bottom: 16px !important;
+      bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
       top: auto !important;
       transform: translateY(20px);
+      /* Jangan sampai keluar frame: batasi tinggi & scroll di dalam */
+      display: flex;
+      flex-direction: column;
+      max-height: calc(100vh - 32px - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px));
+      max-height: calc(100dvh - 32px - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px));
     }
     #tutorialTooltip.show {
       transform: translateY(0);
+    }
+    #tutorialTooltip .tutorial-step-indicator,
+    #tutorialTooltip .tutorial-title,
+    #tutorialTooltip .tutorial-nav {
+      flex: 0 0 auto;
+    }
+    #tutorialTooltip .tutorial-desc {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
   }
 
@@ -1351,7 +1367,7 @@
         <p>Pencatat pahala &amp; dosa</p>
       </div>
     </div>
-    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+    <div id="headerControls" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
       <button class="music-btn" id="tutorialBtn" type="button">❓ Bantuan</button>
       <button class="music-btn" id="themeBtn" type="button">☀️ Terang</button>
       <button class="music-btn" id="rekeningBtn" type="button">🏦 Rekening</button>
@@ -2369,6 +2385,11 @@
       title: "Selamat Datang di Kodomo! 🏆",
       desc: "Kodomo (Koperasi Dosa Mako) itu aplikasi buat nyatet saldo (pahala) dan hutang (dosa) buat semeton Bimas Hindu. Kalo masih ga paham atau bingung, ikutin aja lah pokoknya. Gasss!!",
       targetId: null
+    },
+    {
+      title: "Menu Atas ⚙️",
+      desc: "Deretan tombol di pojok kanan atas ini isinya:<br><br>• <strong>❓ Bantuan</strong> — muterin ulang tutorial ini kapan aja.<br>• <strong>☀️ Terang / 🌙 Gelap</strong> — ganti tema terang atau gelap, sesuai selera mata.<br>• <strong>🏦 Rekening</strong> — liat &amp; salin nomor rekening buat transfer beneran ke KAS/admin.<br>• <strong>📄 Laporan</strong> — unduh laporan bulanan (PDF) per orang atau KAS, gaya statement bank.<br>• <strong>🔊</strong> — nyalain atau matiin efek suara.",
+      targetId: "headerControls"
     },
     {
       title: "Statistik Kumulatif 📊",
