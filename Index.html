@@ -52,7 +52,7 @@
   body.light .lb-meter { background: rgba(15, 23, 42, 0.09); }
   body.light .modal-close, body.light .modal-foot button { background: rgba(15, 23, 42, 0.05); }
   body.light .stat:hover { border-color: rgba(15, 23, 42, 0.32); }
-  body.light #statModal, body.light #rekModal { background: rgba(238, 240, 248, 0.72); }
+  body.light #statModal, body.light #rekModal, body.light #laporanModal { background: rgba(238, 240, 248, 0.72); }
   body.light .modal-card {
     background: rgba(252, 252, 255, 0.97);
     box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
@@ -610,7 +610,7 @@
   .empty.mini { padding: 12px 4px; text-align: left; font-size: 12.5px; }
 
   /* ===== Modal leaderboard statistik ===== */
-  #statModal, #rekModal {
+  #statModal, #rekModal, #laporanModal {
     position: fixed; inset: 0;
     display: grid; place-items: center;
     padding: 20px;
@@ -621,7 +621,7 @@
     opacity: 0; pointer-events: none;
     transition: opacity .25s;
   }
-  #statModal.show, #rekModal.show { opacity: 1; pointer-events: auto; }
+  #statModal.show, #rekModal.show, #laporanModal.show { opacity: 1; pointer-events: auto; }
   .modal-card {
     width: 100%; max-width: 420px;
     background: rgba(19,19,40,.94);
@@ -1166,6 +1166,77 @@
     #hellSide .lp-character { right: 4%; }
     #heavenSide .lp-character { left: 4%; }
   }
+
+  /* ===== Laporan bulanan: pemilih di modal ===== */
+  .lap-field { margin-bottom: 12px; }
+  .lap-field label {
+    display: block; font-size: 12.5px; color: var(--muted);
+    margin-bottom: 6px; font-weight: 500;
+  }
+  .lap-status { font-size: 12.5px; color: var(--muted); min-height: 18px; margin-top: 4px; }
+
+  /* ===== Laporan bulanan: halaman A4 (dirender off-screen jadi PDF) =====
+     Selalu tema terang/putih — ini dokumen cetak, bukan bagian UI. */
+  #lapHolder { position: fixed; left: -99999px; top: 0; }
+  .lap-page {
+    width: 794px; height: 1123px;               /* A4 @96dpi */
+    box-sizing: border-box; padding: 52px 56px 64px;
+    position: relative; background: #ffffff; color: #1f2937;
+    font-family: Helvetica, Arial, sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .lap-masthead {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 20px; border-bottom: 2px solid #1b2a4a; padding-bottom: 16px;
+  }
+  .lap-kicker { font-size: 10.5px; letter-spacing: 2.5px; text-transform: uppercase; color: #8a94a6; }
+  .lap-title { font-family: Georgia, 'Times New Roman', serif; font-size: 30px; color: #1b2a4a; font-weight: 600; margin: 4px 0 2px; }
+  .lap-entity { font-size: 15px; font-weight: 600; color: #1f2937; }
+  .lap-sub { font-size: 11.5px; color: #8a94a6; margin-top: 2px; }
+  .lap-ava {
+    flex: none; width: 72px; height: 72px; border-radius: 50%;
+    background: #1b2a4a; color: #fff; overflow: hidden;
+    display: grid; place-items: center; font-family: Georgia, serif; font-size: 30px;
+  }
+  .lap-ava img { width: 100%; height: 100%; object-fit: cover; }
+  .lap-narr {
+    background: #f8fafc; border-left: 3px solid #1b2a4a;
+    padding: 12px 16px; margin: 18px 0 22px;
+    font-size: 12.5px; line-height: 1.65; color: #374151;
+  }
+  .lap-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+  .lap-kpi { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 14px; }
+  .lap-kpi .k-label { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #8a94a6; }
+  .lap-kpi .k-val { font-size: 20px; font-weight: 700; color: #1b2a4a; margin-top: 5px; }
+  .lap-kpi .k-val.pos { color: #15803d; }
+  .lap-kpi .k-val.neg { color: #b91c1c; }
+  .lap-kpi .k-delta { font-size: 10.5px; margin-top: 3px; color: #8a94a6; }
+  .lap-kpi .k-delta .up { color: #15803d; }
+  .lap-kpi .k-delta .down { color: #b91c1c; }
+  .lap-section-title {
+    font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase;
+    color: #1b2a4a; font-weight: 700; margin: 6px 0 12px;
+    padding-bottom: 6px; border-bottom: 1px solid #e5e7eb;
+  }
+  .lap-table { width: 100%; border-collapse: collapse; }
+  .lap-table th {
+    text-align: left; font-size: 10px; letter-spacing: .6px; text-transform: uppercase;
+    color: #6b7280; font-weight: 600; padding: 0 8px 8px; border-bottom: 1.5px solid #1b2a4a;
+  }
+  .lap-table td { font-size: 12px; padding: 7px 8px; border-bottom: 1px solid #eef1f5; color: #374151; }
+  .lap-table tbody tr:nth-child(even) td { background: #fbfcfe; }
+  .lap-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .lap-table .pos { color: #15803d; }
+  .lap-table .neg { color: #b91c1c; }
+  .lap-table .muted { color: #9aa2b1; }
+  .lap-chart { margin: 4px 0 24px; }
+  .lap-foot {
+    position: absolute; left: 56px; right: 56px; bottom: 26px;
+    display: flex; justify-content: space-between; align-items: flex-end;
+    border-top: 1px solid #e5e7eb; padding-top: 8px;
+    font-size: 9.5px; color: #9aa2b1;
+  }
+  .lap-foot .note { max-width: 62%; line-height: 1.4; }
 </style>
 </head>
 <body>
@@ -1284,6 +1355,7 @@
       <button class="music-btn" id="tutorialBtn" type="button">❓ Bantuan</button>
       <button class="music-btn" id="themeBtn" type="button">☀️ Terang</button>
       <button class="music-btn" id="rekeningBtn" type="button">🏦 Rekening</button>
+      <button class="music-btn" id="laporanBtn" type="button">📄 Laporan</button>
       <div class="header-right">
         <div class="live-dot">Tercatat secara real-time di Buku Amal</div>
         <button type="button" class="sound-btn" id="soundBtn" title="Suara efek">🔊</button>
@@ -1389,6 +1461,27 @@
   </div>
 </div>
 
+<div id="laporanModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>📄 Laporan Bulanan</h3>
+      <button class="modal-close" id="laporanClose" type="button">✕</button>
+    </div>
+    <div class="lap-field">
+      <label for="lapNama">Nama</label>
+      <select id="lapNama"><option value="">Pilih nama…</option></select>
+    </div>
+    <div class="lap-field">
+      <label for="lapBulan">Bulan</label>
+      <select id="lapBulan"><option value="">Pilih bulan…</option></select>
+    </div>
+    <button class="submit-btn" id="lapDownloadBtn" type="button">⬇️ Download PDF</button>
+    <div class="lap-status" id="lapStatus"></div>
+  </div>
+</div>
+
+<div id="lapHolder"></div>
+
 <div id="toast"></div>
 
 <!-- ===== Tutorial Walkthrough ===== -->
@@ -1410,6 +1503,8 @@
   let dataLeaderboard = [];
   let dataHistory = [];
   let dataKas = { saldo: 0, history: [], leaderboard: [] };
+  let dataAnggota = [];   // termasuk KAS (untuk pemilih laporan)
+  let dataBulan = [];     // [{key:'2026-07', label:'Juli 2026'}] terbaru dulu
   let namaOptsDenganKas = '', namaOptsTanpaKas = '';
   let expandTerbuka = null; // nama yang sedang di-expand
   let expandHalaman = 0;    // slide panel yg sedang tampil (0..MAX_PANEL_SLIDE-1)
@@ -1551,6 +1646,240 @@
   $('rekModalClose').addEventListener('click', () => $('rekModal').classList.remove('show'));
   $('rekModal').addEventListener('click', e => {
     if (e.target === $('rekModal')) $('rekModal').classList.remove('show');
+  });
+
+  /* ================= Laporan bulanan (PDF) =================
+     Server (getLaporanBulanan) mengirim data terhitung; klien menyusun
+     halaman HTML A4 elegan lalu merender ke PDF via html2canvas + jsPDF
+     (dimuat lazy dari CDN saat pertama kali dipakai). */
+  const LAP_PER_HAL = 24; // baris tabel per halaman lanjutan (pas untuk A4)
+  const rupiah = n => (n < 0 ? '−' : '') + 'Rp ' + fmt(Math.abs(Math.round(n)));
+
+  function isiPemilihLaporan() {
+    const selN = $('lapNama'), selB = $('lapBulan');
+    const curN = selN.value, curB = selB.value;
+    selN.innerHTML = '<option value="">Pilih nama…</option>' +
+      dataAnggota.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    selB.innerHTML = '<option value="">Pilih bulan…</option>' +
+      dataBulan.map(b => `<option value="${esc(b.key)}">${esc(b.label)}</option>`).join('');
+    if (curN) selN.value = curN;
+    if (curB) selB.value = curB;
+    else if (dataBulan.length) selB.value = dataBulan[0].key; // default bulan terbaru
+  }
+
+  function deltaHtml(now, prev) {
+    if (!prev && !now) return '';
+    if (!prev) return '<span class="up">baru bulan ini</span>';
+    const d = now - prev;
+    if (d === 0) return 'sama dgn bulan lalu';
+    const pct = Math.round(Math.abs(d) / Math.abs(prev) * 100);
+    return `<span class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'} ${pct}%</span> vs bulan lalu`;
+  }
+
+  function avaLapHtml(nama, foto) {
+    const inisial = (String(nama).trim()[0] || '?').toUpperCase();
+    if (foto) return `<div class="lap-ava"><img crossorigin="anonymous" src="${esc(foto)}" alt="" ` +
+      `onerror="this.parentNode.textContent='${inisial}'"></div>`;
+    return `<div class="lap-ava">${esc(inisial)}</div>`;
+  }
+
+  function mastheadHtml(r, subtitle) {
+    return `<div class="lap-masthead"><div>` +
+      `<div class="lap-kicker">${esc(subtitle)}</div>` +
+      `<div class="lap-title">${esc(r.bulanLabel)}</div>` +
+      `<div class="lap-entity">${esc(r.nama)}</div>` +
+      `<div class="lap-sub">Kodomo — Koperasi Dosa Mako</div></div>` +
+      (r.tipe === 'kas' ? '<div class="lap-ava">💰</div>' : avaLapHtml(r.nama, r.foto)) +
+      `</div>`;
+  }
+
+  function kpiHtml(label, value, cls, delta) {
+    return `<div class="lap-kpi"><div class="k-label">${label}</div>` +
+      `<div class="k-val ${cls || ''}">${value}</div>` +
+      (delta ? `<div class="k-delta">${delta}</div>` : '') + `</div>`;
+  }
+
+  function footHtml(r, no, total) {
+    return `<div class="lap-foot"><div class="note">Dokumen dihasilkan otomatis dari Buku Amal Kodomo — ` +
+      `bukan dokumen keuangan resmi. Dibuat ${esc(r.dibuat)}.</div>` +
+      `<div>Halaman ${no} / ${total}</div></div>`;
+  }
+
+  // Pecah baris tabel ke beberapa halaman (dengan judul + header kolom berulang).
+  function tabelKeHalaman(r, judul, thead, rowsArr, perHal) {
+    const kicker = `<div class="lap-kicker">${esc(r.nama)} — ${esc(r.bulanLabel)}</div>`;
+    if (!rowsArr.length) return [`${kicker}<div class="lap-section-title">${judul}</div>` +
+      `<div style="font-size:12.5px;color:#9aa2b1;padding:14px 0">Tidak ada transaksi pada periode ini.</div>`];
+    const halaman = [];
+    for (let i = 0; i < rowsArr.length; i += perHal) {
+      halaman.push(`${kicker}<div class="lap-section-title">${judul}${i ? ' (lanjutan)' : ''}</div>` +
+        `<table class="lap-table"><thead>${thead}</thead><tbody>${rowsArr.slice(i, i + perHal).join('')}</tbody></table>`);
+    }
+    return halaman;
+  }
+
+  // Grafik saldo harian → digambar ke <canvas> lalu jadi <img> (pasti ter-capture).
+  function chartImg(harian) {
+    const W = 682, H = 200, padL = 58, padR = 14, padT = 14, padB = 26, dpr = 2;
+    const c = document.createElement('canvas');
+    c.width = W * dpr; c.height = H * dpr;
+    const ctx = c.getContext('2d'); ctx.scale(dpr, dpr);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
+    const n = harian.length, ys = harian.map(d => d.saldo);
+    let min = Math.min(0, ...ys), max = Math.max(0, ...ys);
+    if (min === max) max = min + 1;
+    const X = i => padL + (n <= 1 ? 0 : (W - padL - padR) * i / (n - 1));
+    const Y = v => padT + (H - padT - padB) * (1 - (v - min) / (max - min));
+    ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(padL, Y(0)); ctx.lineTo(W - padR, Y(0)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(X(0), Y(min));
+    harian.forEach((d, i) => ctx.lineTo(X(i), Y(d.saldo)));
+    ctx.lineTo(X(n - 1), Y(min)); ctx.closePath();
+    ctx.fillStyle = 'rgba(27,42,74,0.08)'; ctx.fill();
+    ctx.beginPath();
+    harian.forEach((d, i) => { const px = X(i), py = Y(d.saldo); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); });
+    ctx.strokeStyle = '#1b2a4a'; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.stroke();
+    ctx.fillStyle = '#9aa2b1'; ctx.font = '9px Helvetica, Arial, sans-serif';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(fmt(Math.round(max)), padL - 8, Y(max));
+    ctx.fillText(fmt(Math.round(min)), padL - 8, Y(min));
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText('Tgl 1', X(0), H - 8);
+    ctx.fillText(String(Math.ceil(n / 2)), X(Math.floor((n - 1) / 2)), H - 8);
+    ctx.fillText(String(n), X(n - 1), H - 8);
+    return `<img src="${c.toDataURL('image/png')}" width="${W}" height="${H}" alt="Grafik saldo harian">`;
+  }
+
+  function halamanOrang(r) {
+    const naik = r.perubahan >= 0;
+    const narr = `Sepanjang <b>${esc(r.bulanLabel)}</b>, ${esc(r.nama)} mencatat ${r.jumlahTransaksi} transaksi. ` +
+      `Total top-up ${rupiah(r.totalTopUp)} dan total pengeluaran ${rupiah(r.totalPengeluaran)}` +
+      (r.infaqBulan ? ` (termasuk infaq KAS ${rupiah(r.infaqBulan)})` : '') +
+      `, sehingga saldo ${naik ? 'naik' : 'turun'} ${rupiah(Math.abs(r.perubahan))} menjadi ${rupiah(r.saldoAkhir)}. ` +
+      (r.infaqRank ? `Infaq KAS kumulatif ${rupiah(r.infaqTotal)}, menempati peringkat #${r.infaqRank} dari ${r.infaqPeserta} penginfaq.` : 'Belum ada catatan infaq KAS.');
+    const kpis =
+      kpiHtml('Saldo Awal', rupiah(r.saldoAwal), r.saldoAwal < 0 ? 'neg' : '') +
+      kpiHtml('Saldo Akhir', rupiah(r.saldoAkhir), r.saldoAkhir < 0 ? 'neg' : '') +
+      kpiHtml('Perubahan Saldo', (naik ? '+' : '−') + 'Rp ' + fmt(Math.abs(r.perubahan)), naik ? 'pos' : 'neg', deltaHtml(r.perubahan, r.prev.perubahan)) +
+      kpiHtml('Total Top-up', rupiah(r.totalTopUp), 'pos', deltaHtml(r.totalTopUp, r.prev.totalTopUp)) +
+      kpiHtml('Total Pengeluaran', rupiah(r.totalPengeluaran), 'neg', deltaHtml(r.totalPengeluaran, r.prev.totalPengeluaran)) +
+      kpiHtml('Selisih (Top-up − Pengeluaran)', (naik ? '+' : '−') + 'Rp ' + fmt(Math.abs(r.selisih)), naik ? 'pos' : 'neg') +
+      kpiHtml('Total Infaq KAS (kumulatif)', rupiah(r.infaqTotal), '') +
+      kpiHtml('Ranking Infaq KAS', r.infaqRank ? '#' + r.infaqRank : '—', '', r.infaqRank ? 'dari ' + r.infaqPeserta + ' orang' : '') +
+      kpiHtml('Jumlah Transaksi', String(r.jumlahTransaksi), '');
+    const ringkas = mastheadHtml(r, 'Laporan Amalan Bulanan') +
+      `<div class="lap-narr">${narr}</div><div class="lap-kpis">${kpis}</div>`;
+    const thead = `<tr><th>Tanggal</th><th>Jenis</th><th>Keterangan</th><th class="num">Nominal</th><th class="num">Saldo</th></tr>`;
+    const rows = r.transaksi.map(t => {
+      const dosa = t.tipe === 'Dosa';
+      return `<tr><td>${esc(t.waktu)}</td><td class="${dosa ? 'neg' : 'pos'}">${dosa ? 'Dosa' : 'Pahala'}</td>` +
+        `<td>${t.keterangan ? esc(t.keterangan) : '<span class="muted">—</span>'}</td>` +
+        `<td class="num ${dosa ? 'neg' : 'pos'}">${dosa ? '−' : '+'}${fmt(t.nominal)}</td>` +
+        `<td class="num">${(t.saldo < 0 ? '−' : '') + fmt(Math.abs(t.saldo))}</td></tr>`;
+    });
+    return [ringkas].concat(tabelKeHalaman(r, 'Rincian Transaksi', thead, rows, LAP_PER_HAL));
+  }
+
+  function halamanKas(r) {
+    const naik = r.perubahan >= 0;
+    const narr = `Sepanjang <b>${esc(r.bulanLabel)}</b>, KAS menerima pemasukan ${rupiah(r.pemasukan)} dari ${r.infaqPerOrang.length} penginfaq ` +
+      `dan membukukan pengeluaran ${rupiah(r.pengeluaran)}, sehingga saldo ${naik ? 'naik' : 'turun'} ${rupiah(Math.abs(r.perubahan))} menjadi ${rupiah(r.saldoAkhir)}.`;
+    const kpis =
+      kpiHtml('Saldo Awal', rupiah(r.saldoAwal), r.saldoAwal < 0 ? 'neg' : '') +
+      kpiHtml('Saldo Akhir', rupiah(r.saldoAkhir), r.saldoAkhir < 0 ? 'neg' : '') +
+      kpiHtml('Perubahan Saldo', (naik ? '+' : '−') + 'Rp ' + fmt(Math.abs(r.perubahan)), naik ? 'pos' : 'neg') +
+      kpiHtml('Total Pemasukan', rupiah(r.pemasukan), 'pos', deltaHtml(r.pemasukan, r.prev.pemasukan)) +
+      kpiHtml('Total Pengeluaran', rupiah(r.pengeluaran), 'neg', deltaHtml(r.pengeluaran, r.prev.pengeluaran)) +
+      kpiHtml('Selisih Total', (naik ? '+' : '−') + 'Rp ' + fmt(Math.abs(r.selisih)), naik ? 'pos' : 'neg');
+    const ringkas = mastheadHtml(r, 'Laporan Kas Infaq Bulanan') +
+      `<div class="lap-narr">${narr}</div><div class="lap-kpis">${kpis}</div>` +
+      `<div class="lap-section-title">Grafik Saldo Harian</div><div class="lap-chart">${chartImg(r.harian)}</div>`;
+    const totalInfaq = r.infaqPerOrang.reduce((s, o) => s + o.total, 0);
+    const theadInfaq = `<tr><th>#</th><th>Nama</th><th class="num">Total Infaq</th></tr>`;
+    const rowsInfaq = r.infaqPerOrang.map((o, i) =>
+      `<tr><td class="muted">${i + 1}</td><td>${esc(o.nama)}</td><td class="num pos">${fmt(o.total)}</td></tr>`);
+    if (rowsInfaq.length) rowsInfaq.push(
+      `<tr><td></td><td style="font-weight:700">TOTAL</td><td class="num pos" style="font-weight:700">${fmt(totalInfaq)}</td></tr>`);
+    const theadPeng = `<tr><th>Tanggal</th><th>Keterangan</th><th class="num">Nominal</th><th class="num">Saldo</th></tr>`;
+    const rowsPeng = r.pengeluaranList.map(t =>
+      `<tr><td>${esc(t.waktu)}</td><td>${t.keterangan ? esc(t.keterangan) : '<span class="muted">—</span>'}</td>` +
+      `<td class="num neg">−${fmt(t.nominal)}</td><td class="num">${(t.saldo < 0 ? '−' : '') + fmt(Math.abs(t.saldo))}</td></tr>`);
+    return [ringkas]
+      .concat(tabelKeHalaman(r, 'Total Infaq per Orang', theadInfaq, rowsInfaq, LAP_PER_HAL))
+      .concat(tabelKeHalaman(r, 'Riwayat Pengeluaran', theadPeng, rowsPeng, LAP_PER_HAL));
+  }
+
+  // --- Pipeline PDF ---
+  function muatScript(src) {
+    return new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = src; s.onload = () => res();
+      s.onerror = () => rej(new Error('Gagal memuat pustaka PDF (cek koneksi).'));
+      document.head.appendChild(s);
+    });
+  }
+  let _libsPdf = null;
+  function siapkanLibs() {
+    if (!_libsPdf) _libsPdf = Promise.all([
+      window.jspdf ? Promise.resolve() : muatScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'),
+      window.html2canvas ? Promise.resolve() : muatScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
+    ]);
+    return _libsPdf;
+  }
+  function tungguGambar(el) {
+    return Promise.all([...el.querySelectorAll('img')].map(img =>
+      img.complete ? Promise.resolve() : new Promise(r => { img.onload = img.onerror = () => r(); })));
+  }
+  async function buatPdf(bodies, r, filename) {
+    await siapkanLibs();
+    const total = bodies.length, holder = $('lapHolder');
+    holder.innerHTML = bodies.map((b, i) => `<div class="lap-page">${b}${footHtml(r, i + 1, total)}</div>`).join('');
+    await tungguGambar(holder);
+    const doc = new window.jspdf.jsPDF('p', 'pt', 'a4');
+    const pw = 595.28, ph = 841.89;
+    const pages = [...holder.querySelectorAll('.lap-page')];
+    for (let i = 0; i < pages.length; i++) {
+      const canvas = await html2canvas(pages[i], { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      if (i) doc.addPage();
+      doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pw, ph);
+    }
+    holder.innerHTML = '';
+    doc.save(filename);
+  }
+
+  $('laporanBtn').addEventListener('click', () => {
+    isiPemilihLaporan();
+    $('lapStatus').textContent = '';
+    $('laporanModal').classList.add('show');
+  });
+  $('laporanClose').addEventListener('click', () => $('laporanModal').classList.remove('show'));
+  $('laporanModal').addEventListener('click', e => {
+    if (e.target === $('laporanModal')) $('laporanModal').classList.remove('show');
+  });
+
+  $('lapDownloadBtn').addEventListener('click', () => {
+    const nama = $('lapNama').value, bulan = $('lapBulan').value;
+    if (!nama) { toast('Pilih nama dulu.', 'err'); return; }
+    if (!bulan) { toast('Pilih bulan dulu.', 'err'); return; }
+    const btn = $('lapDownloadBtn'), label = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Menyiapkan…';
+    $('lapStatus').textContent = 'Mengambil data laporan…';
+    google.script.run
+      .withSuccessHandler(r => {
+        $('lapStatus').textContent = 'Menyusun & merender PDF…';
+        const bodies = r.tipe === 'kas' ? halamanKas(r) : halamanOrang(r);
+        const fn = 'Laporan_' + String(r.nama).replace(/[^\w]+/g, '_') + '_' + r.bulanKey + '.pdf';
+        buatPdf(bodies, r, fn)
+          .then(() => { $('lapStatus').textContent = 'Selesai ✓'; toast('Laporan diunduh.', 'ok'); })
+          .catch(e => { $('lapStatus').textContent = ''; toast(e.message || 'Gagal membuat PDF.', 'err'); })
+          .then(() => { btn.disabled = false; btn.textContent = label; });
+      })
+      .withFailureHandler(err => {
+        btn.disabled = false; btn.textContent = label;
+        $('lapStatus').textContent = '';
+        toast(err.message || 'Gagal mengambil data.', 'err');
+      })
+      .getLaporanBulanan(nama, bulan);
   });
 
   /* ---- Tema terang/gelap (default gelap; tersimpan di localStorage) ----
@@ -1847,6 +2176,9 @@
     dataLeaderboard = data.leaderboard;
     dataHistory = data.history;
     dataKas = data.kas;
+    dataAnggota = data.anggota || [];
+    dataBulan = data.bulanList || [];
+    if (typeof isiPemilihLaporan === 'function') isiPemilihLaporan();
     renderLeaderboard();
     renderKasBoard();
 
