@@ -258,7 +258,7 @@ function getDashboardData() {
       pahala: o.pahala,
       dosa: o.dosa,
       saldo: o.pahala - o.dosa,
-      recent: o.recent.slice(-5).reverse() // 5 transaksi terakhir, terbaru dulu
+      recent: o.recent.slice(-40).reverse() // buffer utk panel (client paginasi 10 + filter KAS)
     }))
     .sort((a, b) => b.saldo - a.saldo);
 

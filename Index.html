@@ -518,7 +518,7 @@
   .lb-saldo.neg { color: var(--rose); }
   .lb-sub { font-size: 11px; color: var(--muted); text-align: right; margin-top: 3px; }
 
-  /* Panel expand: 5 transaksi terakhir */
+  /* Panel expand: transaksi terakhir (toggle KAS + 2 slide) */
   .lb-expand {
     display: grid;
     grid-template-rows: 0fr;
@@ -537,6 +537,32 @@
     letter-spacing: 1.2px; color: var(--muted);
     margin: 4px 0 8px;
   }
+  .lb-expand-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; flex-wrap: wrap; margin-bottom: 4px;
+  }
+  .lb-expand-head .lb-expand-title { margin: 4px 0; }
+  .kas-toggle {
+    font: inherit; font-size: 11.5px; cursor: pointer;
+    color: var(--muted); background: rgba(255,255,255,.05);
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 4px 10px; transition: background .2s, color .2s;
+  }
+  .kas-toggle:hover { background: rgba(255,255,255,.09); color: var(--text); }
+  .lb-pager {
+    display: flex; align-items: center; justify-content: center;
+    gap: 14px; margin-top: 6px;
+    font-size: 12px; color: var(--muted);
+  }
+  .pg-btn {
+    font: inherit; font-size: 16px; line-height: 1; cursor: pointer;
+    width: 28px; height: 28px; display: grid; place-items: center;
+    color: var(--text); background: rgba(255,255,255,.05);
+    border: 1px solid var(--border); border-radius: 9px;
+    transition: background .2s, opacity .2s;
+  }
+  .pg-btn:hover:not(:disabled) { background: rgba(255,255,255,.11); }
+  .pg-btn:disabled { opacity: .35; cursor: default; }
 
   /* ===== Riwayat ===== */
   .hx-row {
@@ -1386,6 +1412,12 @@
   let dataKas = { saldo: 0, history: [], leaderboard: [] };
   let namaOptsDenganKas = '', namaOptsTanpaKas = '';
   let expandTerbuka = null; // nama yang sedang di-expand
+  let expandHalaman = 0;    // slide panel yg sedang tampil (0..MAX_PANEL_SLIDE-1)
+  // Sembunyikan transaksi infaq KAS di panel; default sembunyi (riwayat cepat penuh).
+  let sembunyikanKas = localStorage.getItem('kas_hidden') !== '0';
+  const PANEL_PER_SLIDE = 5, PANEL_MAX_SLIDE = 2; // maks 10 transaksi, 2 slide
+  // KAS infaq = keterangan berawalan persis ini (mirror KET_INFAQ di Code.js).
+  const adalahKas_ = h => (h.keterangan || '').indexOf('Transfer pahala ke KAS') === 0;
 
   const $ = id => document.getElementById(id);
   const fmt = n => new Intl.NumberFormat('id-ID').format(n);
@@ -1479,28 +1511,39 @@
       <button class="rek-copy" type="button" data-idx="${i}">📋 Salin</button>
     </div>`).join('');
 
-  $('rekList').querySelectorAll('.rek-copy').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const nomor = REKENING[btn.dataset.idx].nomor;
-      const selesai = () => {
-        const asli = btn.textContent;
-        btn.textContent = '✓ Tersalin';
-        btn.classList.add('copied');
-        setTimeout(() => { btn.textContent = asli; btn.classList.remove('copied'); }, 1500);
-      };
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(nomor).then(selesai).catch(() => toast('Gagal menyalin.', 'err'));
-      } else {
+  // navigator.clipboard.writeText DITOLAK di iframe sandbox GAS (NotAllowedError),
+  // jadi selalu sedia fallback execCommand('copy') via textarea, bukan langsung error.
+  function salinTeks(teks, onOk, onFail) {
+    const fallback = () => {
+      try {
         const ta = document.createElement('textarea');
-        ta.value = nomor;
+        ta.value = teks;
+        ta.setAttribute('readonly', '');
         ta.style.position = 'fixed';
         ta.style.left = '-9999px';
         document.body.appendChild(ta);
         ta.select();
-        document.execCommand('copy');
+        ta.setSelectionRange(0, ta.value.length); // iOS Safari
+        const ok = document.execCommand('copy');
         document.body.removeChild(ta);
-        selesai();
-      }
+        ok ? onOk() : onFail();
+      } catch (e) { onFail(); }
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(teks).then(onOk).catch(fallback);
+    } else {
+      fallback();
+    }
+  }
+
+  $('rekList').querySelectorAll('.rek-copy').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const asli = btn.textContent;
+      salinTeks(REKENING[btn.dataset.idx].nomor, () => {
+        btn.textContent = '✓ Tersalin';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = asli; btn.classList.remove('copied'); }, 1500);
+      }, () => toast('Gagal menyalin.', 'err'));
     });
   });
 
@@ -1561,6 +1604,50 @@
       : ''}<span>${esc(o.nama.trim().charAt(0).toUpperCase())}</span></div>`;
   }
 
+  /* ---- Isi panel "transaksi terakhir" (toggle KAS + paginasi 2 slide) ---- */
+  function panelHtml(o) {
+    const semua = o.recent || [];
+    const adaKas = semua.some(adalahKas_);
+    const list = (sembunyikanKas ? semua.filter(h => !adalahKas_(h)) : semua)
+      .slice(0, PANEL_PER_SLIDE * PANEL_MAX_SLIDE);
+    const slide = Math.max(1, Math.ceil(list.length / PANEL_PER_SLIDE));
+    if (expandHalaman > slide - 1) expandHalaman = slide - 1;
+    const potongan = list.slice(expandHalaman * PANEL_PER_SLIDE, (expandHalaman + 1) * PANEL_PER_SLIDE);
+
+    const toggle = adaKas
+      ? `<button class="kas-toggle" type="button">${sembunyikanKas ? '💰 Tampilkan infaq KAS' : '🙈 Sembunyikan infaq KAS'}</button>`
+      : '';
+    const pager = slide > 1
+      ? `<div class="lb-pager">
+           <button class="pg-btn" type="button" data-dir="-1"${expandHalaman === 0 ? ' disabled' : ''}>‹</button>
+           <span>${expandHalaman + 1} / ${slide}</span>
+           <button class="pg-btn" type="button" data-dir="1"${expandHalaman === slide - 1 ? ' disabled' : ''}>›</button>
+         </div>`
+      : '';
+    const isi = potongan.length
+      ? potongan.map(h => hxRowHtml(h, true)).join('')
+      : '<div class="empty mini">Belum ada transaksi.</div>';
+    return `<div class="lb-expand-head">
+        <div class="lb-expand-title">Transaksi terakhir</div>${toggle}
+      </div>${isi}${pager}`;
+  }
+
+  // Render ulang isi panel satu orang (dipanggil saat buka / toggle KAS / ganti slide).
+  function refreshPanel(item, o) {
+    item.querySelector('.lb-expand-inner').innerHTML = panelHtml(o);
+    const tgl = item.querySelector('.kas-toggle');
+    if (tgl) tgl.addEventListener('click', () => {
+      sembunyikanKas = !sembunyikanKas;
+      localStorage.setItem('kas_hidden', sembunyikanKas ? '1' : '0');
+      expandHalaman = 0;
+      refreshPanel(item, o);
+    });
+    item.querySelectorAll('.pg-btn').forEach(b => b.addEventListener('click', () => {
+      expandHalaman += Number(b.dataset.dir);
+      refreshPanel(item, o);
+    }));
+  }
+
   /* ---- Render leaderboard (dengan expand) ---- */
   function renderLeaderboard() {
     const lb = $('viewLeaderboard');
@@ -1573,9 +1660,6 @@
       const pct = Math.max(4, Math.round(Math.abs(o.saldo) / maxAbs * 100));
       const neg = o.saldo < 0;
       const open = expandTerbuka === o.nama;
-      const recentHtml = o.recent.length
-        ? o.recent.map(h => hxRowHtml(h, true)).join('')
-        : '<div class="empty mini">Belum ada transaksi.</div>';
       return `
       <div class="lb-item${open ? ' open' : ''}" data-nama="${esc(o.nama)}">
         <div class="lb-row">
@@ -1591,22 +1675,24 @@
           </div>
         </div>
         <div class="lb-expand"><div>
-          <div class="lb-expand-inner">
-            <div class="lb-expand-title">5 transaksi terakhir</div>
-            ${recentHtml}
-          </div>
+          <div class="lb-expand-inner">${panelHtml(o)}</div>
         </div></div>
       </div>`;
     }).join('');
 
-    // Klik baris → expand / tutup
+    // Klik baris → expand / tutup. Saat buka: reset ke slide 0 & render ulang
+    // panel dgn state KAS terkini (panel yg tertutup bisa berisi konten basi).
     lb.querySelectorAll('.lb-item').forEach(item => {
+      const o = dataLeaderboard.find(x => x.nama === item.dataset.nama);
       item.querySelector('.lb-row').addEventListener('click', () => {
-        const nama = item.dataset.nama;
-        expandTerbuka = expandTerbuka === nama ? null : nama;
+        const buka = expandTerbuka !== item.dataset.nama;
+        expandTerbuka = buka ? item.dataset.nama : null;
+        if (buka && o) { expandHalaman = 0; refreshPanel(item, o); }
         lb.querySelectorAll('.lb-item').forEach(it =>
           it.classList.toggle('open', it.dataset.nama === expandTerbuka));
       });
+      // Item yg sudah terbuka (mis. setelah data refresh) perlu tombol aktif.
+      if (o && expandTerbuka === item.dataset.nama) refreshPanel(item, o);
     });
 
     // Angka berjalan untuk saldo & rincian pahala/dosa tiap baris
@@ -1962,7 +2048,7 @@
     },
     {
       title: "Papan Peringkat 🏆",
-      desc: "Ga perlu dijelasin ga, sih? Intinya kalo mau dilihat dunia, top up sebanyak-banyaknya wkwk. Kalo namanya diklik, nanti bisa liat 5 transaksi terakhir manusia itu.",
+      desc: "Ga perlu dijelasin ga, sih? Intinya kalo mau dilihat dunia, top up sebanyak-banyaknya wkwk. Kalo namanya diklik, nanti bisa liat transaksi terakhir manusia itu (bisa hide infaq KAS & geser slide).",
       targetId: "boardCard",
       action: () => activateTab("leaderboard")
     },
