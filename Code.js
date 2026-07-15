@@ -17,12 +17,31 @@
 const SHEET_TRANSAKSI = 'Transaksi';
 const SHEET_ANGGOTA = 'Anggota';
 // Entitas kas infaq — baris di sheet Anggota bernama persis 'KAS'.
-// Infaq = transfer biasa ke KAS; leaderboard kas dihitung dari prefix
-// keterangan 'Transfer pahala ke KAS' (transfer tidak punya tipe sendiri).
+// Infaq = transfer pahala ke KAS; leaderboard kas dihitung dari prefix
+// keterangan (lihat isKetInfaq_) karena transfer tidak punya tipe sendiri.
 const KAS_NAMA = 'KAS';
-// Nominal infaq otomatis per entri Dosa manual, untuk orang yang langganan
-// (kolom C 'Infaq' di sheet Anggota berisi 1). Kesepakatan polling Jul 2026.
+// Nominal infaq default (dipakai UI & migrasi flag lama). Sejak Jul 2026 tiap
+// orang punya nominal infaq sendiri, disimpan sebagai ANGKA di kolom C 'Infaq'
+// sheet Anggota (0/kosong = tidak ikut). Nilai lama '1' (flag centang) dibaca
+// sebagai default ini demi kompatibilitas.
 const INFAQ_NOMINAL = 500;
+
+// Penanda transaksi infaq KAS lewat prefix keterangan. Format baru:
+// 'KAS — <keterangan dosa>'. Format lama tetap dikenali agar data historis
+// (dan transfer manual ke KAS) tetap terhitung sebagai infaq.
+const KET_INFAQ_BARU = 'KAS — ';
+const KET_INFAQ_LAMA = 'Transfer pahala ke ' + KAS_NAMA;
+function isKetInfaq_(ket) {
+  const s = String(ket || '');
+  return s.indexOf(KET_INFAQ_BARU) === 0 || s.indexOf(KET_INFAQ_LAMA) === 0;
+}
+// Baca nominal infaq dari kolom C: 0/kosong = tidak ikut; angka = nominal;
+// nilai '1' adalah flag centang lama → dianggap default INFAQ_NOMINAL.
+function bacaInfaqNominal_(raw) {
+  const v = Number(raw) || 0;
+  if (v <= 0) return 0;
+  return v === 1 ? INFAQ_NOMINAL : v;
+}
 
 // Nama bulan Indonesia (Utilities.formatDate memakai locale en_US untuk MMMM).
 const BULAN_ID = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli',
@@ -184,13 +203,16 @@ function submitAmalan(data) {
     } else {
       const tipe = data.tipe === 'Dosa' ? 'Dosa' : 'Pahala';
       sheet.appendRow([now, nama, tipe, nominal, ket]);
-      // Infaq otomatis: entri Dosa manual dari orang yang langganan memicu
-      // transfer INFAQ_NOMINAL ke KAS. Barisnya ditulis langsung (bukan lewat
-      // submitAmalan lagi), jadi tidak bisa memicu berantai.
-      if (tipe === 'Dosa' && nama !== KAS_NAMA && getInfaqList_().indexOf(nama) !== -1) {
+      // Infaq otomatis: entri Dosa manual dari orang yang punya nominal infaq
+      // (kolom C > 0) memicu transfer nominal itu ke KAS. Barisnya ditulis
+      // langsung (bukan lewat submitAmalan lagi), jadi tidak memicu berantai.
+      const infaqNominal = tipe === 'Dosa' && nama !== KAS_NAMA
+        ? (getInfaqMap_()[nama] || 0) : 0;
+      if (infaqNominal > 0) {
+        const ketInfaq = KET_INFAQ_BARU + (ket || 'infaq otomatis');
         sheet.getRange(sheet.getLastRow() + 1, 1, 2, 5).setValues([
-          [now, nama, 'Dosa', INFAQ_NOMINAL, 'Transfer pahala ke ' + KAS_NAMA + ' — infaq otomatis'],
-          [now, KAS_NAMA, 'Pahala', INFAQ_NOMINAL, 'Transfer pahala dari ' + nama + ' — infaq otomatis']
+          [now, nama, 'Dosa', infaqNominal, ketInfaq],
+          [now, KAS_NAMA, 'Pahala', infaqNominal, ketInfaq]
         ]);
       }
     }
@@ -200,21 +222,30 @@ function submitAmalan(data) {
   return getDashboardData();
 }
 
-/** Daftar nama yang langganan infaq otomatis (kolom C 'Infaq' berisi nilai truthy) */
-function getInfaqList_() {
+/** Peta nama → nominal infaq otomatis (kolom C 'Infaq' berisi angka > 0) */
+function getInfaqMap_() {
   const sheet = getSheet_(SHEET_ANGGOTA);
   const last = sheet.getLastRow();
-  if (last < 2) return [];
-  return sheet.getRange(2, 1, last - 1, 3).getValues()
-    .filter(r => r[2])
-    .map(r => String(r[0]).trim())
-    .filter(n => n && n !== KAS_NAMA);
+  const map = {};
+  if (last < 2) return map;
+  sheet.getRange(2, 1, last - 1, 3).getValues().forEach(r => {
+    const nama = String(r[0]).trim();
+    const nominal = bacaInfaqNominal_(r[2]);
+    if (nama && nama !== KAS_NAMA && nominal > 0) map[nama] = nominal;
+  });
+  return map;
 }
 
-/** Simpan daftar langganan infaq otomatis (centang di menu Kas) ke kolom C Anggota */
-function saveInfaqList(namaList) {
-  const dipilih = {};
-  (Array.isArray(namaList) ? namaList : []).forEach(n => { dipilih[String(n).trim()] = true; });
+/** Simpan nominal infaq per orang (menu Kas) ke kolom C Anggota.
+ *  map = { nama: nominal }. Nominal <= 0 / tidak ada = tidak ikut (kolom kosong). */
+function saveInfaqMap(map) {
+  const nominalOf = {};
+  if (map && typeof map === 'object') {
+    Object.keys(map).forEach(k => {
+      const n = Math.floor(Number(map[k]) || 0);
+      if (n > 0) nominalOf[String(k).trim()] = n;
+    });
+  }
 
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
@@ -225,7 +256,10 @@ function saveInfaqList(namaList) {
     if (last >= 2) {
       const nama = sheet.getRange(2, 1, last - 1, 1).getValues();
       sheet.getRange(2, 3, last - 1, 1)
-        .setValues(nama.map(r => [dipilih[String(r[0]).trim()] ? 1 : '']));
+        .setValues(nama.map(r => {
+          const n = nominalOf[String(r[0]).trim()] || 0;
+          return [n > 0 ? n : ''];
+        }));
     }
   } finally {
     lock.releaseLock();
@@ -247,7 +281,6 @@ function getDashboardData() {
   const infaqMap = {}; // nama → total infaq ke KAS
   const bulanSet = {}; // 'yyyy-MM' yang punya transaksi (utk pemilih laporan)
   const history = [];
-  const KET_INFAQ = 'Transfer pahala ke ' + KAS_NAMA;
 
   rows.forEach(r => {
     const [ts, nama, tipe, nominal, ket] = r;
@@ -262,7 +295,7 @@ function getDashboardData() {
     if (isDosa) {
       saldoMap[nm].dosa += val;
       totalDosa += val;
-      if (String(ket || '').indexOf(KET_INFAQ) === 0) {
+      if (nm !== KAS_NAMA && isKetInfaq_(ket)) {
         infaqMap[nm] = (infaqMap[nm] || 0) + val;
       }
     } else {
@@ -311,7 +344,7 @@ function getDashboardData() {
         .map(nm => ({ nama: nm, foto: fotoMap[nm] || '', total: infaqMap[nm] }))
         .sort((a, b) => b.total - a.total)
     },
-    infaqList: getInfaqList_(),
+    infaqMap: getInfaqMap_(),
     anggota: getAnggota(),
     bulanList: Object.keys(bulanSet).sort().reverse().map(k => ({ key: k, label: labelBulan_(k) }))
   };
@@ -331,7 +364,6 @@ function getLaporanBulanan(nama, bulanKey) {
   const last = sheet.getLastRow();
   const rows = last < 2 ? [] : sheet.getRange(2, 1, last - 1, 5).getValues(); // urut lama→baru
 
-  const KET_INFAQ = 'Transfer pahala ke ' + KAS_NAMA;
   const [yy, mm] = bulanKey.split('-').map(Number);
   const prevKey = Utilities.formatDate(new Date(yy, mm - 2, 1), tz, 'yyyy-MM');
   const asDate = ts => ts instanceof Date ? ts : new Date(ts);
@@ -358,8 +390,8 @@ function getLaporanBulanan(nama, bulanKey) {
       if (!val) return;
       const k = mkey(ts);
       const isDosa = tipe === 'Dosa';
-      // Infaq per orang bulan ini: baris sisi PENGIRIM ('ke KAS'), nama = pengirim.
-      if (k === bulanKey && isDosa && String(ket || '').indexOf(KET_INFAQ) === 0) {
+      // Infaq per orang bulan ini: baris sisi PENGIRIM, nama = pengirim.
+      if (k === bulanKey && isDosa && isKetInfaq_(ket) && String(rnm).trim() !== KAS_NAMA) {
         const p = String(rnm).trim();
         infaqOrang[p] = (infaqOrang[p] || 0) + val;
       }
@@ -406,8 +438,8 @@ function getLaporanBulanan(nama, bulanKey) {
     const val = Number(nominal) || 0;
     if (!val) return;
     const isDosa = tipe === 'Dosa';
-    const isInfaq = isDosa && String(ket || '').indexOf(KET_INFAQ) === 0;
     const p = String(rnm).trim();
+    const isInfaq = isDosa && isKetInfaq_(ket) && p !== KAS_NAMA;
     if (isInfaq) infaqMap[p] = (infaqMap[p] || 0) + val; // ranking all-time
     if (p !== nama) return;
     const k = mkey(ts);

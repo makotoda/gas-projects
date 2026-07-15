@@ -377,25 +377,50 @@
   .kas-list label {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 10px;
     margin: 0;
     padding: 9px 10px;
     border-radius: 10px;
     font-size: 14px;
-    cursor: pointer;
   }
   .kas-list label:hover { background: rgba(255,255,255,.06); }
   body.light .kas-list label:hover { background: rgba(15,23,42,.05); }
-  .kas-list input {
-    width: 16px; height: 16px;
-    accent-color: #f59e0b;
-    cursor: pointer;
+  .kas-list .kas-nama {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
+  .kas-list input[type="number"] {
+    width: 96px;
+    flex: 0 0 auto;
+    padding: 7px 9px;
+    font: inherit;
+    font-size: 13px;
+    text-align: right;
+    color: var(--text);
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border-soft);
+    border-radius: 9px;
+    -moz-appearance: textfield;
+  }
+  .kas-list input[type="number"]::-webkit-outer-spin-button,
+  .kas-list input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none; margin: 0;
+  }
+  .kas-list input[type="number"]:focus {
+    outline: none;
+    border-color: #f59e0b;
+  }
+  body.light .kas-list input[type="number"] { background: rgba(15,23,42,.04); }
   .kas-list .kas-semua {
     border-bottom: 1px solid var(--border-soft);
     border-radius: 10px 10px 0 0;
     font-weight: 600;
   }
+  .kas-list .kas-semua .kas-nama { color: var(--muted); }
   @keyframes slideIn {
     from { opacity: 0; transform: translateY(-8px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -1407,7 +1432,7 @@
       </div>
 
       <div class="kas-field" id="kasField">
-        <label>Siapa yang ikut infaq otomatis Rp 500 tiap catat dosa?</label>
+        <label>Nominal infaq otomatis tiap catat dosa (kosong / 0 = tidak ikut)</label>
         <div class="kas-list" id="kasList"></div>
       </div>
 
@@ -1515,6 +1540,7 @@
 
 <script>
   const KAS_NAMA = 'KAS';
+  const INFAQ_NOMINAL = 500; // nominal infaq default (placeholder isian menu Kas)
   let tipeTerpilih = 'Pahala';
   let dataLeaderboard = [];
   let dataHistory = [];
@@ -1527,8 +1553,12 @@
   // Sembunyikan transaksi infaq KAS di panel; default sembunyi (riwayat cepat penuh).
   let sembunyikanKas = localStorage.getItem('kas_hidden') !== '0';
   const PANEL_PER_SLIDE = 5, PANEL_MAX_SLIDE = 2; // maks 10 transaksi, 2 slide
-  // KAS infaq = keterangan berawalan persis ini (mirror KET_INFAQ di Code.js).
-  const adalahKas_ = h => (h.keterangan || '').indexOf('Transfer pahala ke KAS') === 0;
+  // KAS infaq = keterangan berawalan salah satu prefix ini (mirror isKetInfaq_
+  // di Code.js): format baru 'KAS — …' atau format lama transfer ke KAS.
+  const adalahKas_ = h => {
+    const k = h.keterangan || '';
+    return k.indexOf('KAS — ') === 0 || k.indexOf('Transfer pahala ke KAS') === 0;
+  };
 
   const $ = id => document.getElementById(id);
   const fmt = n => new Intl.NumberFormat('id-ID').format(n);
@@ -1578,8 +1608,8 @@
       toggle.querySelectorAll('button').forEach(b =>
         b.classList.toggle('active', b === btn));
       $('tujuanField').classList.toggle('show', tipeTerpilih === 'Transfer');
-      // Mode Kas: kelola daftar langganan infaq otomatis — nama tunggal,
-      // nominal, dan keterangan tidak relevan, diganti daftar centang.
+      // Mode Kas: atur nominal infaq otomatis per orang — nama tunggal,
+      // nominal, dan keterangan form tidak relevan, diganti daftar isian nominal.
       const isKas = tipeTerpilih === 'Kas';
       $('namaField').style.display = isKas ? 'none' : '';
       $('umumField').style.display = isKas ? 'none' : '';
@@ -2179,16 +2209,20 @@
         if (cur) sel.value = cur;
       });
 
-    // Daftar centang langganan infaq otomatis — status centang = yang
-    // tersimpan di server (kolom Infaq sheet Anggota), bukan pilihan lokal.
-    const langganan = new Set(data.infaqList || []);
+    // Nominal infaq per orang — nilai = yang tersimpan di server (kolom Infaq
+    // sheet Anggota). Kosong/0 = tidak ikut. Baris "Isi semua" mengisi cepat.
+    const infaqMap = data.infaqMap || {};
     $('kasList').innerHTML =
-      '<label class="kas-semua"><input type="checkbox" id="kasSemua"> Pilih semua</label>' +
-      anggotaOrang.map(n =>
-        `<label><input type="checkbox" data-nama="${esc(n)}"${langganan.has(n) ? ' checked' : ''}> ${esc(n)}</label>`
-      ).join('');
-    $('kasSemua').addEventListener('change', e => {
-      document.querySelectorAll('#kasList input[data-nama]').forEach(i => i.checked = e.target.checked);
+      '<label class="kas-semua"><span class="kas-nama">Isi semua dengan</span>' +
+        `<input type="number" inputmode="numeric" min="0" step="100" id="kasSemua" placeholder="mis. ${INFAQ_NOMINAL}"></label>` +
+      anggotaOrang.map(n => {
+        const v = infaqMap[n] > 0 ? infaqMap[n] : '';
+        return `<label><span class="kas-nama">${esc(n)}</span>` +
+          `<input type="number" inputmode="numeric" min="0" step="100" data-nama="${esc(n)}" value="${v}" placeholder="0"></label>`;
+      }).join('');
+    $('kasSemua').addEventListener('input', e => {
+      const val = e.target.value;
+      document.querySelectorAll('#kasList input[data-nama]').forEach(i => { i.value = val; });
     });
 
     dataLeaderboard = data.leaderboard;
@@ -2216,11 +2250,16 @@
     const tujuan = $('tujuan').value;
     const nominal = nominalValue();
     const isKas = tipeTerpilih === 'Kas';
-    const kasNamaList = isKas
-      ? [...document.querySelectorAll('#kasList input[data-nama]:checked')].map(i => i.dataset.nama)
-      : [];
+    const kasInfaqMap = {};
+    if (isKas) {
+      document.querySelectorAll('#kasList input[data-nama]').forEach(i => {
+        const n = Math.floor(Number(i.value) || 0);
+        if (n > 0) kasInfaqMap[i.dataset.nama] = n;
+      });
+    }
+    const kasPesertaCount = Object.keys(kasInfaqMap).length;
 
-    // Mode Kas: simpan daftar langganan — boleh kosong (semua berhenti ikut)
+    // Mode Kas: simpan nominal infaq — boleh kosong (semua berhenti ikut)
     if (!isKas) {
       if (!nama) return toast('Pilih nama dulu ya.', 'err');
       if (tipeTerpilih === 'Transfer') {
@@ -2249,7 +2288,7 @@
         loader.classList.add('hide');
         if (window.KodomoLogo3D) window.KodomoLogo3D.keHeader();
         toast(isKas
-          ? `Daftar infaq otomatis tersimpan ✓ (${kasNamaList.length} orang ikut)`
+          ? `Nominal infaq tersimpan ✓ (${kasPesertaCount} orang ikut)`
           : tipeTerpilih === 'Transfer'
             ? `Transfer pahala ${fmt(nominal)} dari ${nama} ke ${tujuan} tersimpan ✓`
             : `${tipeTerpilih} ${fmt(nominal)} untuk ${nama} tersimpan ✓`, 'ok');
@@ -2271,7 +2310,7 @@
         btn.textContent = labelSubmit();
       });
     if (isKas) {
-      runner.saveInfaqList(kasNamaList);
+      runner.saveInfaqMap(kasInfaqMap);
     } else {
       runner.submitAmalan({
         nama: nama,
