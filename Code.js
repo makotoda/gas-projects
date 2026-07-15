@@ -111,6 +111,31 @@ function normalizeFotoUrl_(raw) {
   return url;
 }
 
+/**
+ * Ambil foto profil → data URI base64, untuk ditanam di PDF laporan.
+ * PDF digambar lewat <canvas>, dan canvas menolak mengekspor piksel gambar
+ * lintas domain kecuali host-nya mengirim header CORS. drive.google.com/thumbnail
+ * membalas 302 TANPA Access-Control-Allow-Origin, jadi foto Drive selalu gagal
+ * dimuat di sisi klien. Diambil di server saja — server-to-server tidak kenal CORS.
+ * Balikan '' kalau gagal; klien otomatis jatuh ke monogram inisial.
+ * Butuh scope script.external_request (UrlFetchApp).
+ */
+function fotoDataUri_(url) {
+  if (!url) return '';
+  try {
+    const res = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true });
+    if (res.getResponseCode() !== 200) return '';
+    const blob = res.getBlob();
+    const tipe = String(blob.getContentType() || '');
+    if (tipe.indexOf('image/') !== 0) return ''; // halaman HTML/error, bukan gambar
+    const bytes = blob.getBytes();
+    if (bytes.length > 2 * 1024 * 1024) return ''; // jangan bengkakkan payload laporan
+    return 'data:' + tipe + ';base64,' + Utilities.base64Encode(bytes);
+  } catch (e) {
+    return ''; // foto sifatnya opsional — jangan sampai menggagalkan laporan
+  }
+}
+
 /** Peta nama → URL foto profil dari sheet Anggota */
 function getFotoMap_() {
   const sheet = getSheet_(SHEET_ANGGOTA);
@@ -410,7 +435,7 @@ function getLaporanBulanan(nama, bulanKey) {
 
   return Object.assign(base, {
     tipe: 'orang',
-    foto: getFotoMap_()[nama] || '',
+    foto: fotoDataUri_(getFotoMap_()[nama] || ''), // data URI, bukan URL (lihat fotoDataUri_)
     saldoAwal: saldoAwal,
     saldoAkhir: saldoAwal + topUp - peng,
     perubahan: topUp - peng,

@@ -1676,9 +1676,11 @@
     return `<span class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'} ${pct}%</span> vs bulan lalu`;
   }
 
+  // foto = data URI base64 dari server (fotoDataUri_), jadi tidak perlu crossorigin
+  // dan tidak bisa kena taint canvas. onerror tetap ada sebagai jaring pengaman.
   function avaLapHtml(nama, foto) {
     const inisial = (String(nama).trim()[0] || '?').toUpperCase();
-    if (foto) return `<div class="lap-ava"><img crossorigin="anonymous" src="${esc(foto)}" alt="" ` +
+    if (foto) return `<div class="lap-ava"><img src="${esc(foto)}" alt="" ` +
       `onerror="this.parentNode.textContent='${inisial}'"></div>`;
     return `<div class="lap-ava">${esc(inisial)}</div>`;
   }
