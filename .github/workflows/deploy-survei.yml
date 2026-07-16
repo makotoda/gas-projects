@@ -33,7 +33,11 @@ jobs:
       - name: Push ke Apps Script (script survei)
         run: clasp push -f
 
-      - name: Coba buat deployment web app (non-fatal)
+      - name: Deploy/refresh web app (update di tempat, URL stabil)
         run: |
-          clasp deploy --description "Survei Ortala (CI)" \
-            || echo "clasp deploy dilewati/gagal — buat/refresh deployment manual via editor bila perlu."
+          # Update deployment yang SUDAH ADA di tempat agar URL tetap sama.
+          # Kalau deployment itu terhapus, fallback membuat yang baru.
+          DEPLOY_ID="AKfycbxcqqNnS54s609QskAV4r6GeSvSg82F22a7TK_Hd_XXVnHwEv1bFQqdCCU-bfS9HoiV"
+          clasp deploy -i "$DEPLOY_ID" --description "Survei Ortala (CI)" \
+            || clasp deploy --description "Survei Ortala (CI)" \
+            || echo "clasp deploy gagal — refresh deployment manual via editor bila perlu."
