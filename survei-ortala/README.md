@@ -50,15 +50,18 @@ clasp open             # buka editor Apps Script untuk deploy web app
 Lalu di editor: **Deploy → New deployment → Web app**
 (`Execute as: Me`, `Who has access: Anyone`).
 
-## Setelah deploy — isi daftar pegawai
+## Daftar pegawai
 
-Dropdown "Nama Lengkap" kosong sampai sheet `Pegawai` diisi. Dua cara:
+Sheet `Pegawai` **terisi otomatis** dari daftar default (`DEFAULT_PEGAWAI` di
+`Code.js`, 117 nama) pada pemakaian pertama — dropdown langsung siap tanpa
+langkah manual. Setelah ter-seed, **sheet menjadi sumber kebenaran**:
 
-1. **Manual** — buka spreadsheet data lalu isi nama di kolom A sheet `Pegawai`.
-   Untuk tahu lokasi spreadsheet, jalankan fungsi `setup()` sekali dari editor
-   Apps Script; URL-nya muncul di **Logs** dan sebagai nilai kembalian.
-2. **Programatik** — dari editor jalankan
-   `seedPegawai(['Nama Satu', 'Nama Dua', ...])` untuk mengisi sekaligus.
+- Tambah/hapus/ubah nama cukup diedit langsung di kolom A sheet `Pegawai`.
+- Mengubah `DEFAULT_PEGAWAI` di kode **tidak** memengaruhi sheet yang sudah
+  terisi (seed hanya berjalan saat sheet benar-benar kosong).
+- Untuk menemukan lokasi spreadsheet data: jalankan `setup()` sekali dari editor
+  Apps Script (URL muncul di **Logs** & sebagai nilai kembalian).
+- Untuk menimpa seluruh daftar sekaligus: `seedPegawai(['Nama A', 'Nama B', ...])`.
 
 ## Catatan
 

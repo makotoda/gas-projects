@@ -27,6 +27,132 @@ const INSTANSI = 'Direktorat Jenderal Bimbingan Masyarakat Hindu';
 const SHEET_PEGAWAI = 'Pegawai';
 
 /**
+ * Daftar pegawai default. Hanya dipakai untuk MEN-SEED sheet "Pegawai" saat
+ * masih kosong (sekali, pada pemakaian pertama). Setelah itu sheet menjadi
+ * sumber kebenaran: tambah/hapus nama cukup diedit di sheet — mengubah daftar
+ * ini tidak lagi berpengaruh ke sheet yang sudah terisi. Urutan dipertahankan.
+ */
+const DEFAULT_PEGAWAI = [
+  'Prof. Dr. Drs. I Nengah Duija, M.Si.',
+  'Dr. Ida Made Pidada Manuaba, S.Ag, M.Si',
+  'Prof. Dr. I Ketut Sudarsana, S.Ag., M.Pd.H.',
+  'Ida Bagus Ketut Drana Arimbawa, S.Pd., M.Si',
+  'Ni Made Ruswiati, S.Ag., M.Si',
+  'Raditya Dewa Agung Arsana, S.Ag',
+  'Putu Jaya Adnyana Widhita, S.Pd.H., S.Si., M.A., M.M',
+  'I Wayan Budiantara, S.Ag., M.Fil.H',
+  'I Putu Alit Tinggal Yasa, S.Ag., M.Si',
+  'Agus Suteja Putra, S.Pd.H',
+  'Anak Agung Ade Wichasena Parbawa, S.H',
+  'Andik Prasetiyo, S.Pd.',
+  'Arie Rizkia Rahmadita, S.Ak',
+  'Besta Andre Adhipurusa, S.Kom',
+  'Christofel Erik Oktavianus Gultom, S.H',
+  'Dewa Ayu Nyoman Kusumaningrat, S.H., M.H',
+  'Dwi Arisetia, S.Pd.H., M.Pd',
+  'Eka Indriani, S.Kom',
+  'Gama Rozano, A.Md.',
+  'Gede Kusuma Yudha, ST',
+  'Gunadi, S.Pd',
+  'Gusti Ngurah Panji, S.I.Kom',
+  'Gusti Putra Hutama Bangga, S.Pd',
+  'Hari Cahyono, S.Sos',
+  'I Dewa Gede Agus Priana Putra, S.Sos.H., M.I.Kom',
+  'I Gede Arya Windhu Saputra, S.Kom',
+  'I Gede Dipayana, S.Ag., M.Pd',
+  'I Gede Wira, S.Kom',
+  'I Gusti Agung Noto Widiantara, ST',
+  'I Gusti Made Andi Suyanta, S.Pd',
+  'I Gusti Made Partha Wijaya, A.Md.Log',
+  'I Gusti Ngurah Jaya Perdhana, S.Sos',
+  'I Gusti Ngurah Sathya Dharma, S.I.Kom',
+  'I Ketut Ardika, S.Pd',
+  'I Ketut Sujana, S.E.',
+  'I Ketut Sumerta, S.Pd.H., M.I.Kom',
+  'I Luh Sri Wardhani Pujayanti, S.M',
+  'I Made Bayu Andika, S.Ag., M.M.',
+  'I Made Juni Saputra, S.I.Kom',
+  'I Made Mertayasa,S.Pd',
+  'I Made Sudhana, S.Pd',
+  'I Nengah Sukadana, S.Kom., M.Ap.',
+  'I Nyoman Juwitra Kurniantara, S.E',
+  'I Nyoman Sudiarta, S.Pd.H',
+  'I Putu Agung Krisnayasa, S.E',
+  'I Putu Suhartama, S.Ag., M.M',
+  'I Putu Indra Setiawan, S.E.',
+  'I Putu Khresna Diantika Putra, S.Tr.Pi',
+  'I Putu Oka Agus Mahendradatta, S.Pd.',
+  'I Wayan Danayasa, S.Pd.H',
+  'I Wayan Sudarme, S.Fil',
+  'Ida Ayu Kirana Dewi, S.Pd',
+  'Ida Bagus Agung Sarwadamana Sogata, S.Ag',
+  'Ida Bagus Indriya Kusuma, S.Kom',
+  'Ida Bagus Kade Putra Upadana, S.Ag.',
+  'Imam, S.E',
+  'Jerome Luther William, S.Kom',
+  'Josephine Jasmine Octavia, S.M',
+  'Kadek Sudarsana, S.Pd.H',
+  'Kadek Widya Patni, S.E.',
+  'Ketut Wiriani, S.Sos',
+  'Komang Juli Agustawan, S.H., M.I.Kom',
+  'Lilik Pujiwati, S.Pd',
+  'Luh Dewi Putri Mariawan, S.M.',
+  'Luh Dwi Mahardini Wiparnawati, S.A.',
+  'Lukmanul Hakim, S.Kom',
+  'Made Ayu Siwi Paramitha, S. Ak.',
+  'Made Hermawati, S.Ag',
+  'Maha Putra Jaya, S.Pd',
+  'Makoto Daiwa Ambara, S.Si.Kom',
+  'Maretha Manik Mintaningtyas, S.Fil.',
+  'Maria Ulpah, S.M.',
+  'Muhammad Mahmud Alhushori, S.Pd',
+  'Ngakan Made Bayu Aditya, S.Kom',
+  'Ni Kompiang Sri Erawati, A.Ma. S.Ag',
+  'Ni Luh Desy Coniarti Partami, S.Pd.',
+  'Ni Luh Putu Sri Juliyanti, S.E., M.Ak',
+  'Ni Made Fitria Retnasari, S.Pd',
+  'Ni Made Indra Kristhina, S.Pd',
+  'Ni Made Setiawati, S.Ag',
+  'Ni Made Yudariwati, S.Ag',
+  'Ni Nyoman Ayu Adnyaswari, S.H.',
+  'Ni Nyoman Muliartini, SH., MH',
+  'Ni Putu Ayuning Esa Primatini, S.Sos',
+  'Ni Putu Pera Darma Yanti, S.E',
+  'Ni Putu Wulan Yuni Dewi, S.Pd.H',
+  'Ni Wayan Ari Febriyanti S.Sos.',
+  'Ni Wayan Juniarini, S.Ag',
+  'Ni Wayan Sandi Pera Pertiwi, S.Pd',
+  'Ni Wayan Sukerti, S.Ag',
+  'Nyoman Darmawan, S.Pd',
+  'Pamela Marcelina, S.Kom',
+  'Pande Agus Darwata, S.Kom., M.Kom',
+  'Pande Putu Sri Ayu Weshimar, S.Sos.H',
+  'Paryanto, S.Ag',
+  'Puji Widiyanti, S.Pd.H',
+  'Putu Amrita Dewi, S.E.',
+  'Putu Ardhi Kurnia Pratama, S.E',
+  'Putu Arya Darma, S.Pd.H',
+  'Putu Ayu Sri Kumala Dewi, S.Sos., M.I.Kom',
+  'Putu Gatot Yogiawan, S.Pd',
+  'Putu Novarisna Wiyatna, S.H., M.H',
+  'Putu Riantika Sari, S.Pd',
+  'Rahajeng Buana Saraswati, S.H.',
+  'Ratnaningtyas Yoga Wijayanti, S.Pd.H',
+  'Riccar Baginda Susanto, A.Md.Kom.',
+  'Riski Basuki, S.Pd',
+  'Rofikoh, S.AP',
+  'Roni Kriswanto, S.Ag',
+  'Saleppang, S.Pd',
+  'Saraswati Yoga Andriyani, S.Kom',
+  'Septriana Asih. AM, S.Kom',
+  'Shifa Awaliyah, S.Kom',
+  'Surya Oktavianis, S.Pd',
+  'Tri Sutanto, S.Pd.',
+  'Yogo Anggoro, S.Ag',
+  'Yudanto Hutagalung, S.Kom'
+];
+
+/**
  * Legenda skala bintang 1–5 (dipakai kedua survei).
  * Nilai yang disimpan ke sheet adalah angka 1–5.
  */
@@ -249,9 +375,14 @@ function getPegawai_() {
     sheet = ss.insertSheet(SHEET_PEGAWAI);
     sheet.getRange(1, 1).setValue('Nama').setFontWeight('bold');
     sheet.setFrozenRows(1);
-    return [];
   }
-  const last = sheet.getLastRow();
+  let last = sheet.getLastRow();
+  // Seed daftar default sekali saja saat sheet masih kosong (belum ada data).
+  if (last < 2 && DEFAULT_PEGAWAI.length) {
+    const seed = DEFAULT_PEGAWAI.map(function (n) { return [n]; });
+    sheet.getRange(2, 1, seed.length, 1).setValues(seed);
+    last = sheet.getLastRow();
+  }
   if (last < 2) return [];
   const values = sheet.getRange(2, 1, last - 1, 1).getValues();
   const seen = {};
