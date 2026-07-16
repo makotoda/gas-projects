@@ -209,10 +209,12 @@ function submitAmalan(data) {
       const infaqNominal = tipe === 'Dosa' && nama !== KAS_NAMA
         ? (getInfaqMap_()[nama] || 0) : 0;
       if (infaqNominal > 0) {
-        const ketInfaq = KET_INFAQ_BARU + (ket || 'infaq otomatis');
+        const ketDosaKet = ket || 'infaq otomatis';
+        const ketDosa = KET_INFAQ_BARU + ketDosaKet;
+        const ketPahalaKas = nama + ' - ' + ketDosaKet;
         sheet.getRange(sheet.getLastRow() + 1, 1, 2, 5).setValues([
-          [now, nama, 'Dosa', infaqNominal, ketInfaq],
-          [now, KAS_NAMA, 'Pahala', infaqNominal, ketInfaq]
+          [now, nama, 'Dosa', infaqNominal, ketDosa],
+          [now, KAS_NAMA, 'Pahala', infaqNominal, ketPahalaKas]
         ]);
       }
     }
