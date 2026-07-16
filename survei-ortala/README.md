@@ -37,18 +37,43 @@ Spreadsheet miliknya sendiri (lihat "Alur data").
   - **`Respons SOP`** — `Timestamp, Nama, 1..12, Saran`.
   - **`Respons Budaya Kerja`** — `Timestamp, Nama, 1..10`.
 
-## Cara deploy
+## Deploy
 
-Jalankan dari **dalam folder ini** (bukan root repo):
+### Otomatis via GitHub Actions (utama)
+
+Workflow `.github/workflows/deploy-survei.yml` otomatis menjalankan
+`clasp push -f` + memperbarui deployment web app **di tempat** (URL tetap)
+setiap ada push ke branch `claude/survei-ortala-web-app-pz7bto` (atau lewat
+`workflow_dispatch`). Memakai secret `CLASPRC_JSON` yang sama dengan Kodomo.
+
+**URL web app (stabil):**
+
+```
+https://script.google.com/macros/s/AKfycbxcqqNnS54s609QskAV4r6GeSvSg82F22a7TK_Hd_XXVnHwEv1bFQqdCCU-bfS9HoiV/exec
+```
+
+### ⚠️ Satu langkah manual wajib: otorisasi (sekali saja)
+
+Web app berjalan sebagai akun *deployer* (`executeAs: USER_DEPLOYING`) dan
+memakai Spreadsheet/Drive. `clasp deploy` **tidak** memicu layar izin, jadi
+sekali saja pemilik harus mengotorisasi:
+
+1. Buka editor Apps Script proyek survei (`clasp open` atau lewat
+   script.google.com).
+2. Jalankan fungsi **`setup()`** → setujui prompt izin (Spreadsheet + Drive).
+3. Selesai — spreadsheet data otomatis dibuat, URL-nya muncul di **Logs**, dan
+   dropdown "Nama Lengkap" langsung berisi 117 nama.
+
+Tanpa langkah ini, URL publik akan menampilkan error otorisasi karena app
+belum diizinkan berjalan atas nama akun deployer.
+
+### Manual (alternatif, dari dalam folder)
 
 ```bash
 cd survei-ortala
-clasp push -f          # dorong Code.js + Index.html + appsscript.json ke script
-clasp open             # buka editor Apps Script untuk deploy web app
+clasp push -f
+clasp open   # Deploy → Manage deployments → edit deployment → New version
 ```
-
-Lalu di editor: **Deploy → New deployment → Web app**
-(`Execute as: Me`, `Who has access: Anyone`).
 
 ## Daftar pegawai
 
