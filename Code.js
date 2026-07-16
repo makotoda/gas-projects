@@ -233,16 +233,29 @@ function parseStruk(base64, mimeType) {
       muteHttpExceptions: true
     }
   );
-  if (res.getResponseCode() !== 200) throw new Error('Gagal membaca struk. Coba lagi.');
+  // ponytail: pesan error menyertakan detail asli dari Gemini (bukan dibungkus generik)
+  // supaya kegagalan gampang didiagnosis dari toast tanpa buka Stackdriver dulu.
+  if (res.getResponseCode() !== 200) {
+    throw new Error('Gagal membaca struk (HTTP ' + res.getResponseCode() + '): ' +
+      res.getContentText().slice(0, 300));
+  }
 
   let items;
   try {
     const json = JSON.parse(res.getContentText());
-    items = JSON.parse(json.candidates[0].content.parts[0].text);
+    const cand = json.candidates && json.candidates[0];
+    const text = cand && cand.content && cand.content.parts && cand.content.parts[0] &&
+      cand.content.parts[0].text;
+    if (!text) {
+      const alasan = cand && cand.finishReason;
+      throw new Error('respons Gemini tanpa teks' + (alasan ? ' (finishReason: ' + alasan + ')' : '') +
+        ': ' + res.getContentText().slice(0, 300));
+    }
+    items = JSON.parse(text);
   } catch (e) {
-    throw new Error('Gagal membaca struk. Coba lagi.');
+    throw new Error('Gagal membaca struk: ' + (e.message || 'parse error'));
   }
-  if (!Array.isArray(items)) throw new Error('Gagal membaca struk. Coba lagi.');
+  if (!Array.isArray(items)) throw new Error('Gagal membaca struk: respons bukan daftar (array).');
 
   return items
     .map(it => ({ nama: String(it.nama || '').trim(), nominal: Math.round(Number(it.nominal)) || 0 }))
