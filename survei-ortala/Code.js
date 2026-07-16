@@ -196,7 +196,26 @@ const SURVEYS = {
       'Apakah ada penanggung jawab pengawasan?',
       'Apakah hasil monitoring dicatat/dilaporkan?'
     ],
-    saran: true // punya kolom "Saran" (paragraf, opsional)
+    saran: true, // punya kolom "Saran" (paragraf, opsional)
+    // --- metadata laporan (BAB III & IV) ---
+    warna: '#1b6bce',
+    topik: 'implementasi Standar Operasional Prosedur (SOP)',
+    judulLaporan: 'LAPORAN HASIL SURVEI STANDAR OPERASIONAL PROSEDUR (SOP)',
+    fileBase: 'Laporan_Survei_SOP',
+    indikator: [
+      'Ketersediaan SOP',
+      'Kesesuaian SOP dengan Pelaksanaan Kegiatan',
+      'Kemudahan Akses SOP',
+      'Pemahaman Isi SOP',
+      'Sosialisasi atau Pelatihan SOP',
+      'Pemahaman Tugas',
+      'Pelaksanaan Sesuai Alur SOP',
+      'Penyimpangan Pelaksanaan SOP',
+      'Kesesuaian Prosedur Pelaksanaan',
+      'Monitoring Pelaksanaan SOP',
+      'Penanggung Jawab Pengawasan',
+      'Hasil Monitoring Dicatat atau Dilaporkan'
+    ]
   },
   budaya: {
     key: 'budaya',
@@ -228,7 +247,24 @@ const SURVEYS = {
       'Saya bersedia bekerja sama dan berkolaborasi dengan unit kerja atau pihak lain untuk mencapai tujuan bersama.',
       'Saya merasa siap mendukung dan terlibat aktif dalam setiap perubahan yang dilakukan untuk meningkatkan kinerja organisasi.'
     ],
-    saran: false
+    saran: false,
+    // --- metadata laporan (BAB III & IV) ---
+    warna: '#0f8f7e',
+    topik: 'pelaksanaan budaya kerja dan kesiapan perubahan organisasi',
+    judulLaporan: 'LAPORAN HASIL SURVEI PELAKSANAAN BUDAYA KERJA DAN EVALUASI KESIAPAN PERUBAHAN',
+    fileBase: 'Laporan_Survei_Budaya_Kerja',
+    indikator: [
+      'Pelayanan Berorientasi pada Masyarakat',
+      'Akuntabilitas Pelaksanaan Tugas',
+      'Penolakan Gratifikasi dan Anti-KKN',
+      'Peningkatan Kompetensi',
+      'Harmonis dan Tanpa Diskriminasi',
+      'Menjaga Nama Baik Instansi',
+      'Adaptif terhadap Perubahan',
+      'Keterbukaan terhadap Ide dan Cara Kerja Baru',
+      'Kolaborasi Antar Unit Kerja',
+      'Kesiapan Mendukung Perubahan'
+    ]
   }
 };
 
@@ -318,6 +354,231 @@ function submitSurvey(payload) {
   }
 
   return { ok: true, message: 'Terima kasih, jawaban Anda telah tersimpan.' };
+}
+
+// ---------------------------------------------------------------------------
+// Laporan (BAB III & IV) — unduh PDF
+// ---------------------------------------------------------------------------
+
+/**
+ * Buat laporan hasil survei (HANYA BAB III & BAB IV) dalam bentuk PDF,
+ * dihitung dari seluruh respons pada sheet survei.
+ * @param {string} surveyKey 'sop' | 'budaya'
+ * @return {{filename:string, mimeType:string, base64:string}}
+ */
+function generateReport(surveyKey) {
+  const survey = SURVEYS[surveyKey];
+  if (!survey) throw new Error('Survei tidak dikenal.');
+  const stats = computeStats_(survey);
+  if (!stats.n) throw new Error('Belum ada respons untuk survei ini, laporan belum bisa dibuat.');
+
+  const tahun = new Date().getFullYear();
+  const html = buildReportHtml_(survey, stats, tahun);
+  const pdf = Utilities.newBlob(html, 'text/html', 'laporan.html').getAs('application/pdf');
+  return {
+    filename: survey.fileBase + '_' + tahun + '.pdf',
+    mimeType: 'application/pdf',
+    base64: Utilities.base64Encode(pdf.getBytes())
+  };
+}
+
+/** Baca seluruh respons sebuah survei dari sheet-nya. */
+function getResponses_(survey) {
+  const sheet = getSheet_(survey);
+  const last = sheet.getLastRow();
+  if (last < 2) return [];
+  const nQ = survey.pertanyaan.length;
+  const width = 2 + nQ + (survey.saran ? 1 : 0);
+  const values = sheet.getRange(2, 1, last - 1, width).getValues();
+  return values.map(function (r) {
+    return {
+      nama: r[1],
+      nilai: r.slice(2, 2 + nQ).map(function (v) { return Number(v); }),
+      saran: survey.saran ? String(r[2 + nQ] || '').trim() : ''
+    };
+  });
+}
+
+/** Hitung statistik agregat untuk laporan. */
+function computeStats_(survey) {
+  const rows = getResponses_(survey);
+  const nQ = survey.pertanyaan.length;
+  const indikator = [];
+  for (let i = 0; i < nQ; i++) {
+    const dist = [0, 0, 0, 0, 0];
+    let sum = 0, cnt = 0;
+    for (let r = 0; r < rows.length; r++) {
+      const v = Math.round(rows[r].nilai[i]);
+      if (v >= 1 && v <= 5) { dist[v - 1]++; sum += v; cnt++; }
+    }
+    indikator.push({
+      label: (survey.indikator && survey.indikator[i]) || ('Indikator ' + (i + 1)),
+      avg: cnt ? sum / cnt : 0,
+      dist: dist,
+      cnt: cnt
+    });
+  }
+  let overall = 0;
+  if (indikator.length) {
+    overall = indikator.reduce(function (a, x) { return a + x.avg; }, 0) / indikator.length;
+  }
+  let hi = null, lo = null;
+  indikator.forEach(function (x) {
+    if (!hi || x.avg > hi.avg) hi = x;
+    if (!lo || x.avg < lo.avg) lo = x;
+  });
+  const saranList = rows.map(function (r) { return r.saran; }).filter(function (s) { return s; });
+  return { n: rows.length, indikator: indikator, overall: overall, hi: hi, lo: lo, saranList: saranList };
+}
+
+/** Format angka 2 desimal gaya Indonesia (4.4 -> "4,40"). */
+function fmt_(n) {
+  if (!isFinite(n)) return '-';
+  return (Math.round(n * 100) / 100).toFixed(2).replace('.', ',');
+}
+
+/** Kategori mutu berdasar rata-rata skala 1–5. */
+function kategori_(avg) {
+  if (avg >= 4.5) return 'Sangat Baik';
+  if (avg >= 4.0) return 'Baik';
+  if (avg >= 3.0) return 'Cukup';
+  if (avg >= 2.0) return 'Kurang';
+  return 'Sangat Kurang';
+}
+
+/** Escape HTML untuk konten laporan. */
+function esc_(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+/** Grafik distribusi nilai 1–5 sebuah indikator sebagai tabel bar HTML. */
+function chartHtml_(dist, n, warna) {
+  let rows = '';
+  for (let v = 5; v >= 1; v--) {
+    const c = dist[v - 1];
+    const pct = n ? Math.round((c / n) * 100) : 0;
+    rows +=
+      '<tr>' +
+      '<td style="width:20px;text-align:center;font-weight:bold;color:#555;padding:2px 4px;">' + v + '</td>' +
+      '<td style="padding:2px 4px;">' +
+        '<div style="background:#eef1f6;border-radius:4px;height:13px;width:100%;">' +
+          '<div style="background:' + warna + ';height:13px;border-radius:4px;width:' + pct + '%;"></div>' +
+        '</div>' +
+      '</td>' +
+      '<td style="width:96px;font-size:9pt;color:#555;padding:2px 6px;white-space:nowrap;">' + c + ' resp. (' + pct + '%)</td>' +
+      '</tr>';
+  }
+  return '<table style="width:100%;border-collapse:collapse;margin:6px 0 2px;">' + rows + '</table>';
+}
+
+/** Susun HTML laporan BAB III & IV, siap dikonversi ke PDF. */
+function buildReportHtml_(survey, stats, tahun) {
+  const warna = survey.warna || '#1b3a6b';
+  const kat = kategori_(stats.overall);
+  const diAtas4 = stats.indikator.filter(function (x) { return x.avg > 4.0; }).length;
+  const hiL = stats.hi ? esc_(stats.hi.label) : '-';
+  const loL = stats.lo ? esc_(stats.lo.label) : '-';
+  const hiV = stats.hi ? fmt_(stats.hi.avg) : '-';
+  const loV = stats.lo ? fmt_(stats.lo.avg) : '-';
+
+  const hH2 = 'text-align:center;font-weight:bold;font-size:13pt;margin:18px 0 10px;';
+  const hH3 = 'font-weight:bold;font-size:11pt;color:' + warna + ';margin:14px 0 4px;';
+  const pP = 'margin:0 0 8px;text-align:justify;';
+
+  // 3.2 analisis per indikator (+ grafik)
+  let gambar = 1;
+  let analisis = '';
+  stats.indikator.forEach(function (x, i) {
+    gambar++;
+    let interp;
+    if (stats.hi && x.label === stats.hi.label) interp = 'Nilai ini merupakan capaian tertinggi pada survei, menunjukkan bahwa aspek tersebut telah berjalan sangat baik.';
+    else if (stats.lo && x.label === stats.lo.label) interp = 'Nilai ini merupakan capaian terendah pada survei sehingga menjadi aspek yang paling perlu ditingkatkan.';
+    else if (x.avg >= 4.2) interp = 'Nilai ini menunjukkan bahwa aspek tersebut telah berjalan dengan baik.';
+    else if (x.avg >= 4.0) interp = 'Nilai ini menunjukkan bahwa aspek tersebut secara umum telah berjalan baik.';
+    else if (x.avg >= 3.5) interp = 'Nilai ini tergolong cukup dan masih memerlukan penguatan.';
+    else interp = 'Nilai ini tergolong rendah dan memerlukan perhatian serta perbaikan.';
+    analisis +=
+      '<div style="margin:10px 0 14px;page-break-inside:avoid;">' +
+        '<p style="margin:0 0 2px;font-weight:bold;">' + (i + 1) + '. ' + esc_(x.label) +
+          ' <span style="font-weight:normal;color:' + warna + ';">(rata-rata ' + fmt_(x.avg) + ')</span></p>' +
+        '<p style="margin:0 0 4px;text-align:justify;">Indikator ini memperoleh nilai rata-rata ' + fmt_(x.avg) + '. ' + interp + '</p>' +
+        chartHtml_(x.dist, stats.n, warna) +
+        '<p style="margin:2px 0 0;font-size:9pt;font-style:italic;color:#666;">Gambar ' + gambar + '. Grafik ' + esc_(x.label) + '</p>' +
+      '</div>';
+  });
+
+  // 3.3 saran (kalau survei punya kolom saran & ada isinya)
+  let saranBlok = '';
+  const punyaSaran = survey.saran && stats.saranList.length;
+  if (punyaSaran) {
+    const items = stats.saranList.map(function (s) {
+      return '<li style="margin:2px 0;">' + esc_(s) + '</li>';
+    }).join('');
+    saranBlok =
+      '<h3 style="' + hH3 + '">3.3. Saran dari Pelaksanaan Survei</h3>' +
+      '<ul style="margin:4px 0 8px;padding-left:20px;">' + items + '</ul>';
+  }
+  const noPembahasan = punyaSaran ? '3.4' : '3.3';
+
+  const header =
+    '<div style="text-align:center;border-bottom:2px solid ' + warna + ';padding-bottom:8px;margin-bottom:6px;">' +
+      '<div style="font-size:14pt;font-weight:bold;">' + esc_(survey.judulLaporan) + '</div>' +
+      '<div style="font-size:11pt;">PADA DIREKTORAT JENDERAL BIMBINGAN MASYARAKAT HINDU</div>' +
+      '<div style="font-size:10pt;color:#666;margin-top:3px;">Tahun ' + tahun + ' &middot; ' + stats.n +
+        ' responden &middot; Ekstrak BAB III &amp; BAB IV</div>' +
+    '</div>';
+
+  const babIII =
+    '<h2 style="' + hH2 + '">BAB III<br>HASIL EVALUASI</h2>' +
+    '<h3 style="' + hH3 + '">3.1. Hasil Survei</h3>' +
+    '<p style="' + pP + '">Hasil pengolahan data terhadap ' + stats.n + ' responden menunjukkan bahwa ' +
+      esc_(survey.topik) + ' pada Direktorat Jenderal Bimbingan Masyarakat Hindu memperoleh penilaian ' +
+      'dengan kategori ' + kat + ' (rata-rata ' + fmt_(stats.overall) + '). Sebanyak ' + diAtas4 + ' dari ' +
+      stats.indikator.length + ' indikator memperoleh nilai rata-rata di atas 4,00, yang menunjukkan bahwa ' +
+      esc_(survey.topik) + ' telah dipahami dan diterapkan oleh sebagian besar pegawai.</p>' +
+    '<h3 style="' + hH3 + '">3.2. Analisis Hasil Evaluasi</h3>' + analisis +
+    saranBlok +
+    '<h3 style="' + hH3 + '">' + noPembahasan + '. Pembahasan</h3>' +
+    '<p style="' + pP + '">Secara umum hasil evaluasi menunjukkan bahwa ' + esc_(survey.topik) +
+      ' pada Direktorat Jenderal Bimbingan Masyarakat Hindu telah berjalan dengan kategori ' + kat +
+      '. Aspek dengan capaian tertinggi adalah ' + hiL + ' (' + hiV + '), sedangkan aspek yang paling ' +
+      'memerlukan perhatian adalah ' + loL + ' (' + loV + '). Peningkatan berkelanjutan, khususnya pada ' +
+      'aspek dengan nilai terendah, diharapkan dapat meningkatkan konsistensi penerapan di seluruh unit kerja.</p>';
+
+  const babIV =
+    '<div style="page-break-before:always;"></div>' +
+    '<h2 style="' + hH2 + '">BAB IV<br>KESIMPULAN DAN SARAN</h2>' +
+    '<h3 style="' + hH3 + '">4.1. Kesimpulan</h3>' +
+    '<p style="' + pP + '">Berdasarkan hasil survei terhadap ' + stats.n + ' responden, dapat disimpulkan ' +
+      'bahwa ' + esc_(survey.topik) + ' pada Direktorat Jenderal Bimbingan Masyarakat Hindu berada pada ' +
+      'kategori ' + kat + ', dengan rata-rata nilai sebesar ' + fmt_(stats.overall) + '. Indikator dengan ' +
+      'nilai tertinggi adalah ' + hiL + ' (' + hiV + '), sedangkan indikator dengan nilai terendah adalah ' +
+      loL + ' (' + loV + '). Secara keseluruhan, ' + esc_(survey.topik) + ' telah mendukung pelaksanaan ' +
+      'tugas dan fungsi organisasi, namun peningkatan berkelanjutan tetap diperlukan untuk menjaga kualitas ' +
+      'pelayanan dan tata kelola pemerintahan.</p>' +
+    '<h3 style="' + hH3 + '">4.2. Saran</h3>' +
+    '<p style="' + pP + '">Berdasarkan hasil evaluasi, beberapa rekomendasi yang dapat dilakukan adalah ' +
+      'sebagai berikut:</p>' +
+    '<ol style="margin:4px 0 8px;padding-left:20px;">' +
+      '<li style="margin:3px 0;">Memperkuat aspek ' + loL + ' yang memperoleh nilai terendah (' + loV +
+        ') melalui kegiatan yang terjadwal dan berkala.</li>' +
+      '<li style="margin:3px 0;">Melaksanakan sosialisasi, pelatihan, dan pendampingan secara rutin kepada pegawai.</li>' +
+      '<li style="margin:3px 0;">Melakukan reviu dan pembaruan secara berkala sesuai perkembangan regulasi dan kebutuhan organisasi.</li>' +
+      '<li style="margin:3px 0;">Mengembangkan sistem digital untuk memudahkan akses dokumen serta memperkuat monitoring dan evaluasi.</li>' +
+    '</ol>';
+
+  const footer =
+    '<div style="margin-top:18px;border-top:1px solid #ccc;padding-top:6px;font-size:8.5pt;color:#888;text-align:center;">' +
+      'Laporan (BAB III &amp; BAB IV) dibuat otomatis oleh aplikasi ' + esc_(APP_NAME) +
+      ' berdasarkan ' + stats.n + ' respons.' +
+    '</div>';
+
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"></head>' +
+    '<body style="font-family:Arial,Helvetica,sans-serif;font-size:10.5pt;color:#222;line-height:1.5;">' +
+    header + babIII + babIV + footer +
+    '</body></html>';
 }
 
 // ---------------------------------------------------------------------------

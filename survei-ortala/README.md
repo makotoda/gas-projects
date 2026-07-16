@@ -88,6 +88,27 @@ langkah manual. Setelah ter-seed, **sheet menjadi sumber kebenaran**:
   Apps Script (URL muncul di **Logs** & sebagai nilai kembalian).
 - Untuk menimpa seluruh daftar sekaligus: `seedPegawai(['Nama A', 'Nama B', ...])`.
 
+## Unduh laporan (BAB III & IV)
+
+Setiap kartu survei punya tombol **"Unduh Laporan Hasil Survei (BAB III & IV)"**
+yang menghasilkan **PDF** dari seluruh respons pada sheet survei — meniru format
+laporan resmi, tetapi **hanya BAB III dan BAB IV**:
+
+- **BAB III — Hasil Evaluasi:** 3.1 Hasil Survei (kategori + rata-rata keseluruhan),
+  3.2 Analisis tiap indikator (narasi + grafik distribusi nilai 1–5),
+  3.3 Saran dari responden (khusus survei SOP yang punya kolom Saran),
+  3.4/3.3 Pembahasan.
+- **BAB IV — Kesimpulan dan Saran:** 4.1 Kesimpulan (kategori, rata-rata,
+  indikator tertinggi & terendah), 4.2 Saran/rekomendasi.
+
+Detail teknis:
+- Rata-rata keseluruhan = rata-rata dari rata-rata tiap indikator; kategori
+  mengikuti ambang di `kategori_()` (≥4,5 Sangat Baik; ≥4,0 Baik; dst.).
+- Label indikator pendek ada di `SURVEYS[key].indikator` (`Code.js`); narasi
+  dibuat otomatis dari angka (tertinggi/terendah/ambang).
+- PDF dibuat server-side via `Utilities.newBlob(html,'text/html').getAs('application/pdf')`
+  lalu dikirim base64 ke client untuk diunduh (`generateReport(key)`).
+
 ## Catatan
 
 - Skema pertanyaan adalah **sumber kebenaran tunggal** di `SURVEYS` (`Code.js`);

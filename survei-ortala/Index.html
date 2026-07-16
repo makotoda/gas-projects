@@ -196,6 +196,18 @@
     button.submit:active { transform: translateY(1px); }
     button.submit:disabled { opacity: .6; cursor: progress; }
 
+    /* ---------- Unduh laporan ---------- */
+    .reportbar { margin-top: 20px; padding-top: 16px; border-top: 1px dashed var(--border); text-align: center; }
+    .reportbtn {
+      background: none; border: 1.5px solid var(--accent); color: var(--accent);
+      font: inherit; font-weight: 700; border-radius: 11px; padding: 11px 20px;
+      cursor: pointer; font-size: .9rem; display: inline-flex; align-items: center; gap: 8px;
+    }
+    .reportbtn svg { width: 17px; height: 17px; }
+    .reportbtn:hover { background: var(--accent-soft); }
+    .reportbtn:disabled { opacity: .6; cursor: progress; }
+    .reporthint { margin-top: 8px; font-size: .78rem; color: var(--muted); }
+
     /* ---------- Success state ---------- */
     .thanks { text-align: center; padding: 30px 18px; }
     .thanks .check {
@@ -403,6 +415,16 @@
       foot.appendChild(btn);
       body.appendChild(foot);
 
+      // unduh laporan (BAB III & IV)
+      var repbar = el('<div class="reportbar"></div>');
+      var repbtn = el('<button class="reportbtn" id="rep-' + s.key + '">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>' +
+        'Unduh Laporan Hasil Survei (BAB III &amp; IV)</button>');
+      repbtn.addEventListener('click', function () { downloadReport(s.key, repbtn); });
+      repbar.appendChild(repbtn);
+      repbar.appendChild(el('<div class="reporthint">Laporan PDF dihitung otomatis dari seluruh respons yang masuk.</div>'));
+      body.appendChild(repbar);
+
       card.appendChild(body);
       if (startOpen) { card.classList.add('open'); head.setAttribute('aria-expanded', 'true'); }
       updateProgress(s.key, s.pertanyaan.length);
@@ -507,6 +529,35 @@
           toast((err && err.message) || 'Gagal mengirim. Coba lagi.', 'err');
         })
         .submitSurvey({ survey: s.key, nama: st.nama, jawaban: st.jawaban, saran: st.saran });
+    }
+
+    // ---------- unduh laporan (BAB III & IV) ----------
+    function downloadReport(key, btn) {
+      var original = btn.innerHTML;
+      btn.disabled = true; btn.textContent = 'Menyiapkan laporan…';
+      google.script.run
+        .withSuccessHandler(function (res) {
+          btn.disabled = false; btn.innerHTML = original;
+          try {
+            var bin = atob(res.base64);
+            var arr = new Uint8Array(bin.length);
+            for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+            var blob = new Blob([arr], { type: res.mimeType || 'application/pdf' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url; a.download = res.filename || 'laporan.pdf';
+            document.body.appendChild(a); a.click();
+            setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1500);
+            toast('Laporan berhasil dibuat.', 'ok');
+          } catch (e) {
+            toast('Gagal memproses berkas laporan.', 'err');
+          }
+        })
+        .withFailureHandler(function (err) {
+          btn.disabled = false; btn.innerHTML = original;
+          toast((err && err.message) || 'Gagal membuat laporan.', 'err');
+        })
+        .generateReport(key);
     }
 
     function showThanks(s, nama) {
