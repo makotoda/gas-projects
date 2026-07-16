@@ -2,15 +2,15 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
+  <meta name="color-scheme" content="light">
   <base target="_top">
   <style>
     :root {
-      --bg: #eef1f6;
-      --bg-grad-a: #1b3a6b;
-      --bg-grad-b: #24507f;
+      color-scheme: light;
+      --bg: #ffffff;
       --surface: #ffffff;
-      --surface-2: #f6f8fc;
-      --border: #e2e7f0;
+      --surface-2: #f5f7fb;
+      --border: #e4e8f0;
       --text: #1f2937;
       --muted: #64748b;
       --primary: #1b3a6b;
@@ -18,45 +18,11 @@
       --star-empty: #d7dce6;
       --success: #16a34a;
       --danger: #dc2626;
-      --shadow: 0 10px 30px rgba(20, 40, 80, .10);
+      --shadow: 0 8px 26px rgba(20, 40, 80, .10);
       --sop: #1b6bce;      /* aksen kartu SOP */
-      --sop-soft: #e8f1fc;
+      --sop-soft: #eaf2fc;
       --budaya: #0f8f7e;   /* aksen kartu Budaya Kerja */
-      --budaya-soft: #e2f5f1;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #0e1526;
-        --surface: #16203a;
-        --surface-2: #1b2745;
-        --border: #26355c;
-        --text: #e8edf7;
-        --muted: #9fb0cc;
-        --primary: #6ea8ff;
-        --star: #f4b452;
-        --star-empty: #38456b;
-        --success: #34d399;
-        --danger: #f87171;
-        --shadow: 0 10px 30px rgba(0, 0, 0, .35);
-        --sop: #5aa0f0;
-        --sop-soft: #172947;
-        --budaya: #34c3ac;
-        --budaya-soft: #123a37;
-      }
-    }
-    :root[data-theme="dark"] {
-      --bg: #0e1526; --surface: #16203a; --surface-2: #1b2745; --border: #26355c;
-      --text: #e8edf7; --muted: #9fb0cc; --primary: #6ea8ff; --star: #f4b452;
-      --star-empty: #38456b; --success: #34d399; --danger: #f87171;
-      --shadow: 0 10px 30px rgba(0,0,0,.35); --sop: #5aa0f0; --sop-soft: #172947;
-      --budaya: #34c3ac; --budaya-soft: #123a37;
-    }
-    :root[data-theme="light"] {
-      --bg: #eef1f6; --surface: #ffffff; --surface-2: #f6f8fc; --border: #e2e7f0;
-      --text: #1f2937; --muted: #64748b; --primary: #1b3a6b; --star: #f2a83c;
-      --star-empty: #d7dce6; --success: #16a34a; --danger: #dc2626;
-      --shadow: 0 10px 30px rgba(20,40,80,.10); --sop: #1b6bce; --sop-soft: #e8f1fc;
-      --budaya: #0f8f7e; --budaya-soft: #e2f5f1;
+      --budaya-soft: #e4f5f1;
     }
 
     * { box-sizing: border-box; }
@@ -71,37 +37,37 @@
 
     /* ---------- Hero ---------- */
     .hero {
-      background: linear-gradient(135deg, var(--bg-grad-a), var(--bg-grad-b));
-      color: #fff;
-      padding: 34px 20px 40px;
+      background: #ffffff;
+      color: var(--text);
+      padding: 32px 20px 26px;
       text-align: center;
-      position: relative;
+      border-bottom: 1px solid var(--border);
     }
     .hero .emblem {
       width: 58px; height: 58px; margin: 0 auto 14px;
-      background: rgba(255,255,255,.14);
-      border: 1px solid rgba(255,255,255,.28);
+      background: var(--primary);
       border-radius: 16px;
       display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 6px 16px rgba(27, 58, 107, .25);
     }
     .hero .emblem svg { width: 30px; height: 30px; }
     .hero h1 {
       margin: 0; font-size: clamp(1.4rem, 4.5vw, 2.05rem);
-      font-weight: 800; letter-spacing: .2px;
+      font-weight: 800; letter-spacing: .2px; color: var(--primary);
     }
     .hero .instansi {
       margin: 8px auto 0; max-width: 640px;
-      font-size: clamp(.85rem, 2.6vw, 1rem); opacity: .9; font-weight: 500;
+      font-size: clamp(.85rem, 2.6vw, 1rem); color: var(--muted); font-weight: 600;
     }
     .hero .intro {
       margin: 14px auto 0; max-width: 640px;
-      font-size: .9rem; opacity: .82;
+      font-size: .9rem; color: var(--muted);
     }
 
     /* ---------- Layout ---------- */
     main {
-      max-width: 900px; margin: -22px auto 0; padding: 0 16px 60px;
-      display: flex; flex-direction: column; gap: 26px;
+      max-width: 900px; margin: 26px auto 0; padding: 0 16px 60px;
+      display: flex; flex-direction: column; gap: 22px;
     }
 
     /* ---------- Card ---------- */
@@ -113,10 +79,21 @@
       overflow: hidden;
     }
     .card__head {
-      padding: 20px 22px 18px;
+      padding: 18px 20px;
       border-top: 5px solid var(--accent);
       background: var(--accent-soft);
+      display: flex; align-items: center; gap: 14px;
+      cursor: pointer; user-select: none;
     }
+    .card__head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .card__head-main { flex: 1; min-width: 0; }
+    .card__chevron {
+      flex-shrink: 0; color: var(--accent);
+      transition: transform .25s ease;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .card__chevron svg { width: 24px; height: 24px; }
+    .card.open .card__chevron { transform: rotate(180deg); }
     .card__badge {
       display: inline-flex; align-items: center; gap: 8px;
       font-size: .72rem; font-weight: 700; letter-spacing: .8px;
@@ -127,11 +104,18 @@
       margin: 8px 0 0; font-size: clamp(1.1rem, 3.2vw, 1.35rem);
       font-weight: 800; color: var(--text);
     }
+    .card__hint {
+      margin-top: 8px; font-size: .8rem; color: var(--accent);
+      font-weight: 600; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .card.open .card__hint { display: none; }
     .card__desc {
-      margin: 12px 0 0; color: var(--muted); font-size: .9rem;
+      margin: 0 0 18px; color: var(--muted); font-size: .9rem;
       white-space: pre-line;
     }
-    .card__body { padding: 20px 22px 22px; }
+    .card__body { padding: 20px 22px 22px; display: none; }
+    .card.open .card__body { display: block; animation: reveal .25s ease; }
+    @keyframes reveal { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 
     /* ---------- Field: nama ---------- */
     .field { margin-bottom: 20px; }
@@ -343,21 +327,33 @@
     }
 
     // ---------- build one card ----------
-    function buildCard(s, no) {
+    function buildCard(s, no, startOpen) {
       var accent = ACCENT[s.key] || 'sop';
       var card = el('<section class="card" id="card-' + s.key + '"></section>');
       card.style.setProperty('--accent', 'var(--' + accent + ')');
       card.style.setProperty('--accent-soft', 'var(--' + accent + '-soft)');
 
-      // head
-      var head = el('<div class="card__head"></div>');
-      head.appendChild(el('<div class="card__badge"><span class="dot"></span>Survei ' + no + ' dari ' + BOOT.surveys.length + '</div>'));
-      head.appendChild(el('<h2 class="card__title">' + esc(s.title) + '</h2>'));
-      head.appendChild(el('<p class="card__desc">' + esc(s.deskripsi) + '</p>'));
+      // head (kartu judul — ketuk untuk buka/tutup isi)
+      var head = el('<div class="card__head" role="button" tabindex="0" aria-expanded="false"></div>');
+      var headMain = el('<div class="card__head-main"></div>');
+      headMain.appendChild(el('<div class="card__badge"><span class="dot"></span>Survei ' + no + ' dari ' + BOOT.surveys.length + '</div>'));
+      headMain.appendChild(el('<h2 class="card__title">' + esc(s.title) + '</h2>'));
+      headMain.appendChild(el('<div class="card__hint">Ketuk untuk membuka &amp; mengisi survei</div>'));
+      head.appendChild(headMain);
+      head.appendChild(el('<div class="card__chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></div>'));
+      function toggleCard() {
+        var open = card.classList.toggle('open');
+        head.setAttribute('aria-expanded', open ? 'true' : 'false');
+      }
+      head.addEventListener('click', toggleCard);
+      head.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleCard(); }
+      });
       card.appendChild(head);
 
-      // body
+      // body (isi survei — tersembunyi sampai kartu dibuka)
       var body = el('<div class="card__body"></div>');
+      body.appendChild(el('<p class="card__desc">' + esc(s.deskripsi) + '</p>'));
 
       // notice kalau pegawai kosong
       if (!BOOT.pegawai || !BOOT.pegawai.length) {
@@ -408,6 +404,7 @@
       body.appendChild(foot);
 
       card.appendChild(body);
+      if (startOpen) { card.classList.add('open'); head.setAttribute('aria-expanded', 'true'); }
       updateProgress(s.key, s.pertanyaan.length);
       return card;
     }
@@ -525,7 +522,7 @@
       again.addEventListener('click', function () {
         var idx = BOOT.surveys.map(function (x) { return x.key; }).indexOf(s.key);
         STATE[s.key] = { nama: '', jawaban: {}, saran: '', done: false };
-        var fresh = buildCard(s, idx + 1);
+        var fresh = buildCard(s, idx + 1, true);
         card.replaceWith(fresh);
       });
       t.appendChild(again);
