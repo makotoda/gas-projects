@@ -23,6 +23,9 @@ const APP_NAME = 'Survei Ortala Ditjen Bimas Hindu';
 /** Sub-judul instansi. */
 const INSTANSI = 'Direktorat Jenderal Bimbingan Masyarakat Hindu';
 
+/** PIN admin default untuk unduh laporan (ubah via setAdminPin() di editor). */
+const DEFAULT_PIN = '2026';
+
 /** Sheet berisi daftar nama pegawai (kolom A, mulai baris 2). */
 const SHEET_PEGAWAI = 'Pegawai';
 
@@ -366,7 +369,10 @@ function submitSurvey(payload) {
  * @param {string} surveyKey 'sop' | 'budaya'
  * @return {{filename:string, mimeType:string, base64:string}}
  */
-function generateReport(surveyKey) {
+function generateReport(surveyKey, pin) {
+  if (String(pin == null ? '' : pin).trim() !== String(getAdminPin_())) {
+    throw new Error('PIN salah. Unduhan laporan hanya untuk admin.');
+  }
   const survey = SURVEYS[surveyKey];
   if (!survey) throw new Error('Survei tidak dikenal.');
   const stats = computeStats_(survey);
@@ -454,42 +460,42 @@ function esc_(s) {
 }
 
 /**
- * Grafik BATANG (vertikal) distribusi nilai 1–5 sebuah indikator.
- * Dibangun dari <table> dengan atribut bgcolor/width/height — bukan CSS
- * background pada <div> — karena konverter HTML→PDF Google Apps Script
- * mengabaikan background/width CSS pada div, tetapi menghormati atribut
- * bgcolor/width/height pada sel tabel. Ini juga tampil benar di browser.
+ * Grafik BATANG distribusi nilai 1–5 sebuah indikator, dirender sebagai
+ * GAMBAR PNG melalui layanan Charts GAS lalu disematkan sebagai data URI.
+ * Konverter HTML→PDF GAS mengabaikan warna latar (CSS background maupun
+ * atribut bgcolor), tetapi MENAMPILKAN <img> data URI dengan andal —
+ * mekanisme yang sama dengan foto pada laporan Kodomo.
  */
 function chartHtml_(dist, n, warna) {
-  const H = 130; // tinggi maksimum batang (px)
-  let max = 1;
-  for (let i = 0; i < 5; i++) if (dist[i] > max) max = dist[i];
-
-  let bars = '';
-  let labels = '';
-  for (let v = 1; v <= 5; v++) {
-    const c = dist[v - 1];
-    let h = Math.round((c / max) * H);
-    if (c > 0 && h < 4) h = 4;          // batang kecil tetap terlihat
-    const pct = n ? Math.round((c / n) * 100) : 0;
-    bars +=
-      '<td align="center" valign="bottom" style="padding:0 14px;vertical-align:bottom;">' +
-        '<div style="font-size:9pt;font-weight:bold;color:#444;margin-bottom:3px;">' + c + '</div>' +
-        '<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 auto;"><tr>' +
-          '<td width="40" height="' + h + '" bgcolor="' + warna + '" ' +
-            'style="width:40px;height:' + h + 'px;background:' + warna + ';font-size:1px;line-height:1px;">&nbsp;</td>' +
-        '</tr></table>' +
-      '</td>';
-    labels +=
-      '<td align="center" style="padding:4px 14px 0;border-top:1.5px solid #bbb;">' +
-        '<div style="font-weight:bold;font-size:9.5pt;color:#333;">' + v + '</div>' +
-        '<div style="font-size:8pt;color:#888;">' + pct + '%</div>' +
-      '</td>';
+  try {
+    const dt = Charts.newDataTable()
+      .addColumn(Charts.ColumnType.STRING, 'Nilai')
+      .addColumn(Charts.ColumnType.NUMBER, 'Jumlah Responden');
+    for (let v = 1; v <= 5; v++) dt.addRow([String(v), dist[v - 1]]);
+    const chart = Charts.newColumnChart()
+      .setDataTable(dt.build())
+      .setDimensions(500, 240)
+      .setColors([warna])
+      .setLegendPosition(Charts.Position.NONE)
+      .setXAxisTitle('Nilai (1–5)')
+      .setYAxisTitle('Jumlah Responden')
+      .build();
+    const blob = chart.getAs ? chart.getAs('image/png') : chart.getBlob();
+    const uri = 'data:image/png;base64,' + Utilities.base64Encode(blob.getBytes());
+    return '<div style="text-align:center;margin:6px 0 2px;">' +
+      '<img src="' + uri + '" width="500" style="width:500px;max-width:100%;height:auto;" ' +
+      'alt="Grafik distribusi nilai"/></div>';
+  } catch (e) {
+    // Cadangan teks bila layanan Charts tidak tersedia.
+    const parts = [];
+    for (let v = 1; v <= 5; v++) {
+      const c = dist[v - 1];
+      const pct = n ? Math.round((c / n) * 100) : 0;
+      parts.push('Nilai ' + v + ': ' + c + ' (' + pct + '%)');
+    }
+    return '<p style="font-size:9pt;color:#555;margin:4px 0;text-align:center;">' +
+      parts.join(' &nbsp;&middot;&nbsp; ') + '</p>';
   }
-  return '<table cellpadding="0" cellspacing="0" style="margin:8px auto 2px;border-collapse:collapse;">' +
-    '<tr valign="bottom">' + bars + '</tr>' +
-    '<tr>' + labels + '</tr>' +
-    '</table>';
 }
 
 /** Susun HTML laporan BAB III & IV, siap dikonversi ke PDF. */
@@ -690,6 +696,23 @@ function setup() {
   const url = getSS_().getUrl();
   Logger.log('Spreadsheet data: ' + url);
   return url;
+}
+
+/** PIN admin aktif (Script Property ADMIN_PIN, atau DEFAULT_PIN bila belum diatur). */
+function getAdminPin_() {
+  const p = PropertiesService.getScriptProperties().getProperty('ADMIN_PIN');
+  return (p && String(p).trim()) || DEFAULT_PIN;
+}
+
+/**
+ * Ubah PIN admin untuk unduh laporan. Jalankan dari editor: setAdminPin('1357').
+ * @param {string|number} pin  4–10 digit angka.
+ */
+function setAdminPin(pin) {
+  pin = String(pin == null ? '' : pin).trim();
+  if (!/^[0-9]{4,10}$/.test(pin)) throw new Error('PIN harus 4–10 digit angka.');
+  PropertiesService.getScriptProperties().setProperty('ADMIN_PIN', pin);
+  return 'PIN admin diperbarui.';
 }
 
 /**

@@ -90,9 +90,10 @@ langkah manual. Setelah ter-seed, **sheet menjadi sumber kebenaran**:
 
 ## Unduh laporan (BAB III & IV)
 
-Setiap kartu survei punya tombol **"Unduh Laporan Hasil Survei (BAB III & IV)"**
-yang menghasilkan **PDF** dari seluruh respons pada sheet survei — meniru format
-laporan resmi, tetapi **hanya BAB III dan BAB IV**:
+Di **luar** kartu survei terdapat panel **"Unduh Laporan Hasil Survei"** berisi
+**dropdown pilihan survei + input PIN admin + tombol unduh**. Hanya admin yang
+tahu PIN yang bisa mengunduh. Berkas berupa **PDF** dari seluruh respons pada
+sheet survei — meniru format laporan resmi, tetapi **hanya BAB III dan BAB IV**:
 
 - **BAB III — Hasil Evaluasi:** 3.1 Hasil Survei (kategori + rata-rata keseluruhan),
   3.2 Analisis tiap indikator (narasi + grafik distribusi nilai 1–5),
@@ -106,8 +107,18 @@ Detail teknis:
   mengikuti ambang di `kategori_()` (≥4,5 Sangat Baik; ≥4,0 Baik; dst.).
 - Label indikator pendek ada di `SURVEYS[key].indikator` (`Code.js`); narasi
   dibuat otomatis dari angka (tertinggi/terendah/ambang).
+- Grafik batang dibuat sebagai **gambar PNG** via layanan `Charts` GAS lalu
+  disematkan sebagai `data:` URI — karena konverter HTML→PDF GAS mengabaikan
+  warna latar CSS/`bgcolor`, tetapi menampilkan `<img>` dengan andal.
 - PDF dibuat server-side via `Utilities.newBlob(html,'text/html').getAs('application/pdf')`
-  lalu dikirim base64 ke client untuk diunduh (`generateReport(key)`).
+  lalu dikirim base64 ke client untuk diunduh (`generateReport(key, pin)`).
+
+### PIN admin
+
+- PIN diverifikasi di **server** (`generateReport` menolak PIN salah); PIN
+  disimpan di Script Property `ADMIN_PIN`, tidak pernah dikirim ke client.
+- Default PIN = **`2026`** (konstanta `DEFAULT_PIN`). **Ganti** dari editor
+  Apps Script: jalankan `setAdminPin('pin_baru')` (4–10 digit angka).
 
 ## Catatan
 
