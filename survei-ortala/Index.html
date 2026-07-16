@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <base target="_top">
+  <style>
+    :root {
+      --bg: #eef1f6;
+      --bg-grad-a: #1b3a6b;
+      --bg-grad-b: #24507f;
+      --surface: #ffffff;
+      --surface-2: #f6f8fc;
+      --border: #e2e7f0;
+      --text: #1f2937;
+      --muted: #64748b;
+      --primary: #1b3a6b;
+      --star: #f2a83c;
+      --star-empty: #d7dce6;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --shadow: 0 10px 30px rgba(20, 40, 80, .10);
+      --sop: #1b6bce;      /* aksen kartu SOP */
+      --sop-soft: #e8f1fc;
+      --budaya: #0f8f7e;   /* aksen kartu Budaya Kerja */
+      --budaya-soft: #e2f5f1;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0e1526;
+        --surface: #16203a;
+        --surface-2: #1b2745;
+        --border: #26355c;
+        --text: #e8edf7;
+        --muted: #9fb0cc;
+        --primary: #6ea8ff;
+        --star: #f4b452;
+        --star-empty: #38456b;
+        --success: #34d399;
+        --danger: #f87171;
+        --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+        --sop: #5aa0f0;
+        --sop-soft: #172947;
+        --budaya: #34c3ac;
+        --budaya-soft: #123a37;
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #0e1526; --surface: #16203a; --surface-2: #1b2745; --border: #26355c;
+      --text: #e8edf7; --muted: #9fb0cc; --primary: #6ea8ff; --star: #f4b452;
+      --star-empty: #38456b; --success: #34d399; --danger: #f87171;
+      --shadow: 0 10px 30px rgba(0,0,0,.35); --sop: #5aa0f0; --sop-soft: #172947;
+      --budaya: #34c3ac; --budaya-soft: #123a37;
+    }
+    :root[data-theme="light"] {
+      --bg: #eef1f6; --surface: #ffffff; --surface-2: #f6f8fc; --border: #e2e7f0;
+      --text: #1f2937; --muted: #64748b; --primary: #1b3a6b; --star: #f2a83c;
+      --star-empty: #d7dce6; --success: #16a34a; --danger: #dc2626;
+      --shadow: 0 10px 30px rgba(20,40,80,.10); --sop: #1b6bce; --sop-soft: #e8f1fc;
+      --budaya: #0f8f7e; --budaya-soft: #e2f5f1;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", Roboto, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ---------- Hero ---------- */
+    .hero {
+      background: linear-gradient(135deg, var(--bg-grad-a), var(--bg-grad-b));
+      color: #fff;
+      padding: 34px 20px 40px;
+      text-align: center;
+      position: relative;
+    }
+    .hero .emblem {
+      width: 58px; height: 58px; margin: 0 auto 14px;
+      background: rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.28);
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .hero .emblem svg { width: 30px; height: 30px; }
+    .hero h1 {
+      margin: 0; font-size: clamp(1.4rem, 4.5vw, 2.05rem);
+      font-weight: 800; letter-spacing: .2px;
+    }
+    .hero .instansi {
+      margin: 8px auto 0; max-width: 640px;
+      font-size: clamp(.85rem, 2.6vw, 1rem); opacity: .9; font-weight: 500;
+    }
+    .hero .intro {
+      margin: 14px auto 0; max-width: 640px;
+      font-size: .9rem; opacity: .82;
+    }
+
+    /* ---------- Layout ---------- */
+    main {
+      max-width: 900px; margin: -22px auto 0; padding: 0 16px 60px;
+      display: flex; flex-direction: column; gap: 26px;
+    }
+
+    /* ---------- Card ---------- */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .card__head {
+      padding: 20px 22px 18px;
+      border-top: 5px solid var(--accent);
+      background: var(--accent-soft);
+    }
+    .card__badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: .72rem; font-weight: 700; letter-spacing: .8px;
+      text-transform: uppercase; color: var(--accent);
+    }
+    .card__badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+    .card__title {
+      margin: 8px 0 0; font-size: clamp(1.1rem, 3.2vw, 1.35rem);
+      font-weight: 800; color: var(--text);
+    }
+    .card__desc {
+      margin: 12px 0 0; color: var(--muted); font-size: .9rem;
+      white-space: pre-line;
+    }
+    .card__body { padding: 20px 22px 22px; }
+
+    /* ---------- Field: nama ---------- */
+    .field { margin-bottom: 20px; }
+    .field > label {
+      display: block; font-weight: 700; font-size: .9rem;
+      margin-bottom: 7px; color: var(--text);
+    }
+    .req { color: var(--danger); }
+    select, textarea {
+      width: 100%; font: inherit; color: var(--text);
+      background: var(--surface-2);
+      border: 1.5px solid var(--border); border-radius: 11px;
+      padding: 12px 13px;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    select:focus, textarea:focus {
+      outline: none; border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+    }
+    textarea { resize: vertical; min-height: 84px; }
+
+    /* ---------- Legend ---------- */
+    .legend {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 12px 14px; margin-bottom: 20px;
+    }
+    .legend h4 {
+      margin: 0 0 8px; font-size: .82rem; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .5px;
+    }
+    .legend ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 5px; }
+    .legend li { display: flex; align-items: center; gap: 10px; font-size: .84rem; }
+    .legend .lg-stars { color: var(--star); letter-spacing: 1px; white-space: nowrap; font-size: .95rem; }
+    .legend .lg-empty { color: var(--star-empty); }
+    .legend .lg-label { color: var(--text); }
+
+    /* ---------- Questions ---------- */
+    .qlist { display: flex; flex-direction: column; gap: 4px; }
+    .q {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 14px; padding: 14px 12px; border-radius: 12px;
+      border: 1px solid transparent;
+    }
+    .q:nth-child(odd) { background: var(--surface-2); }
+    .q.q--missing { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 8%, var(--surface)); }
+    .q__text { font-size: .92rem; }
+    .q__text .num { font-weight: 800; color: var(--accent); margin-right: 6px; }
+    .q__rate { flex-shrink: 0; text-align: right; }
+
+    .stars { display: inline-flex; gap: 3px; }
+    .stars button {
+      background: none; border: none; cursor: pointer; padding: 2px;
+      font-size: 1.7rem; line-height: 1; color: var(--star-empty);
+      transition: transform .08s, color .1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .stars button:hover { transform: scale(1.15); }
+    .stars button.on { color: var(--star); }
+    .stars button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+    .stars__label {
+      display: block; margin-top: 2px; font-size: .72rem; color: var(--muted);
+      min-height: 1em; font-weight: 600;
+    }
+
+    /* ---------- Progress + submit ---------- */
+    .cardfoot {
+      margin-top: 20px; display: flex; align-items: center;
+      justify-content: space-between; gap: 14px; flex-wrap: wrap;
+    }
+    .progress { font-size: .82rem; color: var(--muted); font-weight: 600; }
+    .progress b { color: var(--accent); }
+    button.submit {
+      background: var(--accent); color: #fff; font: inherit; font-weight: 700;
+      border: none; border-radius: 11px; padding: 12px 26px; cursor: pointer;
+      transition: filter .15s, transform .06s; font-size: .95rem;
+    }
+    button.submit:hover { filter: brightness(1.06); }
+    button.submit:active { transform: translateY(1px); }
+    button.submit:disabled { opacity: .6; cursor: progress; }
+
+    /* ---------- Success state ---------- */
+    .thanks { text-align: center; padding: 30px 18px; }
+    .thanks .check {
+      width: 62px; height: 62px; margin: 0 auto 14px; border-radius: 50%;
+      background: color-mix(in srgb, var(--success) 16%, var(--surface));
+      color: var(--success); display: flex; align-items: center; justify-content: center;
+    }
+    .thanks .check svg { width: 34px; height: 34px; }
+    .thanks h3 { margin: 0 0 6px; font-size: 1.15rem; }
+    .thanks p { margin: 0 auto 16px; color: var(--muted); max-width: 420px; font-size: .9rem; }
+    .thanks button {
+      background: none; border: 1.5px solid var(--accent); color: var(--accent);
+      font: inherit; font-weight: 700; border-radius: 10px; padding: 9px 18px; cursor: pointer;
+    }
+    .thanks button:hover { background: var(--accent-soft); }
+
+    /* ---------- Notice (pegawai kosong) ---------- */
+    .notice {
+      display: flex; gap: 10px; align-items: flex-start;
+      background: color-mix(in srgb, var(--star) 14%, var(--surface));
+      border: 1px solid color-mix(in srgb, var(--star) 40%, var(--border));
+      color: var(--text); border-radius: 12px; padding: 12px 14px;
+      margin-bottom: 18px; font-size: .85rem;
+    }
+    .notice svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--star); margin-top: 1px; }
+
+    /* ---------- Loading / toast ---------- */
+    .loading { text-align: center; color: var(--muted); padding: 40px 0; }
+    .spinner {
+      width: 34px; height: 34px; margin: 0 auto 12px; border-radius: 50%;
+      border: 3px solid var(--border); border-top-color: var(--primary);
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #toast {
+      position: fixed; left: 50%; bottom: 24px;
+      transform: translateX(-50%) translateY(60px);
+      background: #111827; color: #fff; padding: 12px 18px; border-radius: 12px;
+      font-size: .88rem; box-shadow: 0 8px 24px rgba(0,0,0,.3);
+      opacity: 0; transition: opacity .25s, transform .25s; z-index: 50;
+      max-width: 90vw; text-align: center;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.err { background: var(--danger); }
+    #toast.ok { background: var(--success); }
+
+    footer.credit {
+      text-align: center; color: var(--muted); font-size: .78rem;
+      padding: 6px 16px 30px;
+    }
+
+    @media (max-width: 560px) {
+      .q { flex-direction: column; align-items: stretch; gap: 8px; }
+      .q__rate { text-align: left; }
+      .stars button { font-size: 1.9rem; }
+      .card__body { padding: 18px 15px 18px; }
+      .card__head { padding: 18px 16px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="emblem" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 4h6a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/>
+        <path d="M9 4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2"/>
+        <path d="M9.5 12.5l1.6 1.6 3.4-3.6"/>
+      </svg>
+    </div>
+    <h1 id="appName">Survei Ortala Ditjen Bimas Hindu</h1>
+    <div class="instansi" id="instansi">Direktorat Jenderal Bimbingan Masyarakat Hindu</div>
+    <div class="intro">Mohon Bapak/Ibu mengisi kedua survei di bawah ini. Jawaban bersifat rahasia dan hanya digunakan untuk kepentingan pengembangan organisasi.</div>
+  </header>
+
+  <main id="cards">
+    <div class="loading">
+      <div class="spinner"></div>
+      Memuat survei…
+    </div>
+  </main>
+
+  <footer class="credit" id="credit"></footer>
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    var BOOT = null;
+    var STATE = {};       // { sop: {nama, jawaban:{}, saran, done}, budaya: {...} }
+    var ACCENT = { sop: 'sop', budaya: 'budaya' };
+
+    // ---------- util ----------
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    function el(html) { var t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; }
+    var toastTimer = null;
+    function toast(msg, kind) {
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'show ' + (kind || '');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { t.className = t.className.replace('show', '').trim(); }, 3600);
+    }
+
+    // ---------- bootstrap ----------
+    window.addEventListener('DOMContentLoaded', function () {
+      google.script.run
+        .withSuccessHandler(render)
+        .withFailureHandler(function (err) {
+          document.getElementById('cards').innerHTML =
+            '<div class="loading" style="color:var(--danger)">Gagal memuat: ' + esc(err && err.message) + '</div>';
+        })
+        .getBootstrap();
+    });
+
+    function render(boot) {
+      BOOT = boot;
+      document.getElementById('appName').textContent = boot.appName;
+      document.getElementById('instansi').textContent = boot.instansi;
+      document.getElementById('credit').textContent = boot.instansi;
+      var host = document.getElementById('cards');
+      host.innerHTML = '';
+      boot.surveys.forEach(function (s, i) {
+        STATE[s.key] = { nama: '', jawaban: {}, saran: '', done: false };
+        host.appendChild(buildCard(s, i + 1));
+      });
+    }
+
+    // ---------- build one card ----------
+    function buildCard(s, no) {
+      var accent = ACCENT[s.key] || 'sop';
+      var card = el('<section class="card" id="card-' + s.key + '"></section>');
+      card.style.setProperty('--accent', 'var(--' + accent + ')');
+      card.style.setProperty('--accent-soft', 'var(--' + accent + '-soft)');
+
+      // head
+      var head = el('<div class="card__head"></div>');
+      head.appendChild(el('<div class="card__badge"><span class="dot"></span>Survei ' + no + ' dari ' + BOOT.surveys.length + '</div>'));
+      head.appendChild(el('<h2 class="card__title">' + esc(s.title) + '</h2>'));
+      head.appendChild(el('<p class="card__desc">' + esc(s.deskripsi) + '</p>'));
+      card.appendChild(head);
+
+      // body
+      var body = el('<div class="card__body"></div>');
+
+      // notice kalau pegawai kosong
+      if (!BOOT.pegawai || !BOOT.pegawai.length) {
+        body.appendChild(el(
+          '<div class="notice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>' +
+          '<span>Daftar nama pegawai belum diisi. Admin dapat mengisinya di sheet <b>Pegawai</b> (kolom A) pada spreadsheet data.</span></div>'));
+      }
+
+      // nama
+      var field = el('<div class="field"></div>');
+      field.appendChild(el('<label for="nama-' + s.key + '">Nama Lengkap <span class="req">*</span></label>'));
+      var sel = el('<select id="nama-' + s.key + '"></select>');
+      sel.appendChild(el('<option value="">— Pilih nama —</option>'));
+      (BOOT.pegawai || []).forEach(function (n) {
+        sel.appendChild(el('<option value="' + esc(n) + '">' + esc(n) + '</option>'));
+      });
+      sel.addEventListener('change', function () {
+        STATE[s.key].nama = sel.value;
+        syncNama(s.key, sel.value);
+      });
+      field.appendChild(sel);
+      body.appendChild(field);
+
+      // legend
+      body.appendChild(buildLegend());
+
+      // questions
+      var qlist = el('<div class="qlist"></div>');
+      s.pertanyaan.forEach(function (q, idx) { qlist.appendChild(buildQuestion(s.key, idx, q)); });
+      body.appendChild(qlist);
+
+      // saran (opsional)
+      if (s.saran) {
+        var sf = el('<div class="field" style="margin-top:18px"></div>');
+        sf.appendChild(el('<label for="saran-' + s.key + '">Saran <span style="color:var(--muted);font-weight:500">(opsional)</span></label>'));
+        var ta = el('<textarea id="saran-' + s.key + '" placeholder="Tuliskan saran Anda…"></textarea>');
+        ta.addEventListener('input', function () { STATE[s.key].saran = ta.value; });
+        sf.appendChild(ta);
+        body.appendChild(sf);
+      }
+
+      // footer: progress + submit
+      var foot = el('<div class="cardfoot"></div>');
+      foot.appendChild(el('<div class="progress" id="prog-' + s.key + '"><b>0</b>/' + s.pertanyaan.length + ' terjawab</div>'));
+      var btn = el('<button class="submit" id="btn-' + s.key + '">Kirim Jawaban</button>');
+      btn.addEventListener('click', function () { submit(s); });
+      foot.appendChild(btn);
+      body.appendChild(foot);
+
+      card.appendChild(body);
+      updateProgress(s.key, s.pertanyaan.length);
+      return card;
+    }
+
+    function buildLegend() {
+      var wrap = el('<div class="legend"></div>');
+      wrap.appendChild(el('<h4>Petunjuk Pengisian</h4>'));
+      var ul = el('<ul></ul>');
+      (BOOT.legend || []).forEach(function (lg) {
+        var on = ''; var off = '';
+        for (var i = 1; i <= 5; i++) { (i <= lg.star ? (on += '★') : (off += '★')); }
+        ul.appendChild(el('<li><span class="lg-stars">' + on + '<span class="lg-empty">' + off + '</span></span>' +
+          '<span class="lg-label">' + esc(lg.label) + '</span></li>'));
+      });
+      wrap.appendChild(ul);
+      return wrap;
+    }
+
+    function buildQuestion(key, idx, text) {
+      var q = el('<div class="q" id="q-' + key + '-' + idx + '"></div>');
+      q.appendChild(el('<div class="q__text"><span class="num">' + (idx + 1) + '.</span>' + esc(text) + '</div>'));
+      var rate = el('<div class="q__rate"></div>');
+      var stars = el('<div class="stars" role="radiogroup" aria-label="Penilaian pertanyaan ' + (idx + 1) + '"></div>');
+      for (var v = 1; v <= 5; v++) {
+        (function (val) {
+          var lbl = (BOOT.legend[val - 1] || {}).label || '';
+          var b = el('<button type="button" role="radio" aria-checked="false" aria-label="' + val + ' - ' + esc(lbl) + '">★</button>');
+          b.addEventListener('click', function () { setRating(key, idx, val); });
+          b.addEventListener('mouseenter', function () { paintStars(stars, val); });
+          stars.appendChild(b);
+        })(v);
+      }
+      stars.addEventListener('mouseleave', function () { paintStars(stars, STATE[key].jawaban[idx] || 0); });
+      rate.appendChild(stars);
+      rate.appendChild(el('<span class="stars__label" id="lbl-' + key + '-' + idx + '"></span>'));
+      q.appendChild(rate);
+      return q;
+    }
+
+    // ---------- interaction ----------
+    function paintStars(starsEl, val) {
+      var btns = starsEl.querySelectorAll('button');
+      btns.forEach(function (b, i) { b.classList.toggle('on', i < val); });
+    }
+    function setRating(key, idx, val) {
+      STATE[key].jawaban[idx] = val;
+      var starsEl = document.getElementById('q-' + key + '-' + idx).querySelector('.stars');
+      paintStars(starsEl, val);
+      starsEl.querySelectorAll('button').forEach(function (b, i) {
+        b.setAttribute('aria-checked', (i + 1) === val ? 'true' : 'false');
+      });
+      var lbl = (BOOT.legend[val - 1] || {}).label || '';
+      document.getElementById('lbl-' + key + '-' + idx).textContent = val + ' — ' + lbl;
+      document.getElementById('q-' + key + '-' + idx).classList.remove('q--missing');
+      updateProgress(key, BOOT.surveys.filter(function (s) { return s.key === key; })[0].pertanyaan.length);
+    }
+    function updateProgress(key, total) {
+      var done = Object.keys(STATE[key].jawaban).length;
+      var p = document.getElementById('prog-' + key);
+      if (p) p.innerHTML = '<b>' + done + '</b>/' + total + ' terjawab';
+    }
+    // isi otomatis nama di kartu lain kalau masih kosong
+    function syncNama(fromKey, value) {
+      if (!value) return;
+      BOOT.surveys.forEach(function (s) {
+        if (s.key === fromKey) return;
+        if (STATE[s.key].done) return;
+        var other = document.getElementById('nama-' + s.key);
+        if (other && !other.value) { other.value = value; STATE[s.key].nama = value; }
+      });
+    }
+
+    // ---------- submit ----------
+    function submit(s) {
+      var st = STATE[s.key];
+      st.nama = (document.getElementById('nama-' + s.key) || {}).value || '';
+      if (!st.nama) { toast('Silakan pilih Nama Lengkap terlebih dahulu.', 'err'); return; }
+
+      var firstMissing = -1;
+      for (var i = 0; i < s.pertanyaan.length; i++) {
+        var q = document.getElementById('q-' + s.key + '-' + i);
+        if (!st.jawaban[i]) {
+          q.classList.add('q--missing');
+          if (firstMissing < 0) firstMissing = i;
+        }
+      }
+      if (firstMissing >= 0) {
+        toast('Masih ada pertanyaan yang belum dinilai.', 'err');
+        document.getElementById('q-' + s.key + '-' + firstMissing).scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+
+      var btn = document.getElementById('btn-' + s.key);
+      btn.disabled = true; btn.textContent = 'Mengirim…';
+
+      google.script.run
+        .withSuccessHandler(function (res) { showThanks(s, st.nama); })
+        .withFailureHandler(function (err) {
+          btn.disabled = false; btn.textContent = 'Kirim Jawaban';
+          toast((err && err.message) || 'Gagal mengirim. Coba lagi.', 'err');
+        })
+        .submitSurvey({ survey: s.key, nama: st.nama, jawaban: st.jawaban, saran: st.saran });
+    }
+
+    function showThanks(s, nama) {
+      STATE[s.key].done = true;
+      var card = document.getElementById('card-' + s.key);
+      var body = card.querySelector('.card__body');
+      body.innerHTML = '';
+      var t = el('<div class="thanks"></div>');
+      t.appendChild(el('<div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>'));
+      t.appendChild(el('<h3>Terima kasih, ' + esc(nama) + '!</h3>'));
+      t.appendChild(el('<p>Jawaban Anda untuk survei ini telah tersimpan.</p>'));
+      var again = el('<button>Isi survei ini lagi</button>');
+      again.addEventListener('click', function () {
+        var idx = BOOT.surveys.map(function (x) { return x.key; }).indexOf(s.key);
+        STATE[s.key] = { nama: '', jawaban: {}, saran: '', done: false };
+        var fresh = buildCard(s, idx + 1);
+        card.replaceWith(fresh);
+      });
+      t.appendChild(again);
+      body.appendChild(t);
+      toast('Jawaban survei tersimpan. Terima kasih!', 'ok');
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  </script>
+</body>
+</html>
