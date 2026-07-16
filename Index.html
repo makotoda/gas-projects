@@ -635,7 +635,7 @@
   .empty.mini { padding: 12px 4px; text-align: left; font-size: 12.5px; }
 
   /* ===== Modal leaderboard statistik ===== */
-  #statModal, #rekModal, #laporanModal {
+  #statModal, #rekModal, #laporanModal, #strukModal {
     position: fixed; inset: 0;
     display: grid; place-items: center;
     padding: 20px;
@@ -646,7 +646,7 @@
     opacity: 0; pointer-events: none;
     transition: opacity .25s;
   }
-  #statModal.show, #rekModal.show, #laporanModal.show { opacity: 1; pointer-events: auto; }
+  #statModal.show, #rekModal.show, #laporanModal.show, #strukModal.show { opacity: 1; pointer-events: auto; }
   .modal-card {
     width: 100%; max-width: 420px;
     background: rgba(19,19,40,.94);
@@ -1208,6 +1208,42 @@
     #heavenSide .lp-character { left: 4%; }
   }
 
+  /* ===== Review struk: baris nama+nominal hasil OCR ===== */
+  .struk-row {
+    display: grid;
+    grid-template-columns: 1fr 90px auto;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .struk-row:last-child { border-bottom: none; }
+  .struk-row select, .struk-row input {
+    width: 100%;
+    font: inherit; font-size: 13.5px;
+    padding: 8px 9px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--border-soft);
+    border-radius: 9px;
+    color: var(--text);
+  }
+  .struk-ocr {
+    grid-column: 1 / -1;
+    font-size: 11px; color: var(--muted);
+    margin-top: -4px;
+  }
+  .struk-remove {
+    width: 32px; height: 32px;
+    display: grid; place-items: center;
+    color: var(--muted);
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border-soft);
+    border-radius: 9px;
+    cursor: pointer;
+  }
+  .struk-remove:hover { color: var(--rose); border-color: var(--rose); }
+  .struk-row.removed { display: none; }
+
   /* ===== Laporan bulanan: pemilih di modal ===== */
   .lap-field { margin-bottom: 12px; }
   .lap-field label {
@@ -1461,6 +1497,8 @@
       </div>
 
       <button class="submit-btn" id="submitBtn">Simpan catatan</button>
+      <button class="music-btn" id="strukBtn" type="button" style="width:100%; margin-top:8px">📷 Upload Struk</button>
+      <input type="file" id="strukFile" accept="image/*" style="display:none">
     </div>
 
     <!-- ===== Leaderboard & riwayat ===== -->
@@ -1518,6 +1556,21 @@
     </div>
     <button class="submit-btn" id="lapDownloadBtn" type="button">⬇️ Download PDF</button>
     <div class="lap-status" id="lapStatus"></div>
+  </div>
+</div>
+
+<div id="strukModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>📷 Konfirmasi Struk</h3>
+      <button class="modal-close" id="strukModalClose" type="button">✕</button>
+    </div>
+    <div class="lap-field" style="margin-bottom:6px">
+      <label>Cocokkan nama & nominal tiap orang, lalu simpan sebagai Dosa. Baris yang namanya kosong tidak akan disimpan.</label>
+    </div>
+    <div id="strukList"></div>
+    <button class="submit-btn" id="strukConfirmBtn" type="button" style="margin-top:10px">Simpan semua</button>
+    <div class="lap-status" id="strukStatus"></div>
   </div>
 </div>
 
@@ -1692,6 +1745,144 @@
   $('rekModalClose').addEventListener('click', () => $('rekModal').classList.remove('show'));
   $('rekModal').addEventListener('click', e => {
     if (e.target === $('rekModal')) $('rekModal').classList.remove('show');
+  });
+
+  /* ================= Upload struk (baca foto lewat Gemini) =================
+     Alur: pilih foto → server OCR jadi [{nama, nominal}] → modal review di
+     mana tiap baris dicocokkan ke nama roster (dropdown, di-pre-select pakai
+     fuzzy match sederhana) dan nominal bisa dikoreksi manual → simpan satu-
+     satu sebagai Dosa lewat submitAmalan yang sudah ada (jadi infaq otomatis
+     & lock tetap jalan seperti biasa, tidak ada jalur tulis baru). */
+
+  // Fuzzy match nama OCR ke nama roster: normalisasi lalu exact > startsWith > contains.
+  function cariNamaCocok_(namaOcr, roster) {
+    const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const target = norm(namaOcr);
+    if (!target) return '';
+    let terbaik = '', skorTerbaik = 0;
+    roster.forEach(n => {
+      const r = norm(n);
+      if (!r) return;
+      let skor = 0;
+      if (r === target) skor = 3;
+      else if (r.indexOf(target) === 0 || target.indexOf(r) === 0) skor = 2;
+      else if (r.indexOf(target) >= 0 || target.indexOf(r) >= 0) skor = 1;
+      if (skor > skorTerbaik) { skorTerbaik = skor; terbaik = n; }
+    });
+    return terbaik;
+  }
+
+  function bacaFileSebagaiBase64_(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function bentukBarisStruk_(list) {
+    const roster = dataAnggota.filter(n => n !== KAS_NAMA);
+    $('strukList').innerHTML = list.map((it, i) => {
+      const cocok = cariNamaCocok_(it.nama, roster);
+      return `<div class="struk-row" data-i="${i}" data-ocr="${esc(it.nama)}">
+        <select class="struk-nama">${namaOptsTanpaKas}</select>
+        <input type="text" class="struk-nominal" inputmode="numeric" value="${fmt(it.nominal)}">
+        <button type="button" class="struk-remove" title="Hapus baris">✕</button>
+        <div class="struk-ocr">Terbaca: "${esc(it.nama)}"${cocok ? '' : ' — tidak ditemukan di roster, pilih manual'}</div>
+      </div>`;
+    }).join('') || '<div class="empty mini">Tidak ada baris terbaca dari foto ini.</div>';
+
+    // Pre-select hasil fuzzy match & pasang handler per baris (dibuat setelah
+    // innerHTML supaya <option> sudah ada di DOM untuk di-set value-nya).
+    [...$('strukList').querySelectorAll('.struk-row')].forEach((row, i) => {
+      const cocok = cariNamaCocok_(list[i].nama, roster);
+      if (cocok) row.querySelector('.struk-nama').value = cocok;
+      const nomInput = row.querySelector('.struk-nominal');
+      nomInput.addEventListener('input', () => {
+        const digits = nomInput.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+        nomInput.value = digits ? Number(digits).toLocaleString('id-ID') : '';
+      });
+      row.querySelector('.struk-remove').addEventListener('click', () => row.classList.add('removed'));
+    });
+  }
+
+  $('strukBtn').addEventListener('click', () => $('strukFile').click());
+  $('strukFile').addEventListener('change', async () => {
+    const file = $('strukFile').files[0];
+    $('strukFile').value = ''; // biar bisa pilih file yang sama lagi
+    if (!file) return;
+    const loader = $('loader');
+    loader.classList.add('overlay');
+    loader.classList.remove('hide');
+    try {
+      const base64 = await bacaFileSebagaiBase64_(file);
+      google.script.run
+        .withSuccessHandler(rows => {
+          loader.classList.add('hide');
+          bentukBarisStruk_(rows);
+          $('strukStatus').textContent = '';
+          $('strukModal').classList.add('show');
+        })
+        .withFailureHandler(err => {
+          loader.classList.add('hide');
+          toast(err.message || 'Gagal membaca struk.', 'err');
+        })
+        .parseStruk(base64, file.type);
+    } catch (e) {
+      loader.classList.add('hide');
+      toast('Gagal membaca file gambar.', 'err');
+    }
+  });
+
+  $('strukModalClose').addEventListener('click', () => $('strukModal').classList.remove('show'));
+  $('strukModal').addEventListener('click', e => {
+    if (e.target === $('strukModal')) $('strukModal').classList.remove('show');
+  });
+
+  $('strukConfirmBtn').addEventListener('click', () => {
+    const antrian = [...$('strukList').querySelectorAll('.struk-row:not(.removed)')]
+      .map(row => ({
+        nama: row.querySelector('.struk-nama').value,
+        nominal: Number(row.querySelector('.struk-nominal').value.replace(/\./g, '')) || 0,
+        asli: row.dataset.ocr
+      }))
+      .filter(it => it.nama && it.nominal > 0);
+
+    if (!antrian.length) { toast('Tidak ada baris valid untuk disimpan.', 'err'); return; }
+
+    const btn = $('strukConfirmBtn');
+    btn.disabled = true;
+    let sisa = antrian.length, sukses = 0, terakhir = null;
+    $('strukStatus').textContent = `Menyimpan 0/${sisa}…`;
+
+    function simpanBerikutnya() {
+      if (!antrian.length) {
+        btn.disabled = false;
+        $('strukModal').classList.remove('show');
+        if (terakhir) render(terakhir);
+        toast(`${sukses} transaksi dari struk tersimpan ✓`, 'ok');
+        return;
+      }
+      const it = antrian.shift();
+      google.script.run
+        .withSuccessHandler(data => {
+          sukses++; terakhir = data;
+          $('strukStatus').textContent = `Menyimpan ${sisa - antrian.length}/${sisa}…`;
+          simpanBerikutnya();
+        })
+        .withFailureHandler(err => {
+          $('strukStatus').textContent = `Gagal simpan "${it.nama}": ${err.message || 'error'} — lanjut...`;
+          simpanBerikutnya();
+        })
+        .submitAmalan({
+          nama: it.nama,
+          tipe: 'Dosa',
+          nominal: it.nominal,
+          keterangan: 'Struk: ' + it.asli
+        });
+    }
+    simpanBerikutnya();
   });
 
   /* ================= Laporan bulanan (PDF) =================

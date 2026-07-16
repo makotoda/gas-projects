@@ -175,6 +175,81 @@ function parseNominal_(raw) {
   return nominal;
 }
 
+/** Model Gemini untuk baca struk (foto) — ganti di sini kalau mau versi lain. */
+const GEMINI_MODEL = 'gemini-2.0-flash';
+
+/** API key Gemini disimpan di Script Properties (Project Settings > Script
+ *  Properties di editor Apps Script), BUKAN di source code — lihat GAPS.md #1
+ *  soal kenapa hardcode key itu buruk. */
+function getGeminiApiKey_() {
+  return PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+}
+
+/**
+ * Baca foto struk/screenshot split tagihan lewat Gemini Vision, balikin daftar
+ * {nama, nominal} per orang (baris 'You'/'Anda'/host sendiri difilter oleh
+ * prompt). Nama hasil OCR belum tentu cocok dengan roster Anggota — pencocokan
+ * & konfirmasi akhir dilakukan di klien (dropdown per baris), fungsi ini cuma OCR.
+ */
+function parseStruk(base64, mimeType) {
+  const apiKey = getGeminiApiKey_();
+  if (!apiKey) throw new Error('Fitur baca struk belum diaktifkan (GEMINI_API_KEY belum diatur).');
+  if (!base64) throw new Error('Gambar struk kosong.');
+  const tipe = String(mimeType || '').trim();
+  if (tipe.indexOf('image/') !== 0) throw new Error('File harus berupa gambar.');
+
+  const prompt = 'Ini screenshot daftar split tagihan/utang. Setiap baris berisi nama ' +
+    'orang dan nominal uang (Rupiah). Ambil semua baris KECUALI baris milik pemilik akun ' +
+    'sendiri (berlabel "You", "Anda", "Kamu", atau "Host"). Untuk tiap baris sisanya, ' +
+    'balikan nama persis seperti tertulis dan nominal sebagai angka bulat tanpa "Rp"/titik/koma.';
+
+  const body = {
+    contents: [{
+      parts: [
+        { text: prompt },
+        { inlineData: { mimeType: tipe, data: base64 } }
+      ]
+    }],
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: 'ARRAY',
+        items: {
+          type: 'OBJECT',
+          properties: { nama: { type: 'STRING' }, nominal: { type: 'NUMBER' } },
+          required: ['nama', 'nominal']
+        }
+      }
+    }
+  };
+
+  const res = UrlFetchApp.fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_MODEL +
+      ':generateContent?key=' + encodeURIComponent(apiKey),
+    {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(body),
+      muteHttpExceptions: true
+    }
+  );
+  if (res.getResponseCode() !== 200) throw new Error('Gagal membaca struk. Coba lagi.');
+
+  let items;
+  try {
+    const json = JSON.parse(res.getContentText());
+    items = JSON.parse(json.candidates[0].content.parts[0].text);
+  } catch (e) {
+    throw new Error('Gagal membaca struk. Coba lagi.');
+  }
+  if (!Array.isArray(items)) throw new Error('Gagal membaca struk. Coba lagi.');
+
+  return items
+    .map(it => ({ nama: String(it.nama || '').trim(), nominal: Math.round(Number(it.nominal)) || 0 }))
+    .filter(it => it.nama && it.nominal > 0)
+    .slice(0, 50);
+}
+
 /** Simpan transaksi amalan baru (Pahala / Dosa / Transfer) */
 function submitAmalan(data) {
   if (!data || !data.nama) throw new Error('Nama wajib dipilih.');
