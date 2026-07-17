@@ -1920,7 +1920,8 @@
         if (terakhir) render(terakhir);
         toast(`${sukses} transaksi dari struk tersimpan ✓`, 'ok');
         if (sukses > 0) {
-          if (strukMode === 'transfer') umumkanPahala(saldoSebelum, totalNominal);
+          // Top-up: ka-ching kasir dulu, baru pengumuman suara.
+          if (strukMode === 'transfer') playSfxUrut(['kaching'].concat(daftarUmumanPahala_(saldoSebelum, totalNominal)));
           else playSfx('mantul');
         }
         return;
@@ -2646,16 +2647,18 @@
     return o ? o.saldo : 0;
   };
 
-  // Umumkan pahala masuk. Konteksnya saldo SEBELUM transaksi:
+  // Rangkaian klip pengumuman pahala masuk. Konteksnya saldo SEBELUM transaksi:
   // - masih negatif (berlumur dosa) → 'dosa kamu terampuni, yang tenang ya'
   // - masih positif → 'mantul' + 'pahala kamu bertambah <terbilang> rupiah'
-  function umumkanPahala(saldoSebelum, nominal) {
-    if (saldoSebelum < 0) return playSfxUrut(['dosa-kamu-terampuni']);
+  function daftarUmumanPahala_(saldoSebelum, nominal) {
+    if (saldoSebelum < 0) return ['dosa-kamu-terampuni'];
     const kata = kataNominal_(nominal);
-    playSfxUrut(kata.length
+    return kata.length
       ? ['mantul', 'pahala-kamu-bertambah'].concat(kata, ['rupiah'])
-      : ['mantul']); // nominal di luar jangkauan klip
+      : ['mantul']; // nominal di luar jangkauan klip
   }
+  const umumkanPahala = (saldoSebelum, nominal) =>
+    playSfxUrut(daftarUmumanPahala_(saldoSebelum, nominal));
 
   $('soundBtn').addEventListener('click', e => {
     e.stopPropagation();
