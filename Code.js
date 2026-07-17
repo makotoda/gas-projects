@@ -176,7 +176,7 @@ function parseNominal_(raw) {
 }
 
 /** Model Gemini untuk baca struk (foto) — ganti di sini kalau mau versi lain. */
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_MODEL = 'gemini-3.5-flash';
 
 /** API key Gemini disimpan di Script Properties (Project Settings > Script
  *  Properties di editor Apps Script), BUKAN di source code — lihat GAPS.md #1
