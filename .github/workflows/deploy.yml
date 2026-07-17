@@ -25,3 +25,9 @@ jobs:
 
       - name: Push ke Apps Script
         run: clasp push -f
+
+      # Versi baru ke deployment live yang SAMA — URL /exec tidak berubah,
+      # jadi embed di Google Sites otomatis ikut terbarui tanpa disentuh.
+      # Jangan ganti ID ini kecuali sengaja memindah deployment live.
+      - name: Deploy versi baru (URL /exec tetap)
+        run: clasp deploy -i AKfycby0w9VhrjcB_TnsrMN6N_ozL3QOGFKV5jbICT3MrnrEPmCCCI_g0jn5HWHeqywBS3SUUQ -d "auto ${{ github.sha }}"
