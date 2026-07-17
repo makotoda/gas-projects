@@ -176,7 +176,7 @@ function parseNominal_(raw) {
 }
 
 /** Model Gemini untuk baca struk (foto) — ganti di sini kalau mau versi lain. */
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 /** API key Gemini disimpan di Script Properties (Project Settings > Script
  *  Properties di editor Apps Script), BUKAN di source code — lihat GAPS.md #1
@@ -237,7 +237,7 @@ function parseStruk(base64, mimeType) {
   // supaya kegagalan gampang didiagnosis dari toast tanpa buka Stackdriver dulu.
   if (res.getResponseCode() !== 200) {
     throw new Error('Gagal membaca struk (HTTP ' + res.getResponseCode() + '): ' +
-      res.getContentText().slice(0, 300));
+      res.getContentText().slice(0, 800));
   }
 
   let items;
