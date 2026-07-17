@@ -1906,7 +1906,7 @@
 
     const btn = $('strukConfirmBtn');
     btn.disabled = true;
-    let sisa = antrian.length, sukses = 0, terakhir = null;
+    let sisa = antrian.length, sukses = 0, terakhir = null, totalNominal = 0;
     $('strukStatus').textContent = `Menyimpan 0/${sisa}…`;
 
     function simpanBerikutnya() {
@@ -1915,13 +1915,13 @@
         $('strukModal').classList.remove('show');
         if (terakhir) render(terakhir);
         toast(`${sukses} transaksi dari struk tersimpan ✓`, 'ok');
-        if (sukses > 0) playSfx(sfxUntukTipe(strukMode === 'transfer' ? 'Pahala' : 'Dosa'));
+        if (sukses > 0) umumkanTransaksi(strukMode === 'transfer' ? 'Pahala' : 'Dosa', totalNominal);
         return;
       }
       const it = antrian.shift();
       google.script.run
         .withSuccessHandler(data => {
-          sukses++; terakhir = data;
+          sukses++; terakhir = data; totalNominal += it.nominal;
           $('strukStatus').textContent = `Menyimpan ${sisa - antrian.length}/${sisa}…`;
           simpanBerikutnya();
         })
@@ -2540,7 +2540,8 @@
             : `${tipeTerpilih} ${fmt(nominal)} untuk ${nama} tersimpan ✓`, 'ok');
         // Perayaan sukses: krincing koin beruntun + hujan uang dari tombol
         playCoinBurst();
-        playSfx(isKas ? 'mantul' : sfxUntukTipe(tipeTerpilih));
+        if (isKas) playSfx('mantul');
+        else umumkanTransaksi(tipeTerpilih, nominal);
         const r = btn.getBoundingClientRect();
         moneyRain(r.left + r.width / 2, r.top + r.height / 2);
         nominalInput.value = '';
@@ -2585,9 +2586,58 @@
     a.currentTime = 0;
     a.play().catch(() => {}); // offline / autoplay diblokir — abaikan saja
   }
-  // Pilih klip suara sesuai tipe transaksi yang barusan tersimpan.
-  const sfxUntukTipe = tipe =>
-    tipe === 'Pahala' ? 'pahala-bertambah' : tipe === 'Dosa' ? 'dosa-terampuni' : 'mantul';
+  // Putar beberapa klip berurutan (sambung-menyambung ala speaker QRIS).
+  // Semua klip di-prefetch dulu supaya jeda antar kata minim di putaran pertama.
+  function playSfxUrut(daftar) {
+    if (!soundOn || !daftar.length) return;
+    daftar.forEach(n => { if (!sfxCache[n]) sfxCache[n] = new Audio(SFX_BASE + n + '.mp3'); });
+    const next = i => {
+      if (i >= daftar.length) return;
+      const a = sfxCache[daftar[i]];
+      a.onended = () => next(i + 1);
+      a.currentTime = 0;
+      a.play().catch(() => next(i + 1)); // klip gagal dimuat — lompati saja
+    };
+    next(0);
+  }
+
+  // Nominal → daftar nama klip terbilang ('seratus lima puluh ribu' dst.).
+  // Balikan [] untuk nilai di luar jangkauan (fallback pemanggil: klip 'mantul').
+  function kataNominal_(n) {
+    n = Math.floor(Number(n) || 0);
+    if (n <= 0 || n >= 1e9) return []; // klip miliar tidak direkam
+    const SATUAN = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan'];
+    const tiga = x => { // 1..999 → array kata
+      const out = [];
+      const r = Math.floor(x / 100), s = x % 100;
+      if (r === 1) out.push('seratus');
+      else if (r > 1) out.push(SATUAN[r], 'ratus');
+      if (s === 10) out.push('sepuluh');
+      else if (s === 11) out.push('sebelas');
+      else if (s > 11 && s < 20) out.push(SATUAN[s - 10], 'belas');
+      else {
+        if (s >= 20) out.push(SATUAN[Math.floor(s / 10)], 'puluh');
+        if (s % 10 > 0) out.push(SATUAN[s % 10]);
+      }
+      return out;
+    };
+    const out = [];
+    const jt = Math.floor(n / 1e6), rb = Math.floor((n % 1e6) / 1e3), ss = n % 1e3;
+    if (jt > 0) out.push(...tiga(jt), 'juta');
+    if (rb === 1) out.push('seribu');
+    else if (rb > 1) out.push(...tiga(rb), 'ribu');
+    if (ss > 0) out.push(...tiga(ss));
+    return out;
+  }
+
+  // Umumkan transaksi dengan suara: frasa tipe + terbilang nominal + 'rupiah'.
+  function umumkanTransaksi(tipe, nominal) {
+    const kata = kataNominal_(nominal);
+    if (tipe !== 'Pahala' && tipe !== 'Dosa') return playSfx('mantul');
+    if (!kata.length) return playSfx('mantul'); // nominal di luar jangkauan klip
+    playSfxUrut([tipe === 'Pahala' ? 'pahala-kamu-bertambah' : 'dosa-kamu-terampuni']
+      .concat(kata, ['rupiah']));
+  }
 
   $('soundBtn').addEventListener('click', e => {
     e.stopPropagation();
