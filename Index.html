@@ -1569,6 +1569,10 @@
       <label>Cocokkan nama & nominal tiap orang, lalu simpan sebagai Dosa. Baris yang namanya kosong tidak akan disimpan.</label>
     </div>
     <div id="strukList"></div>
+    <div class="lap-field" style="margin-top:10px">
+      <label for="strukKeterangan">Keterangan <span style="font-weight:400">(opsional, berlaku untuk semua baris)</span></label>
+      <input type="text" id="strukKeterangan" maxlength="120" placeholder="Contoh: patungan makan siang">
+    </div>
     <button class="submit-btn" id="strukConfirmBtn" type="button" style="margin-top:10px">Simpan semua</button>
     <div class="lap-status" id="strukStatus"></div>
   </div>
@@ -1812,25 +1816,37 @@
     const file = $('strukFile').files[0];
     $('strukFile').value = ''; // biar bisa pilih file yang sama lagi
     if (!file) return;
+    // Loader sama seperti saat submit: logo 3D dipasang ulang ke slot loader
+    // (kalau cuma remove 'hide', class logo3d sisa dari load awal menyembunyikan
+    // spinner fallback → yang tampil hanya blur kosong).
     const loader = $('loader');
+    if (window.KodomoLogo3D) {
+      loader.classList.add('logo3d');
+      window.KodomoLogo3D.pasang($('loaderLogo'));
+    }
     loader.classList.add('overlay');
     loader.classList.remove('hide');
+    const tutupLoader = () => {
+      loader.classList.add('hide');
+      if (window.KodomoLogo3D) window.KodomoLogo3D.keHeader();
+    };
     try {
       const base64 = await bacaFileSebagaiBase64_(file);
       google.script.run
         .withSuccessHandler(rows => {
-          loader.classList.add('hide');
+          tutupLoader();
           bentukBarisStruk_(rows);
+          $('strukKeterangan').value = '';
           $('strukStatus').textContent = '';
           $('strukModal').classList.add('show');
         })
         .withFailureHandler(err => {
-          loader.classList.add('hide');
+          tutupLoader();
           toast(err.message || 'Gagal membaca struk.', 'err');
         })
         .parseStruk(base64, file.type);
     } catch (e) {
-      loader.classList.add('hide');
+      tutupLoader();
       toast('Gagal membaca file gambar.', 'err');
     }
   });
@@ -1850,6 +1866,9 @@
       .filter(it => it.nama && it.nominal > 0);
 
     if (!antrian.length) { toast('Tidak ada baris valid untuk disimpan.', 'err'); return; }
+
+    // Keterangan bersama, gaya sama dengan transfer: 'Struk: <nama asli> — <ket>'
+    const ketBersama = $('strukKeterangan').value.trim();
 
     const btn = $('strukConfirmBtn');
     btn.disabled = true;
@@ -1879,7 +1898,7 @@
           nama: it.nama,
           tipe: 'Dosa',
           nominal: it.nominal,
-          keterangan: 'Struk: ' + it.asli
+          keterangan: 'Struk: ' + it.asli + (ketBersama ? ' — ' + ketBersama : '')
         });
     }
     simpanBerikutnya();
