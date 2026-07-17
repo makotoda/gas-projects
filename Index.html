@@ -1761,11 +1761,19 @@
      satu sebagai Dosa lewat submitAmalan yang sudah ada (jadi infaq otomatis
      & lock tetap jalan seperti biasa, tidak ada jalur tulis baru). */
 
-  // Fuzzy match nama OCR ke nama roster: normalisasi lalu exact > startsWith > contains.
+  // Alias hasil koreksi user sebelumnya (nama OCR ternormalisasi → nama roster),
+  // dimuat dari server via getDashboardData; koreksi baru dikirim saat simpan.
+  let dataStrukAlias = {};
+  const normNama_ = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  // Match nama OCR ke roster: alias hasil koreksi dulu, baru fuzzy
+  // (exact > startsWith > contains).
   function cariNamaCocok_(namaOcr, roster) {
-    const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const norm = normNama_;
     const target = norm(namaOcr);
     if (!target) return '';
+    const alias = dataStrukAlias[target];
+    if (alias && roster.indexOf(alias) >= 0) return alias;
     let terbaik = '', skorTerbaik = 0;
     roster.forEach(n => {
       const r = norm(n);
@@ -1792,7 +1800,7 @@
     const roster = dataAnggota.filter(n => n !== KAS_NAMA);
     $('strukList').innerHTML = list.map((it, i) => {
       const cocok = cariNamaCocok_(it.nama, roster);
-      return `<div class="struk-row" data-i="${i}">
+      return `<div class="struk-row" data-i="${i}" data-ocr="${esc(it.nama)}">
         <select class="struk-nama">${namaOptsTanpaKas}</select>
         <input type="text" class="struk-nominal" inputmode="numeric" value="${fmt(it.nominal)}">
         <button type="button" class="struk-remove" title="Hapus baris">✕</button>
@@ -1848,7 +1856,8 @@
           $('strukDesc').textContent = isTopup
             ? 'Cocokkan nama pengirim & nominal, lalu simpan sebagai Pahala (top-up).'
             : 'Cocokkan nama & nominal tiap orang, lalu simpan sebagai Dosa. Baris yang namanya kosong tidak akan disimpan.';
-          $('strukKeterangan').value = '';
+          $('strukKeterangan').value = isTopup && rows[0] && rows[0].bank
+            ? 'Melalui ' + rows[0].bank : '';
           $('strukStatus').textContent = '';
           $('strukModal').classList.add('show');
         })
@@ -1872,11 +1881,25 @@
     const antrian = [...$('strukList').querySelectorAll('.struk-row:not(.removed)')]
       .map(row => ({
         nama: row.querySelector('.struk-nama').value,
-        nominal: Number(row.querySelector('.struk-nominal').value.replace(/\./g, '')) || 0
+        nominal: Number(row.querySelector('.struk-nominal').value.replace(/\./g, '')) || 0,
+        asli: row.dataset.ocr
       }))
       .filter(it => it.nama && it.nominal > 0);
 
     if (!antrian.length) { toast('Tidak ada baris valid untuk disimpan.', 'err'); return; }
+
+    // Pelajari koreksi nama: kalau nama OCR ≠ nama yang dipilih (setelah
+    // dinormalisasi), simpan sebagai alias supaya jadi tebakan pertama
+    // di upload berikutnya. Fire-and-forget — gagal pun tidak mengganggu simpan.
+    const aliasBaru = {};
+    antrian.forEach(it => {
+      const key = normNama_(it.asli);
+      if (key && key !== normNama_(it.nama)) aliasBaru[key] = it.nama;
+    });
+    if (Object.keys(aliasBaru).length) {
+      Object.assign(dataStrukAlias, aliasBaru); // langsung berlaku di sesi ini
+      google.script.run.saveStrukAlias(aliasBaru);
+    }
 
     // Keterangan bersama, dipakai apa adanya untuk semua baris.
     const ketBersama = $('strukKeterangan').value.trim();
@@ -2451,6 +2474,7 @@
     dataKas = data.kas;
     dataAnggota = data.anggota || [];
     dataBulan = data.bulanList || [];
+    dataStrukAlias = data.strukAlias || dataStrukAlias;
     if (typeof isiPemilihLaporan === 'function') isiPemilihLaporan();
     renderLeaderboard();
     renderKasBoard();

@@ -203,8 +203,10 @@ function parseStruk(base64, mimeType, mode) {
 
   const prompt = mode === 'transfer'
     ? 'Ini screenshot bukti transfer bank atau e-wallet (Rupiah). Ekstrak nama PENGIRIM ' +
-      '(bukan penerima) persis seperti tertulis, dan nominal uang yang ditransfer sebagai ' +
-      'angka bulat tanpa "Rp"/titik/koma. Abaikan biaya admin. Biasanya hanya ada satu transfer.'
+      '(bukan penerima) persis seperti tertulis, nominal uang yang ditransfer sebagai ' +
+      'angka bulat tanpa "Rp"/titik/koma, dan nama bank atau dompet digital yang dipakai ' +
+      '(field bank, mis. "BCA", "GoPay") kalau terlihat. Abaikan biaya admin. ' +
+      'Biasanya hanya ada satu transfer.'
     : 'Ini screenshot daftar split tagihan/utang. Setiap baris berisi nama ' +
       'orang dan nominal uang (Rupiah). Ambil semua baris KECUALI baris milik pemilik akun ' +
       'sendiri (berlabel "You", "Anda", "Kamu", atau "Host"). Untuk tiap baris sisanya, ' +
@@ -223,7 +225,11 @@ function parseStruk(base64, mimeType, mode) {
         type: 'ARRAY',
         items: {
           type: 'OBJECT',
-          properties: { nama: { type: 'STRING' }, nominal: { type: 'NUMBER' } },
+          properties: {
+            nama: { type: 'STRING' },
+            nominal: { type: 'NUMBER' },
+            bank: { type: 'STRING' }
+          },
           required: ['nama', 'nominal']
         }
       }
@@ -265,9 +271,41 @@ function parseStruk(base64, mimeType, mode) {
   if (!Array.isArray(items)) throw new Error('Gagal membaca struk: respons bukan daftar (array).');
 
   return items
-    .map(it => ({ nama: String(it.nama || '').trim(), nominal: Math.round(Number(it.nominal)) || 0 }))
+    .map(it => ({
+      nama: String(it.nama || '').trim(),
+      nominal: Math.round(Number(it.nominal)) || 0,
+      bank: String(it.bank || '').trim()
+    }))
     .filter(it => it.nama && it.nominal > 0)
     .slice(0, 50);
+}
+
+/**
+ * Alias nama hasil baca foto → nama roster, dipelajari dari koreksi user di
+ * modal review (kunci = nama OCR yang dinormalisasi klien). Disimpan di
+ * Script Properties supaya berlaku untuk semua pemakai, bukan per-device.
+ */
+function getStrukAlias_() {
+  try {
+    return JSON.parse(PropertiesService.getScriptProperties().getProperty('STRUK_ALIAS') || '{}');
+  } catch (e) {
+    return {};
+  }
+}
+
+/** Gabungkan alias baru dari klien ke map tersimpan. */
+function saveStrukAlias(map) {
+  if (!map || typeof map !== 'object') return;
+  const cur = getStrukAlias_();
+  Object.keys(map).forEach(k => {
+    const key = String(k).trim().slice(0, 80);
+    const val = String(map[k]).trim().slice(0, 80);
+    if (key && val) cur[key] = val;
+  });
+  // ponytail: tanpa lock — tabrakan dua koreksi bersamaan paling banter kehilangan
+  // satu alias yang akan terpelajari lagi di upload berikutnya. Script Properties
+  // max ~9KB per value; pangkas manual kalau suatu saat penuh.
+  PropertiesService.getScriptProperties().setProperty('STRUK_ALIAS', JSON.stringify(cur));
 }
 
 /** Simpan transaksi amalan baru (Pahala / Dosa / Transfer) */
@@ -442,6 +480,7 @@ function getDashboardData() {
         .sort((a, b) => b.total - a.total)
     },
     infaqMap: getInfaqMap_(),
+    strukAlias: getStrukAlias_(),
     anggota: getAnggota(),
     bulanList: Object.keys(bulanSet).sort().reverse().map(k => ({ key: k, label: labelBulan_(k) }))
   };
