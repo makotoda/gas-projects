@@ -103,7 +103,10 @@
      dimatikan sementara: blur dirasterisasi ulang pada resolusi zoom, dan
      biaya memorinya naik kuadratik — di iPhone WebKit sampai mematikan
      halaman ("Can't open this page"), di Android frame reload berulang.
-     Class dipasang/dicabut oleh listener visualViewport di script. */
+     Class dipasang/dicabut oleh listener visualViewport di script.
+     CATATAN: hanya bekerja saat dibuka langsung — di dalam embed Google
+     Sites zoom terjadi pada halaman induk dan tak terdeteksi dari iframe,
+     karena itu ada juga aturan permanen untuk layar sentuh di bawah. */
   body.zoom-dalam .orb { display: none; }
   body.zoom-dalam header, body.zoom-dalam .card, body.zoom-dalam .stat,
   body.zoom-dalam .modal-card, body.zoom-dalam #statModal, body.zoom-dalam #rekModal,
@@ -112,6 +115,21 @@
   body.zoom-dalam #tutorialOverlay, body.zoom-dalam #tutorialTooltip {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+  }
+
+  /* Perangkat mobile/layar sentuh: blur dimatikan PERMANEN. Di embed Google
+     Sites pinch-zoom tak terdeteksi (lihat catatan di atas), jadi baseline
+     memori GPU harus rendah sejak awal. Kartu tetap semi-transparan
+     (var(--glass)) — yang hilang hanya efek kaca buram; orb tetap tampil
+     karena radial-gradient-nya sudah lembut tanpa filter blur. */
+  @media (max-width: 900px), (pointer: coarse) {
+    .orb { filter: none; opacity: .4; }
+    header, .card, .stat, .modal-card, #statModal, #rekModal,
+    #laporanModal, #strukModal, #loader.overlay, #toast,
+    #tutorialOverlay, #tutorialTooltip {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
   }
 
   .wrap {
