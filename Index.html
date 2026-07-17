@@ -99,6 +99,21 @@
     * { transition: none !important; }
   }
 
+  /* Saat pinch-zoom dalam (visualViewport.scale besar), semua efek blur
+     dimatikan sementara: blur dirasterisasi ulang pada resolusi zoom, dan
+     biaya memorinya naik kuadratik — di iPhone WebKit sampai mematikan
+     halaman ("Can't open this page"), di Android frame reload berulang.
+     Class dipasang/dicabut oleh listener visualViewport di script. */
+  body.zoom-dalam .orb { display: none; }
+  body.zoom-dalam header, body.zoom-dalam .card, body.zoom-dalam .stat,
+  body.zoom-dalam .modal-card, body.zoom-dalam #statModal, body.zoom-dalam #rekModal,
+  body.zoom-dalam #laporanModal, body.zoom-dalam #strukModal,
+  body.zoom-dalam #loader.overlay, body.zoom-dalam #toast,
+  body.zoom-dalam #tutorialOverlay, body.zoom-dalam #tutorialTooltip {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
   .wrap {
     position: relative;
     z-index: 1;
@@ -2587,6 +2602,19 @@
   /* ---- Efek: trail kursor, hujan uang, suara koin ---- */
   const motionOK = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let soundOn = true;
+
+  // Pinch-zoom dalam → matikan efek blur sementara (lihat CSS body.zoom-dalam).
+  // Ambang 1.3 dengan histeresis kecil supaya tidak kelap-kelip di batas.
+  if (window.visualViewport) {
+    const cekZoom = () => {
+      const dalam = document.body.classList.contains('zoom-dalam');
+      const skala = visualViewport.scale;
+      if (!dalam && skala > 1.3) document.body.classList.add('zoom-dalam');
+      else if (dalam && skala < 1.15) document.body.classList.remove('zoom-dalam');
+    };
+    visualViewport.addEventListener('resize', cekZoom);
+    cekZoom();
+  }
 
   /* ---- Suara rekaman (mp3 di folder sounds/ repo, disajikan via jsDelivr).
      Lazy: file baru diunduh saat pertama dibunyikan, lalu objek Audio-nya
