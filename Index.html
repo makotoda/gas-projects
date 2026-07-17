@@ -1915,6 +1915,7 @@
         $('strukModal').classList.remove('show');
         if (terakhir) render(terakhir);
         toast(`${sukses} transaksi dari struk tersimpan ✓`, 'ok');
+        if (sukses > 0) playSfx(sfxUntukTipe(strukMode === 'transfer' ? 'Pahala' : 'Dosa'));
         return;
       }
       const it = antrian.shift();
@@ -2539,6 +2540,7 @@
             : `${tipeTerpilih} ${fmt(nominal)} untuk ${nama} tersimpan ✓`, 'ok');
         // Perayaan sukses: krincing koin beruntun + hujan uang dari tombol
         playCoinBurst();
+        playSfx(isKas ? 'mantul' : sfxUntukTipe(tipeTerpilih));
         const r = btn.getBoundingClientRect();
         moneyRain(r.left + r.width / 2, r.top + r.height / 2);
         nominalInput.value = '';
@@ -2570,6 +2572,22 @@
   /* ---- Efek: trail kursor, hujan uang, suara koin ---- */
   const motionOK = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let soundOn = true;
+
+  /* ---- Suara rekaman (mp3 di folder sounds/ repo, disajikan via jsDelivr).
+     Lazy: file baru diunduh saat pertama dibunyikan, lalu objek Audio-nya
+     di-cache — halaman tidak menanggung beratnya saat load. ---- */
+  const SFX_BASE = 'https://cdn.jsdelivr.net/gh/makotoda/gas-projects@main/sounds/';
+  const sfxCache = {};
+  function playSfx(nama) {
+    if (!soundOn) return;
+    let a = sfxCache[nama];
+    if (!a) a = sfxCache[nama] = new Audio(SFX_BASE + nama + '.mp3');
+    a.currentTime = 0;
+    a.play().catch(() => {}); // offline / autoplay diblokir — abaikan saja
+  }
+  // Pilih klip suara sesuai tipe transaksi yang barusan tersimpan.
+  const sfxUntukTipe = tipe =>
+    tipe === 'Pahala' ? 'pahala-bertambah' : tipe === 'Dosa' ? 'dosa-terampuni' : 'mantul';
 
   $('soundBtn').addEventListener('click', e => {
     e.stopPropagation();
