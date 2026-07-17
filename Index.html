@@ -1789,7 +1789,7 @@
     const roster = dataAnggota.filter(n => n !== KAS_NAMA);
     $('strukList').innerHTML = list.map((it, i) => {
       const cocok = cariNamaCocok_(it.nama, roster);
-      return `<div class="struk-row" data-i="${i}" data-ocr="${esc(it.nama)}">
+      return `<div class="struk-row" data-i="${i}">
         <select class="struk-nama">${namaOptsTanpaKas}</select>
         <input type="text" class="struk-nominal" inputmode="numeric" value="${fmt(it.nominal)}">
         <button type="button" class="struk-remove" title="Hapus baris">✕</button>
@@ -1860,14 +1860,13 @@
     const antrian = [...$('strukList').querySelectorAll('.struk-row:not(.removed)')]
       .map(row => ({
         nama: row.querySelector('.struk-nama').value,
-        nominal: Number(row.querySelector('.struk-nominal').value.replace(/\./g, '')) || 0,
-        asli: row.dataset.ocr
+        nominal: Number(row.querySelector('.struk-nominal').value.replace(/\./g, '')) || 0
       }))
       .filter(it => it.nama && it.nominal > 0);
 
     if (!antrian.length) { toast('Tidak ada baris valid untuk disimpan.', 'err'); return; }
 
-    // Keterangan bersama, gaya sama dengan transfer: 'Struk: <nama asli> — <ket>'
+    // Keterangan bersama, dipakai apa adanya untuk semua baris.
     const ketBersama = $('strukKeterangan').value.trim();
 
     const btn = $('strukConfirmBtn');
@@ -1898,7 +1897,7 @@
           nama: it.nama,
           tipe: 'Dosa',
           nominal: it.nominal,
-          keterangan: 'Struk: ' + it.asli + (ketBersama ? ' — ' + ketBersama : '')
+          keterangan: ketBersama
         });
     }
     simpanBerikutnya();
