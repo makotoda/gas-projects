@@ -186,22 +186,29 @@ function getGeminiApiKey_() {
 }
 
 /**
- * Baca foto struk/screenshot split tagihan lewat Gemini Vision, balikin daftar
- * {nama, nominal} per orang (baris 'You'/'Anda'/host sendiri difilter oleh
- * prompt). Nama hasil OCR belum tentu cocok dengan roster Anggota — pencocokan
- * & konfirmasi akhir dilakukan di klien (dropdown per baris), fungsi ini cuma OCR.
+ * Baca foto lewat Gemini Vision, balikin daftar {nama, nominal}.
+ * mode 'struk' (default): screenshot split tagihan, satu baris per orang
+ *   (baris 'You'/'Anda'/host difilter oleh prompt).
+ * mode 'transfer': bukti transfer bank/e-wallet, diambil nama PENGIRIM +
+ *   nominal (biasanya satu item) — dipakai menu top-up pahala.
+ * Nama hasil baca belum tentu cocok dengan roster Anggota — pencocokan &
+ * konfirmasi akhir dilakukan di klien (dropdown per baris), fungsi ini cuma baca.
  */
-function parseStruk(base64, mimeType) {
+function parseStruk(base64, mimeType, mode) {
   const apiKey = getGeminiApiKey_();
   if (!apiKey) throw new Error('Fitur baca struk belum diaktifkan (GEMINI_API_KEY belum diatur).');
   if (!base64) throw new Error('Gambar struk kosong.');
   const tipe = String(mimeType || '').trim();
   if (tipe.indexOf('image/') !== 0) throw new Error('File harus berupa gambar.');
 
-  const prompt = 'Ini screenshot daftar split tagihan/utang. Setiap baris berisi nama ' +
-    'orang dan nominal uang (Rupiah). Ambil semua baris KECUALI baris milik pemilik akun ' +
-    'sendiri (berlabel "You", "Anda", "Kamu", atau "Host"). Untuk tiap baris sisanya, ' +
-    'balikan nama persis seperti tertulis dan nominal sebagai angka bulat tanpa "Rp"/titik/koma.';
+  const prompt = mode === 'transfer'
+    ? 'Ini screenshot bukti transfer bank atau e-wallet (Rupiah). Ekstrak nama PENGIRIM ' +
+      '(bukan penerima) persis seperti tertulis, dan nominal uang yang ditransfer sebagai ' +
+      'angka bulat tanpa "Rp"/titik/koma. Abaikan biaya admin. Biasanya hanya ada satu transfer.'
+    : 'Ini screenshot daftar split tagihan/utang. Setiap baris berisi nama ' +
+      'orang dan nominal uang (Rupiah). Ambil semua baris KECUALI baris milik pemilik akun ' +
+      'sendiri (berlabel "You", "Anda", "Kamu", atau "Host"). Untuk tiap baris sisanya, ' +
+      'balikan nama persis seperti tertulis dan nominal sebagai angka bulat tanpa "Rp"/titik/koma.';
 
   const body = {
     contents: [{

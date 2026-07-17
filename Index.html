@@ -1497,7 +1497,10 @@
       </div>
 
       <button class="submit-btn" id="submitBtn">Simpan catatan</button>
-      <button class="music-btn" id="strukBtn" type="button" style="width:100%; margin-top:8px">📷 Upload Struk</button>
+      <div style="display:flex; gap:8px; margin-top:8px">
+        <button class="music-btn" id="strukBtn" type="button" style="flex:1">📷 Upload Struk</button>
+        <button class="music-btn" id="buktiBtn" type="button" style="flex:1">🏦 Bukti Transfer</button>
+      </div>
       <input type="file" id="strukFile" accept="image/*" style="display:none">
     </div>
 
@@ -1562,11 +1565,11 @@
 <div id="strukModal">
   <div class="modal-card">
     <div class="modal-head">
-      <h3>📷 Konfirmasi Struk</h3>
+      <h3 id="strukTitle">📷 Konfirmasi Struk</h3>
       <button class="modal-close" id="strukModalClose" type="button">✕</button>
     </div>
     <div class="lap-field" style="margin-bottom:6px">
-      <label>Cocokkan nama & nominal tiap orang, lalu simpan sebagai Dosa. Baris yang namanya kosong tidak akan disimpan.</label>
+      <label id="strukDesc">Cocokkan nama & nominal tiap orang, lalu simpan sebagai Dosa. Baris yang namanya kosong tidak akan disimpan.</label>
     </div>
     <div id="strukList"></div>
     <div class="lap-field" style="margin-top:10px">
@@ -1811,7 +1814,11 @@
     });
   }
 
-  $('strukBtn').addEventListener('click', () => $('strukFile').click());
+  // Mode upload foto: 'struk' = split tagihan (simpan Dosa per orang),
+  // 'transfer' = bukti transfer bank (top-up, simpan Pahala untuk pengirim).
+  let strukMode = 'struk';
+  $('strukBtn').addEventListener('click', () => { strukMode = 'struk'; $('strukFile').click(); });
+  $('buktiBtn').addEventListener('click', () => { strukMode = 'transfer'; $('strukFile').click(); });
   $('strukFile').addEventListener('change', async () => {
     const file = $('strukFile').files[0];
     $('strukFile').value = ''; // biar bisa pilih file yang sama lagi
@@ -1836,6 +1843,11 @@
         .withSuccessHandler(rows => {
           tutupLoader();
           bentukBarisStruk_(rows);
+          const isTopup = strukMode === 'transfer';
+          $('strukTitle').textContent = isTopup ? '🏦 Konfirmasi Top-up' : '📷 Konfirmasi Struk';
+          $('strukDesc').textContent = isTopup
+            ? 'Cocokkan nama pengirim & nominal, lalu simpan sebagai Pahala (top-up).'
+            : 'Cocokkan nama & nominal tiap orang, lalu simpan sebagai Dosa. Baris yang namanya kosong tidak akan disimpan.';
           $('strukKeterangan').value = '';
           $('strukStatus').textContent = '';
           $('strukModal').classList.add('show');
@@ -1844,7 +1856,7 @@
           tutupLoader();
           toast(err.message || 'Gagal membaca struk.', 'err');
         })
-        .parseStruk(base64, file.type);
+        .parseStruk(base64, file.type, strukMode);
     } catch (e) {
       tutupLoader();
       toast('Gagal membaca file gambar.', 'err');
@@ -1895,7 +1907,7 @@
         })
         .submitAmalan({
           nama: it.nama,
-          tipe: 'Dosa',
+          tipe: strukMode === 'transfer' ? 'Pahala' : 'Dosa',
           nominal: it.nominal,
           keterangan: ketBersama
         });
