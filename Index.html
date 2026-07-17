@@ -1907,6 +1907,10 @@
     const btn = $('strukConfirmBtn');
     btn.disabled = true;
     let sisa = antrian.length, sukses = 0, terakhir = null, totalNominal = 0;
+    // ponytail: saldo-sebelum untuk pengumuman diambil dari baris pertama saja —
+    // top-up bukti transfer praktis selalu satu baris; kalau nanti multi-baris
+    // jadi lazim, hitung per orang.
+    const saldoSebelum = saldoSaatIni(antrian[0].nama);
     $('strukStatus').textContent = `Menyimpan 0/${sisa}…`;
 
     function simpanBerikutnya() {
@@ -1915,7 +1919,10 @@
         $('strukModal').classList.remove('show');
         if (terakhir) render(terakhir);
         toast(`${sukses} transaksi dari struk tersimpan ✓`, 'ok');
-        if (sukses > 0) umumkanTransaksi(strukMode === 'transfer' ? 'Pahala' : 'Dosa', totalNominal);
+        if (sukses > 0) {
+          if (strukMode === 'transfer') umumkanPahala(saldoSebelum, totalNominal);
+          else playSfx('mantul');
+        }
         return;
       }
       const it = antrian.shift();
@@ -2514,6 +2521,9 @@
       }
       if (!nominal || nominal <= 0) return toast('Nominal harus lebih dari 0.', 'err');
     }
+    // Saldo sebelum transaksi — dibaca SEKARANG karena render() di success
+    // handler menimpa dataLeaderboard dengan saldo sesudah.
+    const saldoSebelum = saldoSaatIni(nama);
 
     const btn = $('submitBtn');
     btn.disabled = true;
@@ -2540,8 +2550,8 @@
             : `${tipeTerpilih} ${fmt(nominal)} untuk ${nama} tersimpan ✓`, 'ok');
         // Perayaan sukses: krincing koin beruntun + hujan uang dari tombol
         playCoinBurst();
-        if (isKas) playSfx('mantul');
-        else umumkanTransaksi(tipeTerpilih, nominal);
+        if (tipeTerpilih === 'Pahala') umumkanPahala(saldoSebelum, nominal);
+        else playSfx('mantul');
         const r = btn.getBoundingClientRect();
         moneyRain(r.left + r.width / 2, r.top + r.height / 2);
         nominalInput.value = '';
@@ -2630,13 +2640,21 @@
     return out;
   }
 
-  // Umumkan transaksi dengan suara: frasa tipe + terbilang nominal + 'rupiah'.
-  function umumkanTransaksi(tipe, nominal) {
+  // Saldo seseorang saat ini menurut data leaderboard di klien (0 kalau belum ada).
+  const saldoSaatIni = nama => {
+    const o = dataLeaderboard.find(x => x.nama === nama);
+    return o ? o.saldo : 0;
+  };
+
+  // Umumkan pahala masuk. Konteksnya saldo SEBELUM transaksi:
+  // - masih negatif (berlumur dosa) → 'dosa kamu terampuni, yang tenang ya'
+  // - masih positif → 'mantul' + 'pahala kamu bertambah <terbilang> rupiah'
+  function umumkanPahala(saldoSebelum, nominal) {
+    if (saldoSebelum < 0) return playSfxUrut(['dosa-kamu-terampuni']);
     const kata = kataNominal_(nominal);
-    if (tipe !== 'Pahala' && tipe !== 'Dosa') return playSfx('mantul');
-    if (!kata.length) return playSfx('mantul'); // nominal di luar jangkauan klip
-    playSfxUrut([tipe === 'Pahala' ? 'pahala-kamu-bertambah' : 'dosa-kamu-terampuni']
-      .concat(kata, ['rupiah']));
+    playSfxUrut(kata.length
+      ? ['mantul', 'pahala-kamu-bertambah'].concat(kata, ['rupiah'])
+      : ['mantul']); // nominal di luar jangkauan klip
   }
 
   $('soundBtn').addEventListener('click', e => {
