@@ -510,9 +510,11 @@
     border: 1px solid var(--border-soft);
     color: var(--muted);
   }
-  .lb-item:nth-child(1) .rank { background: linear-gradient(135deg,#facc15,#f59e0b); color:#1a1200; border: none; box-shadow: 0 0 14px rgba(250,204,21,.4); }
-  .lb-item:nth-child(2) .rank { background: linear-gradient(135deg,#e2e8f0,#94a3b8); color:#0f172a; border: none; }
-  .lb-item:nth-child(3) .rank { background: linear-gradient(135deg,#fdba74,#ea580c); color:#2a0e00; border: none; }
+  .lb-section-title {
+    font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--muted); font-weight: 700; margin: 4px 2px 8px;
+  }
+  .lb-section-title:not(:first-child) { margin-top: 16px; }
   /* Avatar: foto profil dari kolom Foto sheet Anggota; kalau gambar gagal
      dimuat (link bukan gambar / tidak publik), <img> dihapus via onerror dan
      inisial di belakangnya yang tampil. */
@@ -2297,6 +2299,22 @@
     }));
   }
 
+  // Ranking kompetisi: nilai sama → rank sama, rank berikutnya lompat sesuai
+  // jumlah yang seri (mis. 1, 1, 3, 4). 'list' harus sudah terurut menurun.
+  function computeRanks(list, valFn) {
+    const ranks = [];
+    let prevVal = null, prevRank = 0;
+    list.forEach((o, i) => {
+      const v = valFn(o);
+      if (i > 0 && v === prevVal) ranks.push(prevRank);
+      else { prevRank = i + 1; ranks.push(prevRank); prevVal = v; }
+    });
+    return ranks;
+  }
+
+  // Nama dengan penanda "(Gold)" masuk section leaderboard terpisah.
+  const isGold_ = o => o.nama.includes('(Gold)');
+
   /* ---- Render leaderboard (dengan expand) ---- */
   function renderLeaderboard() {
     const lb = $('viewLeaderboard');
@@ -2305,29 +2323,41 @@
       return;
     }
     const maxAbs = Math.max(...dataLeaderboard.map(o => Math.abs(o.saldo)), 1);
-    lb.innerHTML = dataLeaderboard.map((o, i) => {
-      const pct = Math.max(4, Math.round(Math.abs(o.saldo) / maxAbs * 100));
-      const neg = o.saldo < 0;
-      const open = expandTerbuka === o.nama;
-      return `
-      <div class="lb-item${open ? ' open' : ''}" data-nama="${esc(o.nama)}">
-        <div class="lb-row">
-          <div class="rank">${i + 1}</div>
-          ${avaHtml(o)}
-          <div>
-            <div class="lb-name">${esc(o.nama)} <span class="chev">▼</span></div>
-            <div class="lb-meter${neg ? ' neg' : ''}"><i style="width:${pct}%"></i></div>
+    const goldList = dataLeaderboard.filter(isGold_);
+    const regList = dataLeaderboard.filter(o => !isGold_(o));
+
+    const bagianHtml = (list, judul) => {
+      if (!list.length) return '';
+      const ranks = computeRanks(list, o => o.saldo);
+      const items = list.map((o, i) => {
+        const rank = ranks[i];
+        const pct = Math.max(4, Math.round(Math.abs(o.saldo) / maxAbs * 100));
+        const neg = o.saldo < 0;
+        const open = expandTerbuka === o.nama;
+        return `
+        <div class="lb-item${open ? ' open' : ''}" data-nama="${esc(o.nama)}">
+          <div class="lb-row">
+            <div class="rank${rank <= 3 ? ' r' + rank : ''}">${rank}</div>
+            ${avaHtml(o)}
+            <div>
+              <div class="lb-name">${esc(o.nama)} <span class="chev">▼</span></div>
+              <div class="lb-meter${neg ? ' neg' : ''}"><i style="width:${pct}%"></i></div>
+            </div>
+            <div>
+              <div class="lb-saldo ${neg ? 'neg' : 'pos'}" data-angka="saldo">${neg ? '−' : '+'}${fmt(Math.abs(o.saldo))}</div>
+              <div class="lb-sub">✨ <span data-angka="pahala">${fmt(o.pahala)}</span> · 🔥 <span data-angka="dosa">${fmt(o.dosa)}</span></div>
+            </div>
           </div>
-          <div>
-            <div class="lb-saldo ${neg ? 'neg' : 'pos'}" data-angka="saldo">${neg ? '−' : '+'}${fmt(Math.abs(o.saldo))}</div>
-            <div class="lb-sub">✨ <span data-angka="pahala">${fmt(o.pahala)}</span> · 🔥 <span data-angka="dosa">${fmt(o.dosa)}</span></div>
-          </div>
-        </div>
-        <div class="lb-expand"><div>
-          <div class="lb-expand-inner">${panelHtml(o)}</div>
-        </div></div>
-      </div>`;
-    }).join('');
+          <div class="lb-expand"><div>
+            <div class="lb-expand-inner">${panelHtml(o)}</div>
+          </div></div>
+        </div>`;
+      }).join('');
+      return (judul ? `<div class="lb-section-title">${judul}</div>` : '') + items;
+    };
+
+    lb.innerHTML = bagianHtml(goldList, '🥇 Gold') +
+      bagianHtml(regList, goldList.length ? 'Reguler' : '');
 
     // Klik baris → expand / tutup. Saat buka: reset ke slide 0 & render ulang
     // panel dgn state KAS terkini (panel yg tertutup bisa berisi konten basi).
@@ -2362,9 +2392,10 @@
       el.innerHTML = '<div class="empty">Belum ada infaq ke KAS. Jadilah yang pertama! 💰</div>';
       return;
     }
+    const ranksKas = computeRanks(dataKas.leaderboard, o => o.total);
     el.innerHTML = dataKas.leaderboard.map((o, i) => `
       <div class="sm-row">
-        <div class="rank${i < 3 ? ' r' + (i + 1) : ''}">${i + 1}</div>
+        <div class="rank${ranksKas[i] <= 3 ? ' r' + ranksKas[i] : ''}">${ranksKas[i]}</div>
         ${avaHtml(o)}
         <div class="sm-name">${esc(o.nama)}</div>
         <div class="sm-val pahala" data-kas-total>${fmt(o.total)}</div>
@@ -2409,13 +2440,14 @@
     if (modalPage > pages - 1) modalPage = pages - 1;
     const slice = list.slice(modalPage * PER_SLIDE, modalPage * PER_SLIDE + PER_SLIDE);
 
+    const ranksModal = isRiwayat ? [] : computeRanks(list, nilaiMetric_);
     $('modalTitle').textContent = statMeta[modalMetric].title;
     $('modalList').innerHTML = !slice.length
       ? '<div class="empty">Belum ada data.</div>'
       : isRiwayat
         ? slice.map(h => hxRowHtml(h, false)).join('')
         : slice.map((o, i) => {
-            const rank = modalPage * PER_SLIDE + i + 1;
+            const rank = ranksModal[modalPage * PER_SLIDE + i];
             return `
             <div class="sm-row">
               <div class="rank${rank <= 3 ? ' r' + rank : ''}">${rank}</div>
