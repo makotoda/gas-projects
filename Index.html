@@ -464,7 +464,7 @@
   .submit-btn:disabled { opacity: .5; cursor: wait; transform: none; }
 
   /* ===== Tabs ===== */
-  .tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
   .tab {
     padding: 9px 18px;
     font: inherit; font-size: 13.5px; font-weight: 500;
@@ -510,11 +510,6 @@
     border: 1px solid var(--border-soft);
     color: var(--muted);
   }
-  .lb-section-title {
-    font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase;
-    color: var(--muted); font-weight: 700; margin: 4px 2px 8px;
-  }
-  .lb-section-title:not(:first-child) { margin-top: 16px; }
   /* Avatar: foto profil dari kolom Foto sheet Anggota; kalau gambar gagal
      dimuat (link bukan gambar / tidak publik), <img> dihapus via onerror dan
      inisial di belakangnya yang tampil. */
@@ -1529,10 +1524,12 @@
     <div class="card" id="boardCard">
       <div class="tabs">
         <button class="tab active" data-view="leaderboard">🏆 Leaderboard</button>
+        <button class="tab" data-view="gold">🥇 Gold</button>
         <button class="tab" data-view="riwayat">🕐 Riwayat</button>
         <button class="tab" data-view="kas">💰 Kas</button>
       </div>
       <div id="viewLeaderboard"></div>
+      <div id="viewGold" style="display:none"></div>
       <div id="viewRiwayat" style="display:none"></div>
       <div id="viewKas" style="display:none"></div>
     </div>
@@ -2312,62 +2309,51 @@
     return ranks;
   }
 
-  // Nama dengan penanda "(Gold)" masuk section leaderboard terpisah.
+  // Nama dengan penanda "(Gold)" masuk menu leaderboard terpisah (tab 🥇 Gold).
   const isGold_ = o => o.nama.includes('(Gold)');
 
-  /* ---- Render leaderboard (dengan expand) ---- */
-  function renderLeaderboard() {
-    const lb = $('viewLeaderboard');
-    if (!dataLeaderboard.length) {
-      lb.innerHTML = '<div class="empty">Belum ada catatan. Mulai catat amalan pertama! ✨</div>';
+  /* ---- Render satu papan leaderboard (dengan expand) ke dalam container ---- */
+  function renderBoard_(container, list, kosongMsg) {
+    if (!list.length) {
+      container.innerHTML = `<div class="empty">${kosongMsg}</div>`;
       return;
     }
-    const maxAbs = Math.max(...dataLeaderboard.map(o => Math.abs(o.saldo)), 1);
-    const goldList = dataLeaderboard.filter(isGold_);
-    const regList = dataLeaderboard.filter(o => !isGold_(o));
-
-    const bagianHtml = (list, judul) => {
-      if (!list.length) return '';
-      const ranks = computeRanks(list, o => o.saldo);
-      const items = list.map((o, i) => {
-        const rank = ranks[i];
-        const pct = Math.max(4, Math.round(Math.abs(o.saldo) / maxAbs * 100));
-        const neg = o.saldo < 0;
-        const open = expandTerbuka === o.nama;
-        return `
-        <div class="lb-item${open ? ' open' : ''}" data-nama="${esc(o.nama)}">
-          <div class="lb-row">
-            <div class="rank${rank <= 3 ? ' r' + rank : ''}">${rank}</div>
-            ${avaHtml(o)}
-            <div>
-              <div class="lb-name">${esc(o.nama)} <span class="chev">▼</span></div>
-              <div class="lb-meter${neg ? ' neg' : ''}"><i style="width:${pct}%"></i></div>
-            </div>
-            <div>
-              <div class="lb-saldo ${neg ? 'neg' : 'pos'}" data-angka="saldo">${neg ? '−' : '+'}${fmt(Math.abs(o.saldo))}</div>
-              <div class="lb-sub">✨ <span data-angka="pahala">${fmt(o.pahala)}</span> · 🔥 <span data-angka="dosa">${fmt(o.dosa)}</span></div>
-            </div>
+    const maxAbs = Math.max(...list.map(o => Math.abs(o.saldo)), 1);
+    const ranks = computeRanks(list, o => o.saldo);
+    container.innerHTML = list.map((o, i) => {
+      const rank = ranks[i];
+      const pct = Math.max(4, Math.round(Math.abs(o.saldo) / maxAbs * 100));
+      const neg = o.saldo < 0;
+      const open = expandTerbuka === o.nama;
+      return `
+      <div class="lb-item${open ? ' open' : ''}" data-nama="${esc(o.nama)}">
+        <div class="lb-row">
+          <div class="rank${rank <= 3 ? ' r' + rank : ''}">${rank}</div>
+          ${avaHtml(o)}
+          <div>
+            <div class="lb-name">${esc(o.nama)} <span class="chev">▼</span></div>
+            <div class="lb-meter${neg ? ' neg' : ''}"><i style="width:${pct}%"></i></div>
           </div>
-          <div class="lb-expand"><div>
-            <div class="lb-expand-inner">${panelHtml(o)}</div>
-          </div></div>
-        </div>`;
-      }).join('');
-      return (judul ? `<div class="lb-section-title">${judul}</div>` : '') + items;
-    };
-
-    lb.innerHTML = bagianHtml(goldList, '🥇 Gold') +
-      bagianHtml(regList, goldList.length ? 'Reguler' : '');
+          <div>
+            <div class="lb-saldo ${neg ? 'neg' : 'pos'}" data-angka="saldo">${neg ? '−' : '+'}${fmt(Math.abs(o.saldo))}</div>
+            <div class="lb-sub">✨ <span data-angka="pahala">${fmt(o.pahala)}</span> · 🔥 <span data-angka="dosa">${fmt(o.dosa)}</span></div>
+          </div>
+        </div>
+        <div class="lb-expand"><div>
+          <div class="lb-expand-inner">${panelHtml(o)}</div>
+        </div></div>
+      </div>`;
+    }).join('');
 
     // Klik baris → expand / tutup. Saat buka: reset ke slide 0 & render ulang
     // panel dgn state KAS terkini (panel yg tertutup bisa berisi konten basi).
-    lb.querySelectorAll('.lb-item').forEach(item => {
-      const o = dataLeaderboard.find(x => x.nama === item.dataset.nama);
+    container.querySelectorAll('.lb-item').forEach(item => {
+      const o = list.find(x => x.nama === item.dataset.nama);
       item.querySelector('.lb-row').addEventListener('click', () => {
         const buka = expandTerbuka !== item.dataset.nama;
         expandTerbuka = buka ? item.dataset.nama : null;
         if (buka && o) { expandHalaman = 0; refreshPanel(item, o); }
-        lb.querySelectorAll('.lb-item').forEach(it =>
+        container.querySelectorAll('.lb-item').forEach(it =>
           it.classList.toggle('open', it.dataset.nama === expandTerbuka));
       });
       // Item yg sudah terbuka (mis. setelah data refresh) perlu tombol aktif.
@@ -2375,14 +2361,26 @@
     });
 
     // Angka berjalan untuk saldo & rincian pahala/dosa tiap baris
-    lb.querySelectorAll('.lb-item').forEach(item => {
-      const o = dataLeaderboard.find(x => x.nama === item.dataset.nama);
+    container.querySelectorAll('.lb-item').forEach(item => {
+      const o = list.find(x => x.nama === item.dataset.nama);
       if (!o) return;
       animasiAngka(item.querySelector('[data-angka="saldo"]'), Math.abs(o.saldo),
         'lb:' + o.nama + ':saldo', o.saldo < 0 ? '−' : '+');
       animasiAngka(item.querySelector('[data-angka="pahala"]'), o.pahala, 'lb:' + o.nama + ':pahala');
       animasiAngka(item.querySelector('[data-angka="dosa"]'), o.dosa, 'lb:' + o.nama + ':dosa');
     });
+  }
+
+  /* ---- Render leaderboard utama (tab 🏆 Leaderboard, tanpa anggota Gold) ---- */
+  function renderLeaderboard() {
+    renderBoard_($('viewLeaderboard'), dataLeaderboard.filter(o => !isGold_(o)),
+      'Belum ada catatan. Mulai catat amalan pertama! ✨');
+  }
+
+  /* ---- Render leaderboard Gold (tab 🥇 Gold) ---- */
+  function renderGoldBoard() {
+    renderBoard_($('viewGold'), dataLeaderboard.filter(isGold_),
+      'Belum ada anggota Gold. ✨');
   }
 
   /* ---- Render leaderboard infaq kas (tab 💰 Kas) ---- */
@@ -2537,6 +2535,7 @@
     dataStrukAlias = data.strukAlias || dataStrukAlias;
     if (typeof isiPemilihLaporan === 'function') isiPemilihLaporan();
     renderLeaderboard();
+    renderGoldBoard();
     renderKasBoard();
 
     // Kalau modal leaderboard sedang terbuka, segarkan isinya juga
@@ -2862,6 +2861,7 @@
       t.classList.toggle('active', t.dataset.view === view);
     });
     $('viewLeaderboard').style.display = view === 'leaderboard' ? '' : 'none';
+    $('viewGold').style.display = view === 'gold' ? '' : 'none';
     $('viewRiwayat').style.display = view === 'riwayat' ? '' : 'none';
     $('viewKas').style.display = view === 'kas' ? '' : 'none';
   }
