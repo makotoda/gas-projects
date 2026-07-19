@@ -410,8 +410,6 @@ function getDashboardData() {
     sheet.getRange(2, 1, last - 1, 5).getValues();
 
   const tz = Session.getScriptTimeZone();
-  let totalPahala = 0;
-  let totalDosa = 0;
   const saldoMap = {};
   const infaqMap = {}; // nama → total infaq ke KAS
   const bulanSet = {}; // 'yyyy-MM' yang punya transaksi (utk pemilih laporan)
@@ -429,13 +427,11 @@ function getDashboardData() {
     const isDosa = tipe === 'Dosa';
     if (isDosa) {
       saldoMap[nm].dosa += val;
-      totalDosa += val;
       if (nm !== KAS_NAMA && isKetInfaq_(ket)) {
         infaqMap[nm] = (infaqMap[nm] || 0) + val;
       }
     } else {
       saldoMap[nm].pahala += val;
-      totalPahala += val;
     }
 
     const item = {
@@ -465,6 +461,16 @@ function getDashboardData() {
       recent: o.recent.slice(-40).reverse() // buffer utk panel (client paginasi 10 + filter KAS)
     }))
     .sort((a, b) => b.saldo - a.saldo);
+
+  // Total Pahala/Dosa = jumlah saldo bersih tiap orang di leaderboard (bukan
+  // total transaksi mentah), tidak termasuk anggota "(Gold)".
+  let totalPahala = 0;
+  let totalDosa = 0;
+  leaderboard.forEach(o => {
+    if (o.nama.includes('(Gold)')) return;
+    if (o.saldo > 0) totalPahala += o.saldo;
+    else if (o.saldo < 0) totalDosa += -o.saldo;
+  });
 
   return {
     totalPahala: totalPahala,
