@@ -2432,7 +2432,7 @@
     const list = isRiwayat
       ? dataKas.history // riwayat transaksi KAS, terbaru dulu dari server
       : dataLeaderboard
-          .filter(o => nilaiMetric_(o) > 0)
+          .filter(o => !isGold_(o) && nilaiMetric_(o) > 0)
           .sort((a, b) => nilaiMetric_(b) - nilaiMetric_(a));
     const pages = Math.max(1, Math.ceil(list.length / PER_SLIDE));
     if (modalPage > pages - 1) modalPage = pages - 1;
