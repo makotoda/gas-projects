@@ -39,6 +39,11 @@
 
   /* ===== Reset & dasar ===== */
   *, *::before, *::after { box-sizing: border-box; }
+  /* Atribut [hidden] HARUS selalu menyembunyikan. Tanpa !important, aturan seperti
+     .modal-backdrop { display: flex } menimpa aturan bawaan browser [hidden]{display:none}
+     (spesifisitas sama, CSS author menang atas UA) — sehingga elemen ber-atribut hidden
+     tetap tampil dan tombol "Batal"/toggle tab yang men-set .hidden=true jadi tak berfungsi. */
+  [hidden] { display: none !important; }
   html { -webkit-text-size-adjust: 100%; }
   body {
     margin: 0;
