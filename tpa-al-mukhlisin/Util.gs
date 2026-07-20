@@ -11,7 +11,7 @@
  * - Error selalu dilempar sebagai `throw new Error('pesan singkat berbahasa Indonesia')`,
  *   ditangkap client lewat withFailureHandler(err => toast(err.message, 'error')).
  * - Sheet yang belum ada TIDAK auto-heal saat dibaca — getSheet_ melempar error yang jelas
- *   dan mengarahkan menjalankan setup_(). Sheet hanya pernah dibuat oleh Setup.gs, supaya
+ *   dan mengarahkan menjalankan setup(). Sheet hanya pernah dibuat oleh Setup.gs, supaya
  *   penghapusan sheet yang tidak sengaja tidak diam-diam mereset data (lihat catatan di README).
  */
 
@@ -53,7 +53,7 @@ var KELAS_AWAL = [
 function getSpreadsheet_() {
   var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
   if (!id) {
-    throw new Error('SPREADSHEET_ID belum diatur di Script Properties. Jalankan setup_() dari editor Apps Script terlebih dahulu.');
+    throw new Error('SPREADSHEET_ID belum diatur di Script Properties. Jalankan setup() dari editor Apps Script terlebih dahulu.');
   }
   return SpreadsheetApp.openById(id);
 }
@@ -61,7 +61,7 @@ function getSpreadsheet_() {
 function getSheet_(nama) {
   var sh = getSpreadsheet_().getSheetByName(nama);
   if (!sh) {
-    throw new Error('Sheet "' + nama + '" tidak ditemukan. Jalankan setup_() dari editor Apps Script terlebih dahulu.');
+    throw new Error('Sheet "' + nama + '" tidak ditemukan. Jalankan setup() dari editor Apps Script terlebih dahulu.');
   }
   return sh;
 }

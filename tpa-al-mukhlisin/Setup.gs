@@ -1,20 +1,23 @@
 /**
- * Setup.gs — jalankan setup_() SEKALI dari editor Apps Script (pilih fungsi "setup_",
+ * Setup.gs — jalankan setup() SEKALI dari editor Apps Script (pilih fungsi "setup",
  * klik Run) untuk menyiapkan seluruh struktur data. Aman dijalankan berkali-kali:
  * langkah yang datanya sudah ada akan dilewati (idempoten).
  *
- * Nama fungsi SENGAJA diakhiri underscore meski ini "entry point": di Apps Script,
- * underscore membuat fungsi tidak bisa dipanggil lewat google.script.run (RPC dari
- * client), tapi tetap muncul dan bisa dijalankan manual dari dropdown fungsi di editor.
- * Tanpa underscore, fungsi ini bisa dipanggil siapa pun yang membuka URL web app publik
- * (lewat devtools) sebelum pemilik sempat menjalankannya sendiri — termasuk membaca
- * balik kredensial super admin awal yang di-return-nya.
+ * Kenapa TANPA underscore: fungsi ber-underscore TIDAK muncul di dropdown "Run" editor
+ * Apps Script, sehingga tidak bisa dijalankan manual sama sekali. Entry point setup ini
+ * WAJIB bisa dijalankan dari editor, jadi namanya tidak boleh diakhiri underscore.
  *
- * Setelah setup_() selesai, baca hasilnya di "Execution log" — kredensial super admin
+ * Keamanan RPC: meski tanpa underscore membuat setup() bisa dipanggil lewat
+ * google.script.run, fungsi ini SENGAJA tidak me-return kredensial apa pun. Password
+ * super admin awal HANYA ditulis ke Logger.log (Execution log), yang tidak bisa dibaca
+ * oleh pemanggil RPC. Jadi walau ada yang memanggil google.script.run.setup() dari
+ * devtools, dia tidak memperoleh data sensitif — nilai kembaliannya hanya pesan generik.
+ *
+ * Setelah setup() selesai, baca hasilnya di "Execution log" — kredensial super admin
  * awal HANYA ditampilkan sekali di sana.
  */
 
-function setup_() {
+function setup() {
   var ringkasan = [];
 
   var ss = pastikanSpreadsheet_();
@@ -31,9 +34,11 @@ function setup_() {
   ringkasan.push(seedKelasAwal_(ss));
   ringkasan.push(seedSuperAdminAwal_(ss));
 
-  var pesan = ringkasan.join('\n');
-  Logger.log(pesan);
-  return pesan;
+  // Detail lengkap (termasuk password super admin awal) HANYA ke log, tidak di-return.
+  Logger.log(ringkasan.join('\n'));
+
+  // Nilai kembalian sengaja generik supaya pemanggil RPC tidak mendapat kredensial.
+  return 'Setup selesai. Buka "Execution log" di editor untuk melihat kredensial super admin awal (hanya tampil sekali).';
 }
 
 function pastikanSpreadsheet_() {
@@ -81,7 +86,7 @@ function bersihkanSheetDefault_(ss) {
  * "0042"/"081234..." jadi angka (menghilangkan nol di depan) — merusak semua
  * perbandingan string yang dipakai kode ini (tanggal, kode_publik, dst).
  * Pakai notasi "D:D" (satu kolom penuh) supaya berlaku juga untuk baris yang
- * ditambahkan nanti, bukan cuma baris yang sudah ada saat setup_() dijalankan.
+ * ditambahkan nanti, bukan cuma baris yang sudah ada saat setup() dijalankan.
  */
 function paksaFormatKolomTeks_(ss) {
   var target = [
