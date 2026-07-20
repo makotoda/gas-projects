@@ -212,6 +212,7 @@
   var Router = (function () {
     var halaman = {};
     var aktif = null;
+    var pendengarHashTerpasang = false;
 
     function daftar(nama, opts) { halaman[nama] = opts || {}; }
 
@@ -233,9 +234,15 @@
     }
 
     function mulai() {
-      window.addEventListener('hashchange', function () {
-        tampilkan(location.hash.replace('#', '') || (State.token ? 'dashboard' : 'login'));
-      });
+      // Pasang listener hashchange HANYA sekali. mulai() dipanggil ulang tiap login
+      // (lewat selesaiLogin) — tanpa penjaga ini, listener menumpuk sehingga tiap
+      // navigasi memicu tampilkan()/onShow() berkali-kali (RPC ganda/tripel).
+      if (!pendengarHashTerpasang) {
+        window.addEventListener('hashchange', function () {
+          tampilkan(location.hash.replace('#', '') || (State.token ? 'dashboard' : 'login'));
+        });
+        pendengarHashTerpasang = true;
+      }
       tampilkan(location.hash.replace('#', '') || (State.token ? 'dashboard' : 'login'));
     }
 
