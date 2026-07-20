@@ -192,7 +192,7 @@
           var st = s.kehadiran[h] || '';
           if (hitung[st] !== undefined) hitung[st]++;
           var tgl = tahun + '-' + pad2_(bulan) + '-' + pad2_(h);
-          sel += '<td class="cell-status" data-id-siswa="' + escapeHtml(s.idSiswa) + '" data-tanggal="' + tgl + '" data-status="' + st + '">' + st + '</td>';
+          sel += '<td class="cell-status" data-id-siswa="' + escapeHtml(s.idSiswa) + '" data-tanggal="' + tgl + '" data-status="' + escapeHtml(st) + '">' + escapeHtml(st) + '</td>';
         }
         return '<tr><td class="col-no">' + s.no + '</td><td class="col-nama">' + escapeHtml(s.nama) + '</td>' + sel +
           '<td class="col-rekap">' + hitung.H + '</td><td class="col-rekap">' + hitung.S + '</td><td class="col-rekap">' + hitung.I + '</td><td class="col-rekap">' + hitung.A + '</td></tr>';

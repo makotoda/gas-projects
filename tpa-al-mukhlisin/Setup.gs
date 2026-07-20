@@ -1,13 +1,20 @@
 /**
- * Setup.gs — jalankan setup() SEKALI dari editor Apps Script (pilih fungsi "setup",
+ * Setup.gs — jalankan setup_() SEKALI dari editor Apps Script (pilih fungsi "setup_",
  * klik Run) untuk menyiapkan seluruh struktur data. Aman dijalankan berkali-kali:
  * langkah yang datanya sudah ada akan dilewati (idempoten).
  *
- * Setelah setup() selesai, baca hasilnya di "Execution log" — kredensial super admin
+ * Nama fungsi SENGAJA diakhiri underscore meski ini "entry point": di Apps Script,
+ * underscore membuat fungsi tidak bisa dipanggil lewat google.script.run (RPC dari
+ * client), tapi tetap muncul dan bisa dijalankan manual dari dropdown fungsi di editor.
+ * Tanpa underscore, fungsi ini bisa dipanggil siapa pun yang membuka URL web app publik
+ * (lewat devtools) sebelum pemilik sempat menjalankannya sendiri — termasuk membaca
+ * balik kredensial super admin awal yang di-return-nya.
+ *
+ * Setelah setup_() selesai, baca hasilnya di "Execution log" — kredensial super admin
  * awal HANYA ditampilkan sekali di sana.
  */
 
-function setup() {
+function setup_() {
   var ringkasan = [];
 
   var ss = pastikanSpreadsheet_();
@@ -74,7 +81,7 @@ function bersihkanSheetDefault_(ss) {
  * "0042"/"081234..." jadi angka (menghilangkan nol di depan) — merusak semua
  * perbandingan string yang dipakai kode ini (tanggal, kode_publik, dst).
  * Pakai notasi "D:D" (satu kolom penuh) supaya berlaku juga untuk baris yang
- * ditambahkan nanti, bukan cuma baris yang sudah ada saat setup() dijalankan.
+ * ditambahkan nanti, bukan cuma baris yang sudah ada saat setup_() dijalankan.
  */
 function paksaFormatKolomTeks_(ss) {
   var target = [

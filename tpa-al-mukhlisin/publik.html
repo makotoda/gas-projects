@@ -238,7 +238,7 @@
       var tbodyKh = document.querySelector('#tabel-riwayat-kehadiran tbody');
       tbodyKh.innerHTML = data.kehadiran.riwayat.length
         ? data.kehadiran.riwayat.map(function (k) {
-          return '<tr><td>' + formatTanggalIndo(k.tanggal) + '</td><td>' + (LABEL_STATUS_PUB[k.status] || k.status) + '</td></tr>';
+          return '<tr><td>' + formatTanggalIndo(k.tanggal) + '</td><td>' + escapeHtml(LABEL_STATUS_PUB[k.status] || k.status) + '</td></tr>';
         }).join('')
         : '<tr><td colspan="2" class="muted">Belum ada catatan kehadiran bulan ini.</td></tr>';
 

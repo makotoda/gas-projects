@@ -81,7 +81,7 @@ function simpanSiswa(token, data) {
 
     var payload = {
       nama: nama,
-      jenis_kelamin: data.jenisKelamin || '',
+      jenis_kelamin: validasiJenisKelamin_(data.jenisKelamin),
       id_kelas: idKelas,
       nama_wali: (data.namaWali || '').toString().trim(),
       no_hp_wali: (data.noHpWali || '').toString().trim(),

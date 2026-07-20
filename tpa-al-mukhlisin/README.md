@@ -16,7 +16,7 @@ Kehadiran.gs       input harian (batch upsert) + grid bulanan + rekap
 Infaq.gs           input batch/satuan + subtotal + rekap
 Laporan.gs         generate & ekspor .xlsx/PDF (rekap + grid bulanan ala Excel)
 Publik.gs          endpoint read-only untuk halaman orang tua (digerbangi kode PIN)
-Setup.gs           setup() sekali-jalan: bikin Sheet + header + seed kelas + super admin
+Setup.gs           setup_() sekali-jalan: bikin Sheet + header + seed kelas + super admin
 Util.gs            konstanta, skema kolom Sheet, helper baca/tulis, format, validasi
 
 index.html         shell admin (nav + seluruh section, router client-side)
@@ -50,13 +50,16 @@ ini (lihat CLAUDE.md di root repo untuk cara pasang clasp bila belum ada).
    clasp push -f
    ```
 
-3. **Jalankan `setup()` sekali** — `clasp open` → pilih fungsi `setup` di dropdown → ▶ Run →
+3. **Jalankan `setup_()` sekali** — `clasp open` → pilih fungsi `setup_` di dropdown → ▶ Run →
    izinkan semua permission yang diminta (Sheets, Drive, koneksi eksternal untuk ekspor).
    Buka **Execution log** (Ctrl+Enter) dan baca hasilnya:
    - Sebuah Spreadsheet baru "Database TPA Al-Mukhlisin" otomatis dibuat dan ID-nya
      tersimpan ke Script Properties — **tidak perlu diisi manual**, kecuali memang ingin
      memakai Spreadsheet yang sudah ada (isi `SPREADSHEET_ID` di Script Properties dulu
-     sebelum menjalankan `setup()` kalau begitu).
+     sebelum menjalankan `setup_()` kalau begitu).
+   - `setup_()` sengaja diberi akhiran underscore supaya TIDAK bisa dipanggil lewat
+     `google.script.run` dari web app publik (lihat komentar di Setup.gs) — satu-satunya
+     cara menjalankannya memang dari dropdown fungsi di editor ini.
    - **Username & password super admin awal** — HANYA tampil sekali di log ini, catat
      sekarang.
 
@@ -106,7 +109,7 @@ lihat pola "git sumber kebenaran" di CLAUDE.md root repo.
   Indonesia)` + `withFailureHandler`) tetap sama seperti Kodomo karena memang pola yang baik.
 - **Sheet yang hilang TIDAK auto-heal.** Beda dari `getSheet_` Kodomo yang diam-diam membuat
   ulang sheet kalau hilang (footgun yang didokumentasikan sendiri di GAPS.md Kodomo), di sini
-  `getSheet_` melempar error yang mengarahkan menjalankan `setup()`. Sheet cuma pernah dibuat
+  `getSheet_` melempar error yang mengarahkan menjalankan `setup_()`. Sheet cuma pernah dibuat
   oleh `Setup.gs`, supaya penghapusan sheet yang tidak sengaja tidak diam-diam mereset data.
 - **Kolom tanggal/HP/kode dipaksa format Teks Biasa** (`Setup.gs` → `paksaFormatKolomTeks_`).
   Tanpa ini, Google Sheets otomatis mengonversi `"2026-07-20"` jadi tanggal serial dan
@@ -128,7 +131,7 @@ lihat pola "git sumber kebenaran" di CLAUDE.md root repo.
 
 ## Manual QA checklist (belum ada automated test)
 
-1. `setup()` dari editor, catat kredensial super admin, login ke panel admin.
+1. `setup_()` dari editor, catat kredensial super admin, login ke panel admin.
 2. Ganti password super admin lewat **Kelola Admin**.
 3. Tambah kelas baru, tambah siswa (satu-satu dan lewat impor cepat), pindahkan siswa antar
    kelas, nonaktifkan lalu aktifkan lagi seorang siswa.

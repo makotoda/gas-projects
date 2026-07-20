@@ -113,11 +113,11 @@
         return '<tr>' +
           '<td>' + (s.no || '-') + '</td>' +
           '<td>' + escapeHtml(s.nama) + '</td>' +
-          '<td>' + (s.jenisKelamin || '-') + '</td>' +
+          '<td>' + escapeHtml(s.jenisKelamin || '-') + '</td>' +
           '<td>' + escapeHtml(s.namaKelas) + '</td>' +
           '<td>' + (s.namaWali ? escapeHtml(s.namaWali) : '<span class="muted">-</span>') + '</td>' +
           '<td>' + (s.noHpWali ? escapeHtml(s.noHpWali) : '<span class="muted">-</span>') + '</td>' +
-          '<td><span class="pill-status ' + (s.status === 'Aktif' ? 'pill-aktif' : 'pill-nonaktif') + '">' + s.status + '</span></td>' +
+          '<td><span class="pill-status ' + (s.status === 'Aktif' ? 'pill-aktif' : 'pill-nonaktif') + '">' + escapeHtml(s.status) + '</span></td>' +
           '<td class="col-actions"><div class="btn-row" style="justify-content:flex-end;">' +
           '<button type="button" class="btn btn-ghost btn-sm" data-aksi="edit" data-id="' + escapeHtml(s.idSiswa) + '">Ubah</button>' +
           (s.status === 'Aktif'
