@@ -100,14 +100,41 @@
       kartu.className = 'glass glass-pad';
       var opsiTerpilih = document.querySelector('#lap-kelas option:checked');
       var namaKelas = opsiTerpilih ? opsiTerpilih.textContent : 'Semua Kelas';
-      var tautan = '';
-      if (hasil.xlsxUrl) tautan += '<a class="btn btn-ghost btn-sm" href="' + hasil.xlsxUrl + '" target="_blank" rel="noopener">Unduh .xlsx</a> ';
-      if (hasil.pdfUrl) tautan += '<a class="btn btn-ghost btn-sm" href="' + hasil.pdfUrl + '" target="_blank" rel="noopener">Unduh PDF</a>';
       kartu.innerHTML =
         '<strong>' + escapeHtml(judul) + '</strong>' +
-        '<p class="muted" style="margin:.35rem 0 .75rem;">' + escapeHtml(namaKelas) + ' &middot; ' + formatTanggalIndo(o.tglMulai, true) + ' &ndash; ' + formatTanggalIndo(o.tglSelesai, true) + '</p>' +
-        '<div class="btn-row">' + tautan + '</div>';
+        '<p class="muted" style="margin:.35rem 0 .75rem;">' + escapeHtml(namaKelas) + ' &middot; ' + formatTanggalIndo(o.tglMulai, true) + ' &ndash; ' + formatTanggalIndo(o.tglSelesai, true) + '</p>';
+
+      var row = document.createElement('div');
+      row.className = 'btn-row';
+      (hasil.files || []).forEach(function (f) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-ghost btn-sm';
+        btn.textContent = /\.pdf$/i.test(f.nama) ? 'Unduh PDF' : 'Unduh .xlsx';
+        btn.addEventListener('click', function () { unduhFile(f); });
+        row.appendChild(btn);
+      });
+      kartu.appendChild(row);
       wrap.insertBefore(kartu, wrap.firstChild);
+    }
+
+    // Bangun blob dari byte base64 dan picu unduhan. Dijalankan DI DALAM handler klik
+    // pengguna (user gesture) supaya unduhan diizinkan di iframe sandbox Apps Script.
+    function unduhFile(f) {
+      try {
+        var biner = atob(f.dataBase64);
+        var bytes = new Uint8Array(biner.length);
+        for (var i = 0; i < biner.length; i++) bytes[i] = biner.charCodeAt(i);
+        var blob = new Blob([bytes], { type: f.mimeType });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = f.nama; a.target = '_self';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 2000);
+      } catch (e) {
+        toast('Gagal menyiapkan berkas unduhan.', 'err');
+      }
     }
   })();
 </script>

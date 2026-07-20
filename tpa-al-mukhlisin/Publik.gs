@@ -30,12 +30,12 @@ function getRekapPublik(idSiswa, kodePublik, tahun, bulan) {
   var siswa = cariBarisById_(SHEET.SISWA, 'id_siswa', idSiswa);
   if (!siswa || siswa.status !== STATUS_SISWA.AKTIF) {
     catatPinGagal_(idSiswa);
-    catatPinGagalGlobal_();
+    catatPinGagalGlobal_(idSiswa);
     throw new Error('Siswa tidak ditemukan.');
   }
   if (String(siswa.kode_publik).trim() !== String(kodePublik).trim()) {
     catatPinGagal_(idSiswa);
-    catatPinGagalGlobal_();
+    catatPinGagalGlobal_(idSiswa);
     throw new Error('Kode tidak sesuai.');
   }
   resetPinGagal_(idSiswa);
@@ -63,12 +63,20 @@ function getRekapPublik(idSiswa, kodePublik, tahun, bulan) {
 }
 
 // ---------- Rate-limit percobaan kode PIN (gerbang ringan, bukan login sungguhan) ----------
-// Dua lapis: per-siswa (cegah brute-force satu PIN) DAN global (cegah "menyapu" banyak
-// siswa dengan sedikit tebakan tiap siswa supaya tidak kena limit per-siswa).
+// Dua lapis:
+//  1) Per-siswa: maksimum 10 percobaan salah per siswa dalam 15 menit — cegah brute-force
+//     satu PIN (10.000 kombinasi butuh berabad-abad dengan batas ini).
+//  2) Global: berbasis JUMLAH SISWA BERBEDA yang gagal PIN dalam window, BUKAN total
+//     percobaan — cegah serangan "menyapu" (mencoba PIN umum ke banyak santri sekaligus).
+//     Memakai hitungan siswa-berbeda supaya satu orang tua yang salah ketik PIN anaknya
+//     berkali-kali TIDAK ikut mengunci seluruh halaman (dia cuma 1 siswa berbeda).
+
+var BATAS_GAGAL_PER_SISWA = 10;
+var BATAS_SISWA_PROBE_GLOBAL = 40;
 
 function cekRateLimitPublik_(idSiswa) {
   var jumlah = Number(CacheService.getScriptCache().get('pin_gagal_' + idSiswa) || '0');
-  if (jumlah >= 10) {
+  if (jumlah >= BATAS_GAGAL_PER_SISWA) {
     throw new Error('Terlalu banyak percobaan kode yang salah. Coba lagi dalam beberapa menit.');
   }
 }
@@ -83,15 +91,23 @@ function resetPinGagal_(idSiswa) {
   CacheService.getScriptCache().remove('pin_gagal_' + idSiswa);
 }
 
-function cekRateLimitGlobalPublik_() {
-  var jumlah = Number(CacheService.getScriptCache().get('pin_gagal_global') || '0');
-  if (jumlah >= 40) {
-    throw new Error('Terlalu banyak percobaan kode yang salah dari halaman ini. Coba lagi dalam beberapa menit.');
+function bacaSetProbeGlobal_() {
+  try {
+    return JSON.parse(CacheService.getScriptCache().get('pin_probe_global') || '{}');
+  } catch (e) {
+    return {};
   }
 }
 
-function catatPinGagalGlobal_() {
+function cekRateLimitGlobalPublik_() {
+  if (Object.keys(bacaSetProbeGlobal_()).length >= BATAS_SISWA_PROBE_GLOBAL) {
+    throw new Error('Terlalu banyak percobaan kode dari berbagai santri di halaman ini. Coba lagi dalam beberapa menit.');
+  }
+}
+
+function catatPinGagalGlobal_(idSiswa) {
   var cache = CacheService.getScriptCache();
-  var jumlah = Number(cache.get('pin_gagal_global') || '0') + 1;
-  cache.put('pin_gagal_global', String(jumlah), 15 * 60);
+  var set = bacaSetProbeGlobal_();
+  set[idSiswa] = 1;
+  cache.put('pin_probe_global', JSON.stringify(set), 15 * 60);
 }

@@ -1,10 +1,15 @@
 /**
  * Laporan.gs — bangun Spreadsheet sementara (rekap + grid bulanan ala Excel lama),
- * ekspor ke .xlsx/PDF lewat endpoint export bawaan Google, simpan hasilnya di folder
- * Drive khusus (yang membersihkan diri sendiri), lalu buang file Spreadsheet sementara.
+ * ekspor ke .xlsx/PDF lewat endpoint export bawaan Google, kembalikan byte-nya
+ * (base64) langsung ke client untuk diunduh, lalu buang file Spreadsheet sementara.
+ *
+ * CATATAN privasi: file laporan TIDAK pernah disimpan/di-share publik di Drive.
+ * Admin login lewat auth kustom (bukan akun Google), jadi kita tidak bisa berbagi file
+ * ke identitas Google mereka; dulu solusinya ANYONE_WITH_LINK yang berisiko membocorkan
+ * PII siswa. Sekarang byte laporan dikirim langsung ke browser admin dan diunduh dari
+ * sana (blob), tanpa jejak file publik.
  */
 
-var NAMA_FOLDER_LAPORAN = 'TPA Al-Mukhlisin - Laporan (auto)';
 var FORMAT_LAPORAN_VALID = ['xlsx', 'pdf', 'keduanya'];
 var MAKS_BULAN_LAPORAN = 13;
 
@@ -242,41 +247,23 @@ function namaSheetUnik_(ss, namaDiinginkan) {
   return nama;
 }
 
-// ---------- Ekspor ke Drive (.xlsx / PDF) ----------
-
-function getLaporanFolder_() {
-  var iter = DriveApp.getFoldersByName(NAMA_FOLDER_LAPORAN);
-  if (iter.hasNext()) return iter.next();
-  return DriveApp.createFolder(NAMA_FOLDER_LAPORAN);
-}
-
-/** Buang file ekspor lebih lama dari 24 jam supaya folder Drive tidak menumpuk. */
-function bersihkanLaporanLama_(folder) {
-  var batas = Date.now() - 24 * 60 * 60 * 1000;
-  var files = folder.getFiles();
-  while (files.hasNext()) {
-    var f = files.next();
-    try {
-      if (f.getDateCreated().getTime() < batas) f.setTrashed(true);
-    } catch (e) { /* abaikan, jangan sampai laporan baru gagal gara-gara file lama */ }
-  }
-}
+// ---------- Ekspor (.xlsx / PDF) — kembalikan byte base64 ke client, TANPA simpan di Drive ----------
 
 function eksporSpreadsheet_(ss, format, namaFileDasar) {
-  var folder = getLaporanFolder_();
-  bersihkanLaporanLama_(folder);
-
   var id = ss.getId();
   var oauthToken = ScriptApp.getOAuthToken();
-  var hasil = {};
+  var files = [];
 
   if (format === 'xlsx' || format === 'keduanya') {
     var blobXlsx = UrlFetchApp.fetch(
       'https://docs.google.com/spreadsheets/d/' + id + '/export?format=xlsx',
       { headers: { Authorization: 'Bearer ' + oauthToken } }
     ).getBlob();
-    blobXlsx.setName(namaFileDasar + '.xlsx');
-    hasil.xlsxUrl = simpanKeFolder_(folder, blobXlsx);
+    files.push({
+      nama: namaFileDasar + '.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      dataBase64: Utilities.base64Encode(blobXlsx.getBytes())
+    });
   }
 
   if (format === 'pdf' || format === 'keduanya') {
@@ -285,15 +272,12 @@ function eksporSpreadsheet_(ss, format, namaFileDasar) {
       '&printtitle=false&sheetnames=true&pagenumbers=true' +
       '&top_margin=0.4&bottom_margin=0.4&left_margin=0.3&right_margin=0.3';
     var blobPdf = UrlFetchApp.fetch(urlPdf, { headers: { Authorization: 'Bearer ' + oauthToken } }).getBlob();
-    blobPdf.setName(namaFileDasar + '.pdf');
-    hasil.pdfUrl = simpanKeFolder_(folder, blobPdf);
+    files.push({
+      nama: namaFileDasar + '.pdf',
+      mimeType: 'application/pdf',
+      dataBase64: Utilities.base64Encode(blobPdf.getBytes())
+    });
   }
 
-  return hasil;
-}
-
-function simpanKeFolder_(folder, blob) {
-  var file = folder.createFile(blob);
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  return file.getUrl();
+  return { files: files };
 }

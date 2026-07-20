@@ -121,10 +121,14 @@ lihat pola "git sumber kebenaran" di CLAUDE.md root repo.
   yang dialokasikan di dalam kunci `withLock_`, bukan UUID acak — supaya kalau pengurus buka
   Sheet mentah secara manual (kemungkinan besar terjadi, mengingat asalnya dari Excel), ID
   masih bisa dibaca dan diurutkan wajar.
-- **Folder ekspor Drive membersihkan diri sendiri.** Tiap `.xlsx`/PDF laporan yang diunduh
-  disimpan di folder Drive "TPA Al-Mukhlisin - Laporan (auto)"; setiap kali ada laporan baru
-  dibuat, file di folder itu yang lebih tua dari 24 jam otomatis dibuang, supaya tidak
-  menumpuk tanpa batas.
+- **Laporan dikirim langsung sebagai byte ke browser, tidak disimpan di Drive.** Server
+  membangun Spreadsheet sementara, mengekspornya ke `.xlsx`/PDF, mengembalikan byte-nya
+  (base64) ke client untuk diunduh (blob), lalu membuang Spreadsheet sementara itu. **Tidak
+  ada file laporan publik** — dulu file di-share `ANYONE_WITH_LINK` (berisiko membocorkan PII
+  siswa lewat tautan); karena admin login via auth kustom (bukan akun Google) sehingga file
+  tidak bisa di-share ke identitas Google mereka, byte laporan sekarang dialirkan langsung ke
+  browser admin. (Catatan: unduhan bergantung pada izin `allow-downloads` iframe sandbox
+  Apps Script — sudah didukung; unduh dipicu oleh klik pengguna.)
 - **Sesi login pakai CacheService, 6 jam** (bukan 8 jam seperti contoh di prompt) — itu batas
   maksimum `CacheService` di Apps Script; prompt sendiri menulis "mis. 8 jam" sebagai contoh,
   bukan angka wajib.
