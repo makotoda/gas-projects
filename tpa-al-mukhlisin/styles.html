@@ -210,14 +210,17 @@
   /* ===== Form ===== */
   .field { display: flex; flex-direction: column; gap: .35rem; margin-bottom: 1rem; }
   .field label { font-size: .84rem; color: rgba(234,243,240,.75); font-weight: 600; }
-  .field input, .field select, .field textarea {
+  .field input, .field select, .field textarea,
+  table.data input, table.data select {
     background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.16); border-radius: var(--radius-sm);
     padding: .65rem .8rem; color: var(--mist); font-size: 1rem; font-family: inherit; min-height: 44px;
   }
-  .field select { color-scheme: dark; }
+  .field select, table.data select { color-scheme: dark; }
+  .field select option, table.data select option { background: var(--glass-tint); color: var(--mist); }
   .field textarea { min-height: 110px; resize: vertical; }
   .field input::placeholder, .field textarea::placeholder { color: rgba(234,243,240,.4); }
-  .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--emerald); box-shadow: 0 0 0 3px rgba(var(--emerald-rgb),.25); }
+  .field input:focus, .field select:focus, .field textarea:focus,
+  table.data input:focus, table.data select:focus { outline: none; border-color: var(--emerald); box-shadow: 0 0 0 3px rgba(var(--emerald-rgb),.25); }
   .field-hint { color: rgba(234,243,240,.55); font-size: .78rem; }
   .field-row { display: grid; grid-template-columns: 1fr; gap: .75rem; }
   @media (min-width: 560px) { .field-row.cols-2 { grid-template-columns: 1fr 1fr; } .field-row.cols-3 { grid-template-columns: repeat(3,1fr); } }
