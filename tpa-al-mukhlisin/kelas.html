@@ -1,0 +1,122 @@
+<section id="page-kelas" class="page" hidden>
+  <div class="section-title">
+    <h2>Manajemen Kelas</h2>
+    <button type="button" class="btn btn-gold btn-sm" id="btn-tambah-kelas">+ Tambah Kelas</button>
+  </div>
+
+  <div class="table-scroll surface-solid">
+    <table class="data" id="tabel-kelas">
+      <thead><tr><th>Urutan</th><th>Nama Kelas</th><th>Jadwal</th><th>Wali Kelas</th><th>Status</th><th class="col-actions">Aksi</th></tr></thead>
+      <tbody><tr><td colspan="6" class="muted">Memuat...</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="modal-backdrop" id="modal-kelas-backdrop" hidden>
+    <div class="modal">
+      <h3 id="modal-kelas-judul">Tambah Kelas</h3>
+      <form id="form-kelas">
+        <input type="hidden" id="kelas-id-kelas">
+        <div class="field"><label for="kelas-nama">Nama Kelas <span style="color:var(--gold)">*</span></label><input type="text" id="kelas-nama" required></div>
+        <div class="field"><label for="kelas-jadwal">Jadwal</label><input type="text" id="kelas-jadwal" placeholder="mis. Senin &amp; Kamis, 16.00"></div>
+        <div class="field"><label for="kelas-wali">Wali Kelas</label><input type="text" id="kelas-wali"></div>
+        <div class="field" style="margin-bottom:.5rem;"><label for="kelas-urutan">Urutan Tampil</label><input type="number" id="kelas-urutan" min="1" step="1"></div>
+        <div class="btn-row mt-lg">
+          <button type="button" class="btn btn-ghost" id="btn-batal-kelas">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btn-simpan-kelas">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<script>
+  (function () {
+    var kelasCache = [];
+
+    Router.daftar('kelas', { onShow: muatKelas });
+
+    function muatKelas() {
+      var tbody = document.querySelector('#tabel-kelas tbody');
+      tbody.innerHTML = '<tr><td colspan="6" class="muted">Memuat...</td></tr>';
+      panggilAman('listKelas').then(renderKelas)
+        .catch(function () { tbody.innerHTML = '<tr><td colspan="6" class="muted">Gagal memuat data.</td></tr>'; });
+    }
+
+    function renderKelas(list) {
+      kelasCache = list;
+      var tbody = document.querySelector('#tabel-kelas tbody');
+      if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" class="muted">Belum ada kelas.</td></tr>'; return; }
+      tbody.innerHTML = list.map(function (k) {
+        return '<tr>' +
+          '<td>' + k.urutan + '</td>' +
+          '<td>' + escapeHtml(k.namaKelas) + '</td>' +
+          '<td>' + (k.jadwal ? escapeHtml(k.jadwal) : '<span class="muted">-</span>') + '</td>' +
+          '<td>' + (k.waliKelas ? escapeHtml(k.waliKelas) : '<span class="muted">-</span>') + '</td>' +
+          '<td><span class="pill-status ' + (k.aktif ? 'pill-aktif' : 'pill-nonaktif') + '">' + (k.aktif ? 'Aktif' : 'Nonaktif') + '</span></td>' +
+          '<td class="col-actions"><div class="btn-row" style="justify-content:flex-end;">' +
+          '<button type="button" class="btn btn-ghost btn-sm" data-aksi="edit" data-id="' + escapeHtml(k.idKelas) + '">Ubah</button>' +
+          (k.aktif
+            ? '<button type="button" class="btn btn-danger btn-sm" data-aksi="hapus" data-id="' + escapeHtml(k.idKelas) + '">Hapus</button>'
+            : '<button type="button" class="btn btn-ghost btn-sm" data-aksi="aktifkan" data-id="' + escapeHtml(k.idKelas) + '">Aktifkan</button>') +
+          '</div></td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    document.querySelector('#tabel-kelas').addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-aksi]');
+      if (!btn) return;
+      var id = btn.getAttribute('data-id');
+      var aksi = btn.getAttribute('data-aksi');
+      if (aksi === 'edit') {
+        bukaModalKelas(id);
+      } else if (aksi === 'hapus') {
+        confirmDialog('Hapus kelas ini? Kelas dengan siswa aktif tidak bisa dihapus — pindahkan siswanya dulu.', { destruktif: true, labelOk: 'Hapus' }).then(function (ok) {
+          if (!ok) return;
+          panggilAman('hapusKelas', id).then(function () { toast('Kelas dihapus.'); muatKelas(); }).catch(function () {});
+        });
+      } else if (aksi === 'aktifkan') {
+        panggilAman('aktifkanKelas', id).then(function () { toast('Kelas diaktifkan kembali.'); muatKelas(); }).catch(function () {});
+      }
+    });
+
+    var modalBackdrop = document.getElementById('modal-kelas-backdrop');
+    document.getElementById('btn-tambah-kelas').addEventListener('click', function () { bukaModalKelas(null); });
+    document.getElementById('btn-batal-kelas').addEventListener('click', function () { modalBackdrop.hidden = true; });
+    modalBackdrop.addEventListener('click', function (e) { if (e.target === modalBackdrop) modalBackdrop.hidden = true; });
+
+    function bukaModalKelas(idKelas) {
+      document.getElementById('form-kelas').reset();
+      document.getElementById('kelas-id-kelas').value = '';
+      document.getElementById('modal-kelas-judul').textContent = idKelas ? 'Ubah Kelas' : 'Tambah Kelas';
+      modalBackdrop.hidden = false;
+      if (idKelas) {
+        var k = kelasCache.filter(function (x) { return x.idKelas === idKelas; })[0];
+        if (!k) { modalBackdrop.hidden = true; return; }
+        document.getElementById('kelas-id-kelas').value = k.idKelas;
+        document.getElementById('kelas-nama').value = k.namaKelas;
+        document.getElementById('kelas-jadwal').value = k.jadwal || '';
+        document.getElementById('kelas-wali').value = k.waliKelas || '';
+        document.getElementById('kelas-urutan').value = k.urutan || '';
+      }
+    }
+
+    document.getElementById('form-kelas').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var payload = {
+        idKelas: document.getElementById('kelas-id-kelas').value || undefined,
+        namaKelas: document.getElementById('kelas-nama').value.trim(),
+        jadwal: document.getElementById('kelas-jadwal').value.trim(),
+        waliKelas: document.getElementById('kelas-wali').value.trim(),
+        urutan: document.getElementById('kelas-urutan').value || undefined
+      };
+      var btn = document.getElementById('btn-simpan-kelas');
+      setBusy(btn, true);
+      panggilAman('simpanKelas', payload).then(function () {
+        toast('Kelas disimpan.');
+        modalBackdrop.hidden = true;
+        muatKelas();
+      }).catch(function () {}).finally(function () { setBusy(btn, false); });
+    });
+  })();
+</script>

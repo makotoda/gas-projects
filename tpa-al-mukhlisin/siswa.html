@@ -1,0 +1,246 @@
+<section id="page-siswa" class="page" hidden>
+  <div class="section-title">
+    <h2>Manajemen Siswa</h2>
+    <button type="button" class="btn btn-gold btn-sm" id="btn-tambah-siswa">+ Tambah Siswa</button>
+  </div>
+
+  <div class="filter-bar">
+    <div class="search-input field mb-0">
+      <input type="text" id="siswa-cari" placeholder="Cari nama siswa...">
+    </div>
+    <div class="field mb-0">
+      <select id="siswa-filter-kelas"><option value="">Semua Kelas</option></select>
+    </div>
+    <label class="flex gap-sm" style="font-size:.85rem; color:rgba(234,243,240,.75);">
+      <input type="checkbox" id="siswa-sertakan-nonaktif" style="width:auto; min-height:auto;"> Tampilkan nonaktif
+    </label>
+    <button type="button" class="btn btn-ghost btn-sm" id="btn-impor-siswa">Impor Cepat</button>
+  </div>
+
+  <div class="table-scroll surface-solid">
+    <table class="data" id="tabel-siswa">
+      <thead><tr><th>No</th><th>Nama</th><th>L/P</th><th>Kelas</th><th>Wali</th><th>No. HP</th><th>Status</th><th class="col-actions">Aksi</th></tr></thead>
+      <tbody><tr><td colspan="8" class="muted">Memuat...</td></tr></tbody>
+    </table>
+  </div>
+  <div class="table-foot" id="siswa-paginasi"></div>
+
+  <div class="modal-backdrop" id="modal-siswa-backdrop" hidden>
+    <div class="modal">
+      <h3 id="modal-siswa-judul">Tambah Siswa</h3>
+      <form id="form-siswa">
+        <input type="hidden" id="siswa-id-siswa">
+        <div class="field"><label for="siswa-nama">Nama <span style="color:var(--gold)">*</span></label><input type="text" id="siswa-nama" required></div>
+        <div class="field-row cols-2">
+          <div class="field"><label for="siswa-jenis-kelamin">Jenis Kelamin</label>
+            <select id="siswa-jenis-kelamin"><option value="">-</option><option value="L">Laki-laki</option><option value="P">Perempuan</option></select>
+          </div>
+          <div class="field"><label for="siswa-id-kelas">Kelas <span style="color:var(--gold)">*</span></label>
+            <select id="siswa-id-kelas" required></select>
+          </div>
+        </div>
+        <div class="field-row cols-2">
+          <div class="field"><label for="siswa-nama-wali">Nama Wali</label><input type="text" id="siswa-nama-wali"></div>
+          <div class="field"><label for="siswa-no-hp-wali">No. HP Wali</label><input type="tel" id="siswa-no-hp-wali" placeholder="08..."></div>
+        </div>
+        <div class="field"><label for="siswa-tanggal-masuk">Tanggal Masuk</label><input type="date" id="siswa-tanggal-masuk"></div>
+        <div class="field" style="margin-bottom:.5rem;"><label for="siswa-catatan">Catatan</label><textarea id="siswa-catatan" rows="2"></textarea></div>
+        <div class="field" id="wrap-kode-publik" style="margin-bottom:.5rem; display:none;">
+          <label>Kode Akses Publik (untuk orang tua)</label>
+          <div class="flex-between">
+            <span class="pin-input tabular" style="font-size:1.3rem; letter-spacing:.3rem;" id="siswa-kode-publik">----</span>
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-buat-ulang-kode">Buat Ulang</button>
+          </div>
+          <p class="field-hint mb-0">Bagikan kode ini ke orang tua santri untuk membuka halaman pantau publik.</p>
+        </div>
+        <div class="btn-row mt-lg">
+          <button type="button" class="btn btn-ghost" id="btn-batal-siswa">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btn-simpan-siswa">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modal-impor-backdrop" hidden>
+    <div class="modal">
+      <h3>Impor Cepat Siswa</h3>
+      <p class="muted">Tempel satu nama per baris. Semua akan masuk ke kelas yang dipilih.</p>
+      <div class="field"><label for="impor-kelas">Kelas Tujuan</label><select id="impor-kelas"></select></div>
+      <div class="field" style="margin-bottom:.5rem;"><label for="impor-teks">Daftar Nama</label><textarea id="impor-teks" rows="8" placeholder="Ahmad Fauzi&#10;Siti Aisyah&#10;..."></textarea></div>
+      <div class="btn-row mt-lg">
+        <button type="button" class="btn btn-ghost" id="btn-batal-impor">Batal</button>
+        <button type="button" class="btn btn-primary" id="btn-proses-impor">Impor</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  (function () {
+    var filter = { idKelas: '', cari: '', page: 1, pageSize: 20, sertakanNonaktif: false };
+    var kelasCache = [];
+
+    Router.daftar('siswa', { onShow: function () { muatKelasUntukFilter(); muatSiswa(); } });
+
+    function muatKelasUntukFilter() {
+      panggilAman('listKelas').then(function (list) {
+        kelasCache = list.filter(function (k) { return k.aktif; });
+        document.getElementById('siswa-filter-kelas').innerHTML = '<option value="">Semua Kelas</option>' + opsiKelas();
+        document.getElementById('siswa-id-kelas').innerHTML = opsiKelas();
+        document.getElementById('impor-kelas').innerHTML = opsiKelas();
+      }).catch(function () {});
+    }
+
+    function opsiKelas() {
+      return kelasCache.map(function (k) { return '<option value="' + escapeHtml(k.idKelas) + '">' + escapeHtml(k.namaKelas) + '</option>'; }).join('');
+    }
+
+    function muatSiswa() {
+      var tbody = document.querySelector('#tabel-siswa tbody');
+      tbody.innerHTML = '<tr><td colspan="8" class="muted">Memuat...</td></tr>';
+      panggilAman('listSiswa', filter).then(renderSiswa)
+        .catch(function () { tbody.innerHTML = '<tr><td colspan="8" class="muted">Gagal memuat data.</td></tr>'; });
+    }
+
+    function renderSiswa(hasil) {
+      var tbody = document.querySelector('#tabel-siswa tbody');
+      if (!hasil.items.length) {
+        tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="ic">👥</div>Belum ada siswa yang cocok dengan filter ini.</div></td></tr>';
+        document.getElementById('siswa-paginasi').innerHTML = '';
+        return;
+      }
+      tbody.innerHTML = hasil.items.map(function (s) {
+        return '<tr>' +
+          '<td>' + (s.no || '-') + '</td>' +
+          '<td>' + escapeHtml(s.nama) + '</td>' +
+          '<td>' + (s.jenisKelamin || '-') + '</td>' +
+          '<td>' + escapeHtml(s.namaKelas) + '</td>' +
+          '<td>' + (s.namaWali ? escapeHtml(s.namaWali) : '<span class="muted">-</span>') + '</td>' +
+          '<td>' + (s.noHpWali ? escapeHtml(s.noHpWali) : '<span class="muted">-</span>') + '</td>' +
+          '<td><span class="pill-status ' + (s.status === 'Aktif' ? 'pill-aktif' : 'pill-nonaktif') + '">' + s.status + '</span></td>' +
+          '<td class="col-actions"><div class="btn-row" style="justify-content:flex-end;">' +
+          '<button type="button" class="btn btn-ghost btn-sm" data-aksi="edit" data-id="' + escapeHtml(s.idSiswa) + '">Ubah</button>' +
+          (s.status === 'Aktif'
+            ? '<button type="button" class="btn btn-danger btn-sm" data-aksi="nonaktif" data-id="' + escapeHtml(s.idSiswa) + '">Nonaktifkan</button>'
+            : '<button type="button" class="btn btn-ghost btn-sm" data-aksi="aktifkan" data-id="' + escapeHtml(s.idSiswa) + '">Aktifkan</button>') +
+          '</div></td>' +
+          '</tr>';
+      }).join('');
+
+      renderPaginasi(document.getElementById('siswa-paginasi'), hasil, function (halamanBaru) {
+        filter.page = halamanBaru;
+        muatSiswa();
+      });
+    }
+
+    document.getElementById('siswa-cari').addEventListener('input', debounce(function (e) {
+      filter.cari = e.target.value.trim(); filter.page = 1; muatSiswa();
+    }, 350));
+    document.getElementById('siswa-filter-kelas').addEventListener('change', function (e) {
+      filter.idKelas = e.target.value; filter.page = 1; muatSiswa();
+    });
+    document.getElementById('siswa-sertakan-nonaktif').addEventListener('change', function (e) {
+      filter.sertakanNonaktif = e.target.checked; filter.page = 1; muatSiswa();
+    });
+
+    document.querySelector('#tabel-siswa').addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-aksi]');
+      if (!btn) return;
+      var id = btn.getAttribute('data-id');
+      var aksi = btn.getAttribute('data-aksi');
+      if (aksi === 'edit') {
+        bukaModalSiswa(id);
+      } else if (aksi === 'nonaktif') {
+        confirmDialog('Nonaktifkan siswa ini? Data lama tetap tersimpan, siswa hanya disembunyikan dari daftar aktif.', { destruktif: true, labelOk: 'Nonaktifkan' }).then(function (ok) {
+          if (!ok) return;
+          panggilAman('nonaktifkanSiswa', id).then(function () { toast('Siswa dinonaktifkan.'); muatSiswa(); }).catch(function () {});
+        });
+      } else if (aksi === 'aktifkan') {
+        panggilAman('aktifkanSiswa', id).then(function () { toast('Siswa diaktifkan kembali.'); muatSiswa(); }).catch(function () {});
+      }
+    });
+
+    var modalBackdrop = document.getElementById('modal-siswa-backdrop');
+    document.getElementById('btn-tambah-siswa').addEventListener('click', function () { bukaModalSiswa(null); });
+    document.getElementById('btn-batal-siswa').addEventListener('click', function () { modalBackdrop.hidden = true; });
+    modalBackdrop.addEventListener('click', function (e) { if (e.target === modalBackdrop) modalBackdrop.hidden = true; });
+
+    function bukaModalSiswa(idSiswa) {
+      document.getElementById('form-siswa').reset();
+      document.getElementById('siswa-id-siswa').value = '';
+      document.getElementById('modal-siswa-judul').textContent = idSiswa ? 'Ubah Siswa' : 'Tambah Siswa';
+      document.getElementById('wrap-kode-publik').style.display = idSiswa ? 'block' : 'none';
+      modalBackdrop.hidden = false;
+
+      if (idSiswa) {
+        panggilAman('getSiswa', idSiswa).then(function (s) {
+          document.getElementById('siswa-id-siswa').value = s.idSiswa;
+          document.getElementById('siswa-nama').value = s.nama;
+          document.getElementById('siswa-jenis-kelamin').value = s.jenisKelamin || '';
+          document.getElementById('siswa-id-kelas').value = s.idKelas;
+          document.getElementById('siswa-nama-wali').value = s.namaWali || '';
+          document.getElementById('siswa-no-hp-wali').value = s.noHpWali || '';
+          document.getElementById('siswa-tanggal-masuk').value = s.tanggalMasuk || '';
+          document.getElementById('siswa-catatan').value = s.catatan || '';
+          document.getElementById('siswa-kode-publik').textContent = s.kodePublik || '----';
+        }).catch(function () { modalBackdrop.hidden = true; });
+      } else {
+        document.getElementById('siswa-tanggal-masuk').value = hariIniStr();
+      }
+    }
+
+    document.getElementById('btn-buat-ulang-kode').addEventListener('click', function () {
+      var idSiswa = document.getElementById('siswa-id-siswa').value;
+      if (!idSiswa) return;
+      confirmDialog('Buat kode akses publik baru untuk siswa ini? Kode lama akan berhenti berfungsi.', { labelOk: 'Buat Ulang' }).then(function (ok) {
+        if (!ok) return;
+        panggilAman('regenerasiKodePublik', idSiswa).then(function (hasil) {
+          document.getElementById('siswa-kode-publik').textContent = hasil.kodePublik;
+          toast('Kode akses publik baru: ' + hasil.kodePublik);
+        }).catch(function () {});
+      });
+    });
+
+    document.getElementById('form-siswa').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var payload = {
+        idSiswa: document.getElementById('siswa-id-siswa').value || undefined,
+        nama: document.getElementById('siswa-nama').value.trim(),
+        jenisKelamin: document.getElementById('siswa-jenis-kelamin').value,
+        idKelas: document.getElementById('siswa-id-kelas').value,
+        namaWali: document.getElementById('siswa-nama-wali').value.trim(),
+        noHpWali: document.getElementById('siswa-no-hp-wali').value.trim(),
+        tanggalMasuk: document.getElementById('siswa-tanggal-masuk').value,
+        catatan: document.getElementById('siswa-catatan').value.trim()
+      };
+      var btn = document.getElementById('btn-simpan-siswa');
+      setBusy(btn, true);
+      panggilAman('simpanSiswa', payload).then(function () {
+        toast('Data siswa disimpan.');
+        modalBackdrop.hidden = true;
+        muatSiswa();
+      }).catch(function () {}).finally(function () { setBusy(btn, false); });
+    });
+
+    var modalImpor = document.getElementById('modal-impor-backdrop');
+    document.getElementById('btn-impor-siswa').addEventListener('click', function () {
+      document.getElementById('impor-teks').value = '';
+      modalImpor.hidden = false;
+    });
+    document.getElementById('btn-batal-impor').addEventListener('click', function () { modalImpor.hidden = true; });
+    modalImpor.addEventListener('click', function (e) { if (e.target === modalImpor) modalImpor.hidden = true; });
+
+    document.getElementById('btn-proses-impor').addEventListener('click', function () {
+      var idKelas = document.getElementById('impor-kelas').value;
+      var teks = document.getElementById('impor-teks').value;
+      if (!idKelas || !teks.trim()) { toast('Pilih kelas dan isi daftar nama dulu.', 'warn'); return; }
+      var btn = document.getElementById('btn-proses-impor');
+      setBusy(btn, true, 'Mengimpor...');
+      panggilAman('importSiswaBatch', idKelas, teks).then(function (hasil) {
+        toast(hasil.jumlah + ' siswa berhasil diimpor.');
+        modalImpor.hidden = true;
+        muatSiswa();
+      }).catch(function () {}).finally(function () { setBusy(btn, false); });
+    });
+  })();
+</script>

@@ -1,0 +1,64 @@
+<section id="page-login" class="page" hidden>
+  <div class="login-shell container-narrow">
+    <div class="hero">
+      <div class="hero-glow-bg" aria-hidden="true"></div>
+      <div class="hero-stage" aria-hidden="true">
+        <div class="hero-ring ring2"></div>
+        <div class="hero-ring"></div>
+        <div class="hero-orb"></div>
+      </div>
+      <div class="arabic-accent" aria-hidden="true">بسم الله</div>
+      <h1>TPA Al-Mukhlisin</h1>
+      <p>Panel pengelolaan Taman Pendidikan Al-Qur'an</p>
+    </div>
+
+    <form id="form-login" class="glass glass-pad form-card" style="margin:0 auto;" autocomplete="off">
+      <div class="field">
+        <label for="input-username">Username</label>
+        <input type="text" id="input-username" name="username" autocomplete="username" required placeholder="mis. superadmin">
+      </div>
+      <div class="field" style="margin-bottom:.5rem;">
+        <label for="input-password">Password</label>
+        <input type="password" id="input-password" name="password" autocomplete="current-password" required placeholder="Kata sandi">
+      </div>
+      <p id="login-error" class="field-hint" style="color:#F3A0A0; display:none;"></p>
+      <button type="submit" class="btn btn-primary btn-block mt-lg" id="btn-login">Masuk</button>
+      <p class="field-hint text-center mt-lg mb-0">
+        Orang tua santri? <a href="?page=publik" target="_top">Buka halaman pantau santri</a>
+      </p>
+    </form>
+  </div>
+</section>
+
+<script>
+  (function () {
+    Router.daftar('login', {
+      onShow: function () {
+        var el = document.getElementById('input-username');
+        if (el) setTimeout(function () { el.focus(); }, 60);
+      }
+    });
+
+    document.getElementById('form-login').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var username = document.getElementById('input-username').value.trim();
+      var password = document.getElementById('input-password').value;
+      var errEl = document.getElementById('login-error');
+      errEl.style.display = 'none';
+      var btn = document.getElementById('btn-login');
+      setBusy(btn, true, 'Memeriksa...');
+
+      Api.panggil('login', username, password).then(function (data) {
+        State.simpan(data);
+        document.getElementById('input-password').value = '';
+        toast('Selamat datang, ' + data.nama + '.');
+        selesaiLogin();
+      }).catch(function (err) {
+        errEl.textContent = (err && err.message) || 'Gagal login.';
+        errEl.style.display = 'block';
+      }).finally(function () {
+        setBusy(btn, false);
+      });
+    });
+  })();
+</script>

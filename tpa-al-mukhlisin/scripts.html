@@ -1,0 +1,315 @@
+<script>
+  /**
+   * scripts.html — runtime bersama panel admin: pembungkus google.script.run,
+   * state sesi, router antar-section (client-side, tanpa reload halaman), toast,
+   * modal konfirmasi, formatter, dan efek tilt 3D (desktop saja).
+   *
+   * Dimuat SEBELUM semua partial halaman (login/dashboard/siswa/dst) supaya
+   * Router/State/Api sudah tersedia saat partial itu mendaftarkan dirinya.
+   * initApp() sendiri baru jalan saat DOMContentLoaded, yaitu setelah seluruh
+   * dokumen (termasuk partial yang dimuat belakangan) selesai di-parse.
+   */
+
+  var RUTE_SUPER_ONLY = ['admin'];
+  var NAMA_BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  var NAMA_BULAN_SINGKAT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  var LABEL_STATUS = { H: 'Hadir', S: 'Sakit', I: 'Izin', A: 'Alpa' };
+
+  // ---------- Util murni ----------
+
+  function escapeHtml(s) {
+    return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function formatRupiah(n) {
+    n = Math.round(Number(n) || 0);
+    var neg = n < 0; n = Math.abs(n);
+    var s = String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return (neg ? '-Rp ' : 'Rp ') + s;
+  }
+
+  function formatTanggalIndo(str, singkat) {
+    if (!str) return '-';
+    var p = String(str).split('-');
+    if (p.length !== 3) return String(str);
+    var bln = Number(p[1]);
+    return Number(p[2]) + ' ' + (singkat ? NAMA_BULAN_SINGKAT[bln - 1] : NAMA_BULAN[bln - 1]) + ' ' + p[0];
+  }
+
+  function hariIniStr() {
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+  }
+
+  function debounce(fn, ms) {
+    var t;
+    return function () {
+      var args = arguments, ctx = this;
+      clearTimeout(t);
+      t = setTimeout(function () { fn.apply(ctx, args); }, ms || 300);
+    };
+  }
+
+  function setBusy(btn, busy, labelBusy) {
+    if (!btn) return;
+    if (busy) {
+      if (btn.dataset.labelAsli === undefined) btn.dataset.labelAsli = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> ' + (labelBusy || 'Memproses...');
+    } else {
+      btn.disabled = false;
+      if (btn.dataset.labelAsli !== undefined) btn.innerHTML = btn.dataset.labelAsli;
+    }
+  }
+
+  // ---------- Sesi ----------
+
+  var State = {
+    token: null, nama: null, peran: null, username: null,
+    simpan: function (data) {
+      State.token = data.token; State.nama = data.nama; State.peran = data.peran; State.username = data.username;
+      try { sessionStorage.setItem('tpa_sesi', JSON.stringify({ token: State.token, nama: State.nama, peran: State.peran, username: State.username })); } catch (e) { /* mode privat, abaikan */ }
+    },
+    muat: function () {
+      try {
+        var raw = sessionStorage.getItem('tpa_sesi');
+        if (raw) {
+          var d = JSON.parse(raw);
+          State.token = d.token; State.nama = d.nama; State.peran = d.peran; State.username = d.username;
+        }
+      } catch (e) { /* abaikan */ }
+    },
+    bersihkan: function () {
+      State.token = State.nama = State.peran = State.username = null;
+      try { sessionStorage.removeItem('tpa_sesi'); } catch (e) { /* abaikan */ }
+    }
+  };
+
+  // ---------- Pembungkus google.script.run ----------
+
+  var Api = {
+    panggil: function (namaFungsi) {
+      var args = Array.prototype.slice.call(arguments, 1);
+      return new Promise(function (resolve, reject) {
+        google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(function (err) { reject(err); })
+          [namaFungsi].apply(null, args);
+      });
+    },
+    /** Sisipkan token sesi otomatis sebagai argumen pertama. */
+    aman: function (namaFungsi) {
+      var args = Array.prototype.slice.call(arguments, 1);
+      return Api.panggil.apply(null, [namaFungsi, State.token].concat(args));
+    }
+  };
+
+  /** Sama seperti Api.aman, tapi otomatis menampilkan toast merah kalau gagal. */
+  function panggilAman(namaFungsi) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return Api.aman.apply(null, [namaFungsi].concat(args)).catch(function (err) {
+      toast((err && err.message) || 'Terjadi kesalahan tak terduga.', 'err');
+      throw err;
+    });
+  }
+
+  // ---------- Toast ----------
+
+  function toast(pesan, tipe, durasiMs) {
+    var wrap = document.getElementById('toast-wrap');
+    if (!wrap) { return; }
+    var el = document.createElement('div');
+    el.className = 'toast' + (tipe === 'err' ? ' err' : tipe === 'warn' ? ' warn' : '');
+    el.setAttribute('role', 'status');
+    el.textContent = pesan;
+    wrap.appendChild(el);
+    setTimeout(function () {
+      el.style.transition = 'opacity .25s ease';
+      el.style.opacity = '0';
+      setTimeout(function () { el.remove(); }, 260);
+    }, durasiMs || 3800);
+  }
+
+  // ---------- Modal konfirmasi (pengganti confirm() bawaan) ----------
+
+  function confirmDialog(pesan, opts) {
+    opts = opts || {};
+    return new Promise(function (resolve) {
+      var backdrop = document.createElement('div');
+      backdrop.className = 'modal-backdrop';
+      backdrop.innerHTML =
+        '<div class="modal">' +
+        '<h3>' + escapeHtml(opts.judul || 'Konfirmasi') + '</h3>' +
+        '<p class="muted">' + escapeHtml(pesan) + '</p>' +
+        '<div class="btn-row mt-lg">' +
+        '<button type="button" class="btn btn-ghost" data-aksi="batal">Batal</button>' +
+        '<button type="button" class="btn ' + (opts.destruktif ? 'btn-danger' : 'btn-primary') + '" data-aksi="ok">' + escapeHtml(opts.labelOk || 'Ya, lanjutkan') + '</button>' +
+        '</div>' +
+        '</div>';
+      document.body.appendChild(backdrop);
+      function tutup(hasil) { backdrop.remove(); resolve(hasil); }
+      backdrop.addEventListener('click', function (e) {
+        if (e.target === backdrop) { tutup(false); return; }
+        var aksi = e.target.closest('[data-aksi]');
+        if (aksi) tutup(aksi.getAttribute('data-aksi') === 'ok');
+      });
+    });
+  }
+
+  /** Modal form ringkas untuk input singkat (mis. tambah admin) — pengganti prompt() bawaan. */
+  function promptDialog(judul, fields) {
+    return new Promise(function (resolve) {
+      var backdrop = document.createElement('div');
+      backdrop.className = 'modal-backdrop';
+      var fieldsHtml = fields.map(function (f) {
+        return '<div class="field"><label for="pd-' + f.name + '">' + escapeHtml(f.label) + '</label>' +
+          '<input type="' + (f.type || 'text') + '" id="pd-' + f.name + '" placeholder="' + escapeHtml(f.placeholder || '') + '" autocomplete="off"></div>';
+      }).join('');
+      backdrop.innerHTML =
+        '<div class="modal">' +
+        '<h3>' + escapeHtml(judul) + '</h3>' +
+        '<form id="pd-form">' + fieldsHtml +
+        '<div class="btn-row mt-lg">' +
+        '<button type="button" class="btn btn-ghost" data-aksi="batal">Batal</button>' +
+        '<button type="submit" class="btn btn-primary">Simpan</button>' +
+        '</div></form></div>';
+      document.body.appendChild(backdrop);
+      var elPertama = backdrop.querySelector('input');
+      if (elPertama) setTimeout(function () { elPertama.focus(); }, 30);
+
+      function tutup(hasil) { backdrop.remove(); resolve(hasil); }
+      backdrop.addEventListener('click', function (e) {
+        if (e.target === backdrop || e.target.closest('[data-aksi="batal"]')) tutup(null);
+      });
+      backdrop.querySelector('#pd-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        var hasil = {};
+        fields.forEach(function (f) { hasil[f.name] = document.getElementById('pd-' + f.name).value.trim(); });
+        tutup(hasil);
+      });
+    });
+  }
+
+  // ---------- Paginasi (dipakai halaman Siswa) ----------
+
+  function renderPaginasi(el, info, onGanti) {
+    var totalHalaman = Math.max(Math.ceil(info.total / info.pageSize), 1);
+    el.innerHTML =
+      '<div class="flex-between">' +
+      '<span class="muted">' + info.total + ' data &middot; Halaman ' + info.page + '/' + totalHalaman + '</span>' +
+      '<div class="btn-row">' +
+      '<button type="button" class="btn btn-ghost btn-sm" data-arah="-1" ' + (info.page <= 1 ? 'disabled' : '') + '>&lsaquo; Sebelumnya</button>' +
+      '<button type="button" class="btn btn-ghost btn-sm" data-arah="1" ' + (info.page >= totalHalaman ? 'disabled' : '') + '>Berikutnya &rsaquo;</button>' +
+      '</div></div>';
+    el.querySelectorAll('[data-arah]').forEach(function (btn) {
+      btn.addEventListener('click', function () { onGanti(info.page + Number(btn.getAttribute('data-arah'))); });
+    });
+  }
+
+  // ---------- Router antar-section ----------
+
+  var Router = (function () {
+    var halaman = {};
+    var aktif = null;
+
+    function daftar(nama, opts) { halaman[nama] = opts || {}; }
+
+    function tampilkan(nama) {
+      if (!State.token && nama !== 'login') nama = 'login';
+      if (State.token && nama === 'login') nama = 'dashboard';
+      if (RUTE_SUPER_ONLY.indexOf(nama) !== -1 && State.peran !== 'super_admin') nama = 'dashboard';
+      if (!document.getElementById('page-' + nama)) nama = State.token ? 'dashboard' : 'login';
+
+      document.body.classList.toggle('pra-login', nama === 'login');
+      document.querySelectorAll('.page').forEach(function (el) { el.hidden = el.id !== 'page-' + nama; });
+      document.querySelectorAll('.app-nav [data-page]').forEach(function (btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-page') === nama);
+      });
+
+      aktif = nama;
+      if (location.hash.replace('#', '') !== nama) location.hash = nama;
+      if (halaman[nama] && typeof halaman[nama].onShow === 'function') halaman[nama].onShow();
+    }
+
+    function mulai() {
+      window.addEventListener('hashchange', function () {
+        tampilkan(location.hash.replace('#', '') || (State.token ? 'dashboard' : 'login'));
+      });
+      tampilkan(location.hash.replace('#', '') || (State.token ? 'dashboard' : 'login'));
+    }
+
+    return { daftar: daftar, tampilkan: tampilkan, mulai: mulai, aktif: function () { return aktif; } };
+  })();
+
+  // ---------- Tilt 3D halus (desktop, hormati prefers-reduced-motion) ----------
+
+  function aktifkanTilt() {
+    var dukungHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    var kurangiGerak = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!dukungHover || kurangiGerak) return;
+
+    document.addEventListener('pointermove', function (e) {
+      var kartu = e.target.closest ? e.target.closest('.card-tilt') : null;
+      document.querySelectorAll('.card-tilt').forEach(function (el) {
+        if (el !== kartu) { el.style.removeProperty('--rx'); el.style.removeProperty('--ry'); }
+      });
+      if (!kartu) return;
+      var r = kartu.getBoundingClientRect();
+      var px = (e.clientX - r.left) / r.width - 0.5;
+      var py = (e.clientY - r.top) / r.height - 0.5;
+      kartu.style.setProperty('--rx', (py * -7).toFixed(2) + 'deg');
+      kartu.style.setProperty('--ry', (px * 7).toFixed(2) + 'deg');
+    });
+    document.addEventListener('pointerleave', function () {
+      document.querySelectorAll('.card-tilt').forEach(function (el) { el.style.removeProperty('--rx'); el.style.removeProperty('--ry'); });
+    }, true);
+  }
+
+  // ---------- Boot ----------
+
+  function initApp() {
+    State.muat();
+
+    document.addEventListener('click', function (e) {
+      var tombolHalaman = e.target.closest('[data-page]');
+      if (tombolHalaman) { e.preventDefault(); Router.tampilkan(tombolHalaman.getAttribute('data-page')); }
+      var tombolLogout = e.target.closest('[data-aksi="logout"]');
+      if (tombolLogout) { e.preventDefault(); lakukanLogout(); }
+    });
+
+    aktifkanTilt();
+
+    if (State.token) {
+      Api.aman('whoAmI').then(function (info) {
+        State.simpan({ token: State.token, nama: info.nama, peran: info.peran, username: info.username });
+        selesaiLogin();
+      }).catch(function () {
+        State.bersihkan();
+        Router.mulai();
+      });
+    } else {
+      Router.mulai();
+    }
+  }
+
+  function selesaiLogin() {
+    var shell = document.getElementById('app-shell');
+    if (shell) shell.classList.toggle('is-super', State.peran === 'super_admin');
+    var chip = document.getElementById('user-chip-nama');
+    if (chip) chip.textContent = State.nama + ' · ' + (State.peran === 'super_admin' ? 'Super Admin' : 'Admin');
+    var avatar = document.getElementById('user-avatar');
+    if (avatar) avatar.textContent = (State.nama || '?').trim().charAt(0).toUpperCase();
+    Router.mulai();
+  }
+
+  function lakukanLogout() {
+    var token = State.token;
+    State.bersihkan();
+    location.hash = '';
+    Router.tampilkan('login');
+    if (token) Api.panggil('logout', token);
+  }
+
+  document.addEventListener('DOMContentLoaded', initApp);
+</script>

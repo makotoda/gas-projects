@@ -1,0 +1,113 @@
+<section id="page-laporan" class="page" hidden>
+  <div class="section-title"><h2>Unduh Laporan</h2></div>
+
+  <div class="glass glass-pad form-card" style="max-width:640px;">
+    <div class="field-row cols-2">
+      <div class="field"><label for="lap-kelas">Kelas</label><select id="lap-kelas"><option value="SEMUA">Semua Kelas</option></select></div>
+      <div class="field"><label for="lap-format">Format Unduhan</label>
+        <select id="lap-format">
+          <option value="xlsx">Excel (.xlsx)</option>
+          <option value="pdf">PDF</option>
+          <option value="keduanya">Excel + PDF</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row cols-2">
+      <div class="field"><label for="lap-mulai">Dari Tanggal</label><input type="date" id="lap-mulai"></div>
+      <div class="field"><label for="lap-selesai">Sampai Tanggal</label><input type="date" id="lap-selesai"></div>
+    </div>
+    <p class="field-hint">Rentang lebih dari satu bulan tetap didukung — grid bulanan dibuat terpisah untuk tiap bulan yang tercakup (maks. sekitar 13 bulan).</p>
+
+    <div class="btn-row mt-lg">
+      <button type="button" class="btn btn-primary" id="btn-lap-kehadiran">Unduh Laporan Kehadiran</button>
+      <button type="button" class="btn btn-gold" id="btn-lap-infaq">Unduh Laporan Infaq</button>
+    </div>
+  </div>
+
+  <div class="section-title"><h2>Hasil Unduhan</h2></div>
+  <div id="lap-hasil" class="stack">
+    <div class="empty-state"><div class="ic">📄</div>Belum ada laporan yang dibuat pada sesi ini.</div>
+  </div>
+</section>
+
+<script>
+  (function () {
+    var pernahAdaHasil = false;
+
+    Router.daftar('laporan', {
+      onShow: function () {
+        if (!document.getElementById('lap-mulai').value) {
+          document.getElementById('lap-mulai').value = hariIniStr().slice(0, 8) + '01';
+          document.getElementById('lap-selesai').value = hariIniStr();
+        }
+        muatKelasLaporan();
+      }
+    });
+
+    function muatKelasLaporan() {
+      panggilAman('listKelas').then(function (list) {
+        var aktifList = list.filter(function (k) { return k.aktif; });
+        var select = document.getElementById('lap-kelas');
+        var nilaiLama = select.value;
+        select.innerHTML = '<option value="SEMUA">Semua Kelas</option>' + aktifList.map(function (k) {
+          return '<option value="' + escapeHtml(k.idKelas) + '">' + escapeHtml(k.namaKelas) + '</option>';
+        }).join('');
+        if (nilaiLama) select.value = nilaiLama;
+      }).catch(function () {});
+    }
+
+    function opts() {
+      return {
+        idKelas: document.getElementById('lap-kelas').value,
+        tglMulai: document.getElementById('lap-mulai').value,
+        tglSelesai: document.getElementById('lap-selesai').value,
+        format: document.getElementById('lap-format').value
+      };
+    }
+
+    function validasiPeriode(o) {
+      if (!o.tglMulai || !o.tglSelesai) { toast('Isi rentang tanggal dulu.', 'warn'); return false; }
+      if (o.tglMulai > o.tglSelesai) { toast('Tanggal mulai harus sebelum tanggal selesai.', 'warn'); return false; }
+      return true;
+    }
+
+    document.getElementById('btn-lap-kehadiran').addEventListener('click', function () {
+      var o = opts();
+      if (!validasiPeriode(o)) return;
+      var btn = this;
+      setBusy(btn, true, 'Membuat laporan...');
+      panggilAman('buatLaporanKehadiran', o).then(function (hasil) {
+        tampilkanHasil('Laporan Kehadiran', o, hasil);
+        toast('Laporan kehadiran siap diunduh.');
+      }).catch(function () {}).finally(function () { setBusy(btn, false); });
+    });
+
+    document.getElementById('btn-lap-infaq').addEventListener('click', function () {
+      var o = opts();
+      if (!validasiPeriode(o)) return;
+      var btn = this;
+      setBusy(btn, true, 'Membuat laporan...');
+      panggilAman('buatLaporanInfaq', o).then(function (hasil) {
+        tampilkanHasil('Laporan Infaq', o, hasil);
+        toast('Laporan infaq siap diunduh.');
+      }).catch(function () {}).finally(function () { setBusy(btn, false); });
+    });
+
+    function tampilkanHasil(judul, o, hasil) {
+      var wrap = document.getElementById('lap-hasil');
+      if (!pernahAdaHasil) { wrap.innerHTML = ''; pernahAdaHasil = true; }
+      var kartu = document.createElement('div');
+      kartu.className = 'glass glass-pad';
+      var opsiTerpilih = document.querySelector('#lap-kelas option:checked');
+      var namaKelas = opsiTerpilih ? opsiTerpilih.textContent : 'Semua Kelas';
+      var tautan = '';
+      if (hasil.xlsxUrl) tautan += '<a class="btn btn-ghost btn-sm" href="' + hasil.xlsxUrl + '" target="_blank" rel="noopener">Unduh .xlsx</a> ';
+      if (hasil.pdfUrl) tautan += '<a class="btn btn-ghost btn-sm" href="' + hasil.pdfUrl + '" target="_blank" rel="noopener">Unduh PDF</a>';
+      kartu.innerHTML =
+        '<strong>' + escapeHtml(judul) + '</strong>' +
+        '<p class="muted" style="margin:.35rem 0 .75rem;">' + escapeHtml(namaKelas) + ' &middot; ' + formatTanggalIndo(o.tglMulai, true) + ' &ndash; ' + formatTanggalIndo(o.tglSelesai, true) + '</p>' +
+        '<div class="btn-row">' + tautan + '</div>';
+      wrap.insertBefore(kartu, wrap.firstChild);
+    }
+  })();
+</script>

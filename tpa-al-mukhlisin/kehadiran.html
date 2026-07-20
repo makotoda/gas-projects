@@ -1,0 +1,244 @@
+<section id="page-kehadiran" class="page" hidden>
+  <div class="section-title"><h2>Input Kehadiran</h2></div>
+
+  <div class="chip-row">
+    <button type="button" class="chip active" data-tab="harian">Input Harian</button>
+    <button type="button" class="chip" data-tab="bulanan">Grid Bulanan</button>
+  </div>
+
+  <div id="kehadiran-tab-harian">
+    <div class="filter-bar">
+      <div class="field mb-0"><select id="kh-kelas"><option value="">Pilih kelas</option></select></div>
+      <div class="field mb-0"><input type="date" id="kh-tanggal"></div>
+      <button type="button" class="btn btn-ghost btn-sm" id="kh-tandai-semua-h">Tandai Semua Hadir</button>
+    </div>
+
+    <div class="table-scroll surface-solid">
+      <table class="data" id="tabel-kehadiran">
+        <thead><tr><th>No</th><th>Nama</th><th>Kehadiran</th></tr></thead>
+        <tbody><tr><td colspan="3" class="muted">Pilih kelas dan tanggal.</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="flex-between mt-lg">
+      <span class="muted" id="kh-ringkasan"></span>
+      <button type="button" class="btn btn-primary" id="btn-simpan-kehadiran">Simpan Kehadiran</button>
+    </div>
+  </div>
+
+  <div id="kehadiran-tab-bulanan" hidden>
+    <div class="filter-bar">
+      <div class="field mb-0"><select id="grid-kelas"><option value="">Pilih kelas</option></select></div>
+      <div class="field mb-0"><input type="month" id="grid-bulan"></div>
+    </div>
+    <p class="field-hint">Klik sel untuk mengubah status: kosong &rarr; H &rarr; S &rarr; I &rarr; A &rarr; kosong.</p>
+    <div class="grid-bulanan-wrap surface-solid">
+      <table class="grid-bulanan" id="tabel-grid-bulanan">
+        <thead><tr><th>Pilih kelas dan bulan</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<script>
+  (function () {
+    Router.daftar('kehadiran', {
+      onShow: function () {
+        document.getElementById('kh-tanggal').value = document.getElementById('kh-tanggal').value || hariIniStr();
+        if (!document.getElementById('grid-bulan').value) document.getElementById('grid-bulan').value = hariIniStr().slice(0, 7);
+        muatKelasPilihan();
+      }
+    });
+
+    function muatKelasPilihan() {
+      panggilAman('listKelas').then(function (list) {
+        var aktifList = list.filter(function (k) { return k.aktif; });
+        isiSelectKelas(document.getElementById('kh-kelas'), aktifList);
+        isiSelectKelas(document.getElementById('grid-kelas'), aktifList);
+        muatDaftarKehadiran();
+        if (!document.getElementById('kehadiran-tab-bulanan').hidden) muatGridBulanan();
+      }).catch(function () {});
+    }
+
+    function isiSelectKelas(select, aktifList) {
+      var nilaiLama = select.value;
+      select.innerHTML = '<option value="">Pilih kelas</option>' + aktifList.map(function (k) {
+        return '<option value="' + escapeHtml(k.idKelas) + '">' + escapeHtml(k.namaKelas) + '</option>';
+      }).join('');
+      if (nilaiLama) select.value = nilaiLama;
+    }
+
+    // ---------- Tab switching ----------
+    document.querySelectorAll('#page-kehadiran .chip[data-tab]').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        document.querySelectorAll('#page-kehadiran .chip[data-tab]').forEach(function (c) { c.classList.toggle('active', c === chip); });
+        var tab = chip.getAttribute('data-tab');
+        document.getElementById('kehadiran-tab-harian').hidden = tab !== 'harian';
+        document.getElementById('kehadiran-tab-bulanan').hidden = tab !== 'bulanan';
+        if (tab === 'bulanan') muatGridBulanan();
+      });
+    });
+
+    // ---------- Input harian ----------
+    function muatDaftarKehadiran() {
+      var idKelas = document.getElementById('kh-kelas').value;
+      var tanggal = document.getElementById('kh-tanggal').value;
+      var tbody = document.querySelector('#tabel-kehadiran tbody');
+      if (!idKelas || !tanggal) { tbody.innerHTML = '<tr><td colspan="3" class="muted">Pilih kelas dan tanggal.</td></tr>'; document.getElementById('kh-ringkasan').textContent = ''; return; }
+      tbody.innerHTML = '<tr><td colspan="3" class="muted">Memuat...</td></tr>';
+      panggilAman('getDaftarKehadiran', idKelas, tanggal).then(renderKehadiran)
+        .catch(function () { tbody.innerHTML = '<tr><td colspan="3" class="muted">Gagal memuat data.</td></tr>'; });
+    }
+
+    function renderKehadiran(list) {
+      var tbody = document.querySelector('#tabel-kehadiran tbody');
+      if (!list.length) { tbody.innerHTML = '<tr><td colspan="3"><div class="empty-state"><div class="ic">📋</div>Belum ada siswa aktif di kelas ini.</div></td></tr>'; document.getElementById('kh-ringkasan').textContent = ''; return; }
+      tbody.innerHTML = list.map(function (s) {
+        return '<tr data-id-siswa="' + escapeHtml(s.idSiswa) + '">' +
+          '<td>' + s.no + '</td>' +
+          '<td>' + escapeHtml(s.nama) + '</td>' +
+          '<td>' + toggleHtml(s.status) + '</td>' +
+          '</tr>';
+      }).join('');
+      perbaruiRingkasanHarian();
+    }
+
+    function toggleHtml(statusAktif) {
+      return '<div class="toggle-kehadiran">' + ['H', 'S', 'I', 'A'].map(function (st) {
+        return '<button type="button" data-status="' + st + '" aria-pressed="' + (st === statusAktif ? 'true' : 'false') + '">' + st + '</button>';
+      }).join('') + '</div>';
+    }
+
+    document.querySelector('#tabel-kehadiran').addEventListener('click', function (e) {
+      var btn = e.target.closest('.toggle-kehadiran button');
+      if (!btn) return;
+      btn.closest('.toggle-kehadiran').querySelectorAll('button').forEach(function (b) {
+        b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+      });
+      perbaruiRingkasanHarian();
+    });
+
+    document.getElementById('kh-tandai-semua-h').addEventListener('click', function () {
+      document.querySelectorAll('#tabel-kehadiran .toggle-kehadiran').forEach(function (grup) {
+        grup.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-status') === 'H' ? 'true' : 'false'); });
+      });
+      perbaruiRingkasanHarian();
+    });
+
+    function perbaruiRingkasanHarian() {
+      var baris = document.querySelectorAll('#tabel-kehadiran tbody tr[data-id-siswa]');
+      var ditandai = 0;
+      baris.forEach(function (tr) { if (tr.querySelector('.toggle-kehadiran button[aria-pressed="true"]')) ditandai++; });
+      document.getElementById('kh-ringkasan').textContent = baris.length ? (ditandai + '/' + baris.length + ' siswa ditandai') : '';
+    }
+
+    document.getElementById('kh-kelas').addEventListener('change', muatDaftarKehadiran);
+    document.getElementById('kh-tanggal').addEventListener('change', muatDaftarKehadiran);
+
+    document.getElementById('btn-simpan-kehadiran').addEventListener('click', function () {
+      var idKelas = document.getElementById('kh-kelas').value;
+      var tanggal = document.getElementById('kh-tanggal').value;
+      if (!idKelas || !tanggal) { toast('Pilih kelas dan tanggal dulu.', 'warn'); return; }
+
+      var entries = [];
+      document.querySelectorAll('#tabel-kehadiran tbody tr[data-id-siswa]').forEach(function (tr) {
+        var aktif = tr.querySelector('.toggle-kehadiran button[aria-pressed="true"]');
+        if (aktif) entries.push({ idSiswa: tr.getAttribute('data-id-siswa'), status: aktif.getAttribute('data-status') });
+      });
+      if (!entries.length) { toast('Tandai kehadiran minimal satu siswa dulu.', 'warn'); return; }
+
+      var btn = document.getElementById('btn-simpan-kehadiran');
+      setBusy(btn, true, 'Menyimpan...');
+      panggilAman('simpanKehadiranBatch', idKelas, tanggal, entries).then(function (hasil) {
+        toast('Kehadiran tersimpan: H ' + hasil.ringkasan.H + ', S ' + hasil.ringkasan.S + ', I ' + hasil.ringkasan.I + ', A ' + hasil.ringkasan.A + '.');
+      }).catch(function () {}).finally(function () { setBusy(btn, false); });
+    });
+
+    // ---------- Grid bulanan ----------
+    document.getElementById('grid-kelas').addEventListener('change', muatGridBulanan);
+    document.getElementById('grid-bulan').addEventListener('change', muatGridBulanan);
+
+    function muatGridBulanan() {
+      var idKelas = document.getElementById('grid-kelas').value;
+      var bulanVal = document.getElementById('grid-bulan').value;
+      if (!idKelas || !bulanVal) return;
+      var parts = bulanVal.split('-');
+      var tahun = Number(parts[0]), bulan = Number(parts[1]);
+      document.querySelector('#tabel-grid-bulanan thead').innerHTML = '<tr><th>Memuat...</th></tr>';
+      document.querySelector('#tabel-grid-bulanan tbody').innerHTML = '';
+      panggilAman('getGridBulanan', idKelas, tahun, bulan).then(function (data) {
+        renderGridBulanan(data, tahun, bulan);
+      }).catch(function () {});
+    }
+
+    function renderGridBulanan(data, tahun, bulan) {
+      var thead = document.querySelector('#tabel-grid-bulanan thead');
+      var tbody = document.querySelector('#tabel-grid-bulanan tbody');
+      var headerCells = '<th class="col-no">No</th><th class="col-nama">Nama</th>';
+      for (var h = 1; h <= data.jumlahHari; h++) headerCells += '<th>' + h + '</th>';
+      headerCells += '<th>H</th><th>S</th><th>I</th><th>A</th>';
+      thead.innerHTML = '<tr>' + headerCells + '</tr>';
+
+      if (!data.siswa.length) {
+        tbody.innerHTML = '<tr><td colspan="' + (data.jumlahHari + 6) + '"><div class="empty-state">Belum ada siswa aktif di kelas ini.</div></td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = data.siswa.map(function (s) {
+        var hitung = { H: 0, S: 0, I: 0, A: 0 };
+        var sel = '';
+        for (var h = 1; h <= data.jumlahHari; h++) {
+          var st = s.kehadiran[h] || '';
+          if (hitung[st] !== undefined) hitung[st]++;
+          var tgl = tahun + '-' + pad2_(bulan) + '-' + pad2_(h);
+          sel += '<td class="cell-status" data-id-siswa="' + escapeHtml(s.idSiswa) + '" data-tanggal="' + tgl + '" data-status="' + st + '">' + st + '</td>';
+        }
+        return '<tr><td class="col-no">' + s.no + '</td><td class="col-nama">' + escapeHtml(s.nama) + '</td>' + sel +
+          '<td class="col-rekap">' + hitung.H + '</td><td class="col-rekap">' + hitung.S + '</td><td class="col-rekap">' + hitung.I + '</td><td class="col-rekap">' + hitung.A + '</td></tr>';
+      }).join('');
+    }
+
+    function pad2_(n) { return n < 10 ? '0' + n : String(n); }
+
+    document.querySelector('#tabel-grid-bulanan').addEventListener('click', function (e) {
+      var td = e.target.closest('td.cell-status');
+      if (!td) return;
+      var urutanSiklus = ['', 'H', 'S', 'I', 'A'];
+      var sekarang = td.getAttribute('data-status') || '';
+      var berikutnya = urutanSiklus[(urutanSiklus.indexOf(sekarang) + 1) % urutanSiklus.length];
+
+      var idKelas = document.getElementById('grid-kelas').value;
+      var idSiswa = td.getAttribute('data-id-siswa');
+      var tanggal = td.getAttribute('data-tanggal');
+      var teksLama = td.textContent;
+      td.textContent = '…';
+
+      var permintaan = berikutnya === ''
+        ? panggilAman('hapusKehadiranSel', idSiswa, idKelas, tanggal)
+        : panggilAman('updateKehadiranSel', idSiswa, idKelas, tanggal, berikutnya);
+
+      permintaan.then(function () {
+        td.textContent = berikutnya;
+        td.setAttribute('data-status', berikutnya);
+        perbaruiBarisRekap(td);
+      }).catch(function () {
+        td.textContent = teksLama;
+      });
+    });
+
+    function perbaruiBarisRekap(td) {
+      var tr = td.closest('tr');
+      var hitung = { H: 0, S: 0, I: 0, A: 0 };
+      tr.querySelectorAll('td.cell-status').forEach(function (c) {
+        var st = c.getAttribute('data-status');
+        if (hitung[st] !== undefined) hitung[st]++;
+      });
+      var rekapCells = tr.querySelectorAll('td.col-rekap');
+      rekapCells[0].textContent = hitung.H;
+      rekapCells[1].textContent = hitung.S;
+      rekapCells[2].textContent = hitung.I;
+      rekapCells[3].textContent = hitung.A;
+    }
+  })();
+</script>

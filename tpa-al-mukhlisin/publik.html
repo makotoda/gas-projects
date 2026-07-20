@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>TPA Al-Mukhlisin — Pantau Santri</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Amiri&display=swap" rel="stylesheet">
+  <?!= include('styles') ?>
+  <style>
+    .pub-shell { max-width: 480px; margin: 0 auto; padding: 1.5rem 1rem calc(2.5rem + env(safe-area-inset-bottom)); min-height: 100vh; position: relative; z-index: 1; }
+    .pub-header { text-align: center; margin-bottom: 1.5rem; }
+    .pub-header .mark { width: 44px; height: 44px; border-radius: 14px; margin: 0 auto .6rem; background: conic-gradient(from 45deg, var(--gold), var(--emerald), var(--gold)); }
+    .step { display: none; }
+    .step.active { display: block; animation: cardIn .35s ease both; }
+    .siswa-pick-list { max-height: 280px; overflow-y: auto; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,.1); }
+    .siswa-pick-list button { width: 100%; text-align: left; padding: .75rem 1rem; background: #0F2A26; border: none; border-top: 1px solid rgba(255,255,255,.06); color: var(--mist); font-size: .95rem; cursor: pointer; }
+    .siswa-pick-list button:first-child { border-top: none; }
+    .siswa-pick-list button:hover, .siswa-pick-list button:focus-visible { background: #153a34; }
+    .bulan-nav { display: flex; align-items: center; justify-content: space-between; margin: 1.25rem 0 .75rem; }
+    .bulan-nav strong { font-family: var(--font-display); }
+    .rekap-kpi { display: grid; grid-template-columns: repeat(2, 1fr); gap: .75rem; }
+  </style>
+</head>
+<body>
+  <div class="hero-glow-bg" aria-hidden="true" style="position:fixed;"></div>
+  <div class="pub-shell">
+    <div class="pub-header">
+      <div class="mark" aria-hidden="true"></div>
+      <div class="arabic-accent" aria-hidden="true" style="font-size:1.1rem;">بسم الله</div>
+      <h1 style="font-size:1.25rem;">Pantau Santri</h1>
+      <p class="muted" style="font-size:.85rem;">TPA Al-Mukhlisin</p>
+    </div>
+
+    <div class="step active" id="step-kelas">
+      <div class="glass glass-pad">
+        <div class="field mb-0">
+          <label for="pub-kelas">Pilih Kelas</label>
+          <select id="pub-kelas"><option value="">Memuat...</option></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="step" id="step-siswa">
+      <div class="glass glass-pad">
+        <div class="field">
+          <label for="pub-cari-siswa">Cari Nama Santri</label>
+          <input type="text" id="pub-cari-siswa" placeholder="Ketik nama...">
+        </div>
+        <div class="siswa-pick-list" id="pub-daftar-siswa"></div>
+        <button type="button" class="btn btn-ghost btn-sm mt-lg" data-langkah="kelas">&lsaquo; Ganti Kelas</button>
+      </div>
+    </div>
+
+    <div class="step" id="step-pin">
+      <div class="glass glass-pad text-center">
+        <h3 id="pin-nama-siswa">-</h3>
+        <p class="muted">Masukkan kode akses 4 digit dari pengurus TPA untuk melihat rekap santri ini.</p>
+        <form id="form-pin">
+          <div class="field">
+            <label for="pub-pin" class="mb-0" style="text-align:center; display:block;">Kode Akses</label>
+            <input type="text" id="pub-pin" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="••••">
+          </div>
+          <p id="pin-error" class="field-hint" style="color:#F3A0A0; display:none;"></p>
+          <button type="submit" class="btn btn-primary btn-block" id="btn-buka-rekap">Buka Rekap</button>
+        </form>
+        <button type="button" class="btn btn-ghost btn-sm mt-lg" data-langkah="siswa">&lsaquo; Ganti Santri</button>
+      </div>
+    </div>
+
+    <div class="step" id="step-rekap">
+      <div class="glass glass-pad">
+        <div class="flex-between">
+          <h3 style="margin:0;" id="rekap-nama-siswa">-</h3>
+          <button type="button" class="btn btn-ghost btn-sm" data-langkah="siswa">Ganti Santri</button>
+        </div>
+        <p class="muted" id="rekap-kelas-siswa" style="margin-top:.25rem;"></p>
+
+        <div class="bulan-nav">
+          <button type="button" class="btn btn-ghost btn-icon" id="pub-bulan-prev" aria-label="Bulan sebelumnya">&lsaquo;</button>
+          <strong id="pub-bulan-label">-</strong>
+          <button type="button" class="btn btn-ghost btn-icon" id="pub-bulan-next" aria-label="Bulan berikutnya">&rsaquo;</button>
+        </div>
+
+        <div class="rekap-kpi">
+          <div class="kpi-card surface-solid"><span class="kpi-label">Kehadiran</span><span class="kpi-value tabular" id="rekap-persen-hadir">-</span><span class="kpi-sub" id="rekap-hsia">-</span></div>
+          <div class="kpi-card surface-solid"><span class="kpi-label">Total Infaq</span><span class="kpi-value tabular" id="rekap-total-infaq">-</span><span class="kpi-sub" id="rekap-jumlah-infaq">-</span></div>
+        </div>
+
+        <h4 class="mt-lg">Riwayat Kehadiran</h4>
+        <div class="table-scroll surface-solid" style="margin-bottom:1.25rem;">
+          <table class="data" id="tabel-riwayat-kehadiran"><thead><tr><th>Tanggal</th><th>Status</th></tr></thead><tbody></tbody></table>
+        </div>
+
+        <h4>Riwayat Infaq</h4>
+        <div class="table-scroll surface-solid">
+          <table class="data" id="tabel-riwayat-infaq"><thead><tr><th>Tanggal</th><th>Jumlah</th><th>Metode</th></tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-center muted" style="font-size:.78rem; margin-top:2rem;">Data ini hanya ditampilkan untuk satu santri yang dipilih. Hubungi pengurus TPA bila kode akses tidak diketahui.</p>
+  </div>
+
+  <div class="toast-wrap" id="toast-wrap"></div>
+
+  <script>
+    // Skrip mandiri & ringkas — sengaja tidak berbagi scripts.html (yang berat, untuk panel
+    // admin) supaya halaman publik ini tetap cepat dimuat di HP orang tua.
+    var LABEL_STATUS_PUB = { H: 'Hadir', S: 'Sakit', I: 'Izin', A: 'Alpa' };
+    var NAMA_BULAN_PUB = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+    function escapeHtml(s) {
+      return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    function formatRupiah(n) {
+      n = Math.round(Number(n) || 0);
+      return 'Rp ' + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    }
+    function formatTanggalIndo(str) {
+      if (!str) return '-';
+      var p = String(str).split('-');
+      if (p.length !== 3) return String(str);
+      return Number(p[2]) + ' ' + NAMA_BULAN_PUB[Number(p[1]) - 1].slice(0, 3) + ' ' + p[0];
+    }
+    function toast(pesan, tipe) {
+      var wrap = document.getElementById('toast-wrap');
+      var el = document.createElement('div');
+      el.className = 'toast' + (tipe === 'err' ? ' err' : '');
+      el.textContent = pesan;
+      wrap.appendChild(el);
+      setTimeout(function () {
+        el.style.transition = 'opacity .25s ease'; el.style.opacity = '0';
+        setTimeout(function () { el.remove(); }, 260);
+      }, 3500);
+    }
+    function panggil(nama) {
+      var args = Array.prototype.slice.call(arguments, 1);
+      return new Promise(function (resolve, reject) {
+        google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[nama].apply(null, args);
+      });
+    }
+    function debounce(fn, ms) {
+      var t;
+      return function () { var a = arguments, c = this; clearTimeout(t); t = setTimeout(function () { fn.apply(c, a); }, ms); };
+    }
+
+    var state = { idKelas: '', idSiswa: '', nama: '', kodePublik: '', tahun: 0, bulan: 0 };
+    var daftarSiswaKelas = [];
+
+    function tampilkanLangkah(nama) {
+      document.querySelectorAll('.step').forEach(function (el) { el.classList.toggle('active', el.id === 'step-' + nama); });
+    }
+    document.querySelectorAll('[data-langkah]').forEach(function (btn) {
+      btn.addEventListener('click', function () { tampilkanLangkah(btn.getAttribute('data-langkah')); });
+    });
+
+    panggil('getKelasPublik').then(function (list) {
+      var select = document.getElementById('pub-kelas');
+      select.innerHTML = '<option value="">Pilih kelas...</option>' + list.map(function (k) {
+        return '<option value="' + escapeHtml(k.idKelas) + '">' + escapeHtml(k.namaKelas) + (k.jadwal ? ' — ' + escapeHtml(k.jadwal) : '') + '</option>';
+      }).join('');
+    }).catch(function () { toast('Gagal memuat daftar kelas.', 'err'); });
+
+    document.getElementById('pub-kelas').addEventListener('change', function () {
+      var idKelas = this.value;
+      if (!idKelas) return;
+      state.idKelas = idKelas;
+      document.getElementById('pub-cari-siswa').value = '';
+      document.getElementById('pub-daftar-siswa').innerHTML = '<div style="padding:1rem;" class="muted">Memuat...</div>';
+      tampilkanLangkah('siswa');
+      panggil('getSiswaListPublik', idKelas).then(function (list) {
+        daftarSiswaKelas = list;
+        renderDaftarSiswa(list);
+      }).catch(function () { toast('Gagal memuat daftar siswa.', 'err'); });
+    });
+
+    function renderDaftarSiswa(list) {
+      var wrap = document.getElementById('pub-daftar-siswa');
+      if (!list.length) { wrap.innerHTML = '<div style="padding:1rem;" class="muted">Belum ada siswa aktif di kelas ini.</div>'; return; }
+      wrap.innerHTML = list.map(function (s) {
+        return '<button type="button" data-id="' + escapeHtml(s.idSiswa) + '" data-nama="' + escapeHtml(s.nama) + '">' + escapeHtml(s.nama) + '</button>';
+      }).join('');
+    }
+
+    document.getElementById('pub-cari-siswa').addEventListener('input', debounce(function (e) {
+      var q = e.target.value.trim().toLowerCase();
+      renderDaftarSiswa(q ? daftarSiswaKelas.filter(function (s) { return s.nama.toLowerCase().indexOf(q) !== -1; }) : daftarSiswaKelas);
+    }, 200));
+
+    document.getElementById('pub-daftar-siswa').addEventListener('click', function (e) {
+      var btn = e.target.closest('button[data-id]');
+      if (!btn) return;
+      state.idSiswa = btn.getAttribute('data-id');
+      state.nama = btn.getAttribute('data-nama');
+      document.getElementById('pin-nama-siswa').textContent = state.nama;
+      document.getElementById('pub-pin').value = '';
+      document.getElementById('pin-error').style.display = 'none';
+      tampilkanLangkah('pin');
+      setTimeout(function () { document.getElementById('pub-pin').focus(); }, 60);
+    });
+
+    document.getElementById('form-pin').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var kode = document.getElementById('pub-pin').value.trim();
+      var errEl = document.getElementById('pin-error');
+      errEl.style.display = 'none';
+      var btn = document.getElementById('btn-buka-rekap');
+      btn.disabled = true;
+      var now = new Date();
+      panggil('getRekapPublik', state.idSiswa, kode, now.getFullYear(), now.getMonth() + 1).then(function (data) {
+        state.kodePublik = kode;
+        state.tahun = data.tahun; state.bulan = data.bulan;
+        renderRekap(data);
+        tampilkanLangkah('rekap');
+      }).catch(function (err) {
+        errEl.textContent = (err && err.message) || 'Gagal membuka rekap.';
+        errEl.style.display = 'block';
+      }).finally(function () { btn.disabled = false; });
+    });
+
+    function renderRekap(data) {
+      document.getElementById('rekap-nama-siswa').textContent = data.nama;
+      document.getElementById('rekap-kelas-siswa').textContent = data.namaKelas;
+      document.getElementById('pub-bulan-label').textContent = data.namaBulan + ' ' + data.tahun;
+
+      var r = data.kehadiran.rekap;
+      document.getElementById('rekap-persen-hadir').textContent = r.persenHadir + '%';
+      document.getElementById('rekap-hsia').textContent = 'H' + r.H + ' S' + r.S + ' I' + r.I + ' A' + r.A;
+
+      document.getElementById('rekap-total-infaq').textContent = formatRupiah(data.infaq.total);
+      document.getElementById('rekap-jumlah-infaq').textContent = data.infaq.riwayat.length + ' transaksi';
+
+      var tbodyKh = document.querySelector('#tabel-riwayat-kehadiran tbody');
+      tbodyKh.innerHTML = data.kehadiran.riwayat.length
+        ? data.kehadiran.riwayat.map(function (k) {
+          return '<tr><td>' + formatTanggalIndo(k.tanggal) + '</td><td>' + (LABEL_STATUS_PUB[k.status] || k.status) + '</td></tr>';
+        }).join('')
+        : '<tr><td colspan="2" class="muted">Belum ada catatan kehadiran bulan ini.</td></tr>';
+
+      var tbodyIf = document.querySelector('#tabel-riwayat-infaq tbody');
+      tbodyIf.innerHTML = data.infaq.riwayat.length
+        ? data.infaq.riwayat.map(function (i) {
+          return '<tr><td>' + formatTanggalIndo(i.tanggal) + '</td><td>' + formatRupiah(i.jumlah) + '</td><td>' + escapeHtml(i.metode) + '</td></tr>';
+        }).join('')
+        : '<tr><td colspan="3" class="muted">Belum ada catatan infaq bulan ini.</td></tr>';
+    }
+
+    function gantiBulan(delta) {
+      var b = state.bulan + delta, t = state.tahun;
+      if (b < 1) { b = 12; t--; } else if (b > 12) { b = 1; t++; }
+      panggil('getRekapPublik', state.idSiswa, state.kodePublik, t, b).then(function (data) {
+        state.tahun = data.tahun; state.bulan = data.bulan;
+        renderRekap(data);
+      }).catch(function (err) { toast((err && err.message) || 'Gagal memuat bulan tersebut.', 'err'); });
+    }
+    document.getElementById('pub-bulan-prev').addEventListener('click', function () { gantiBulan(-1); });
+    document.getElementById('pub-bulan-next').addEventListener('click', function () { gantiBulan(1); });
+  </script>
+</body>
+</html>

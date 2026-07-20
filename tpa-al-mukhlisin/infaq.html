@@ -1,0 +1,186 @@
+<section id="page-infaq" class="page" hidden>
+  <div class="section-title">
+    <h2>Input Infaq</h2>
+    <button type="button" class="btn btn-ghost btn-sm" id="btn-infaq-satuan">+ Input Perorangan</button>
+  </div>
+
+  <div class="filter-bar">
+    <div class="field mb-0"><select id="if-kelas"><option value="">Pilih kelas</option></select></div>
+    <div class="field mb-0"><input type="date" id="if-tanggal"></div>
+  </div>
+
+  <div class="table-scroll surface-solid">
+    <table class="data" id="tabel-infaq">
+      <thead><tr><th>No</th><th>Nama</th><th>Sudah Tercatat</th><th>Jumlah (Rp)</th><th>Metode</th></tr></thead>
+      <tbody><tr><td colspan="5" class="muted">Pilih kelas dan tanggal.</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="subtotal-bar surface-solid mt-lg">
+    <span>Subtotal hari ini</span>
+    <span class="val tabular" id="if-subtotal">Rp 0</span>
+  </div>
+
+  <div class="flex-between mt-lg">
+    <span class="muted" id="if-ringkasan"></span>
+    <button type="button" class="btn btn-primary" id="btn-simpan-infaq">Simpan Infaq</button>
+  </div>
+
+  <div class="modal-backdrop" id="modal-infaq-satuan" hidden>
+    <div class="modal">
+      <h3>Input Infaq Perorangan</h3>
+      <form id="form-infaq-satuan">
+        <div class="field"><label for="ifs-kelas">Kelas</label><select id="ifs-kelas"><option value="">Pilih kelas</option></select></div>
+        <div class="field"><label for="ifs-siswa">Siswa</label><select id="ifs-siswa"><option value="">Pilih kelas dulu</option></select></div>
+        <div class="field-row cols-2">
+          <div class="field"><label for="ifs-tanggal">Tanggal</label><input type="date" id="ifs-tanggal"></div>
+          <div class="field"><label for="ifs-metode">Metode</label>
+            <select id="ifs-metode"><option>Tunai</option><option>Transfer</option><option>QRIS</option></select>
+          </div>
+        </div>
+        <div class="field"><label for="ifs-jumlah">Jumlah (Rp)</label><input type="number" id="ifs-jumlah" min="1" step="1" placeholder="0"></div>
+        <div class="field" style="margin-bottom:.5rem;"><label for="ifs-keterangan">Keterangan</label><input type="text" id="ifs-keterangan"></div>
+        <div class="btn-row mt-lg">
+          <button type="button" class="btn btn-ghost" id="btn-batal-infaq-satuan">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btn-simpan-infaq-satuan">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<script>
+  (function () {
+    Router.daftar('infaq', {
+      onShow: function () {
+        document.getElementById('if-tanggal').value = document.getElementById('if-tanggal').value || hariIniStr();
+        muatKelasInfaq();
+      }
+    });
+
+    function muatKelasInfaq() {
+      panggilAman('listKelas').then(function (list) {
+        var aktifList = list.filter(function (k) { return k.aktif; });
+        isiSelectKelas(document.getElementById('if-kelas'), aktifList);
+        isiSelectKelas(document.getElementById('ifs-kelas'), aktifList);
+        muatDaftarInfaq();
+      }).catch(function () {});
+    }
+
+    function isiSelectKelas(select, aktifList) {
+      var nilaiLama = select.value;
+      select.innerHTML = '<option value="">Pilih kelas</option>' + aktifList.map(function (k) {
+        return '<option value="' + escapeHtml(k.idKelas) + '">' + escapeHtml(k.namaKelas) + '</option>';
+      }).join('');
+      if (nilaiLama) select.value = nilaiLama;
+    }
+
+    function muatDaftarInfaq() {
+      var idKelas = document.getElementById('if-kelas').value;
+      var tanggal = document.getElementById('if-tanggal').value;
+      var tbody = document.querySelector('#tabel-infaq tbody');
+      if (!idKelas || !tanggal) {
+        tbody.innerHTML = '<tr><td colspan="5" class="muted">Pilih kelas dan tanggal.</td></tr>';
+        document.getElementById('if-subtotal').textContent = 'Rp 0';
+        document.getElementById('if-ringkasan').textContent = '';
+        return;
+      }
+      tbody.innerHTML = '<tr><td colspan="5" class="muted">Memuat...</td></tr>';
+      panggilAman('getDaftarInfaq', idKelas, tanggal).then(renderInfaq)
+        .catch(function () { tbody.innerHTML = '<tr><td colspan="5" class="muted">Gagal memuat data.</td></tr>'; });
+      muatSubtotal();
+    }
+
+    function renderInfaq(list) {
+      var tbody = document.querySelector('#tabel-infaq tbody');
+      if (!list.length) { tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="ic">💰</div>Belum ada siswa aktif di kelas ini.</div></td></tr>'; return; }
+      tbody.innerHTML = list.map(function (s) {
+        return '<tr data-id-siswa="' + escapeHtml(s.idSiswa) + '">' +
+          '<td>' + s.no + '</td>' +
+          '<td>' + escapeHtml(s.nama) + '</td>' +
+          '<td>' + (s.sudahTercatat ? formatRupiah(s.sudahTercatat) : '<span class="muted">-</span>') + '</td>' +
+          '<td><input type="number" min="0" step="500" class="input-jumlah" placeholder="0" style="min-width:7rem;"></td>' +
+          '<td><select class="input-metode"><option>Tunai</option><option>Transfer</option><option>QRIS</option></select></td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    function muatSubtotal() {
+      var idKelas = document.getElementById('if-kelas').value;
+      var tanggal = document.getElementById('if-tanggal').value;
+      if (!idKelas || !tanggal) return;
+      panggilAman('getSubtotalHarian', idKelas, tanggal).then(function (hasil) {
+        document.getElementById('if-subtotal').textContent = formatRupiah(hasil.total);
+        document.getElementById('if-ringkasan').textContent = hasil.jumlahSiswaBerinfaq + ' siswa sudah tercatat berinfaq hari ini.';
+      }).catch(function () {});
+    }
+
+    document.getElementById('if-kelas').addEventListener('change', muatDaftarInfaq);
+    document.getElementById('if-tanggal').addEventListener('change', muatDaftarInfaq);
+
+    document.getElementById('btn-simpan-infaq').addEventListener('click', function () {
+      var idKelas = document.getElementById('if-kelas').value;
+      var tanggal = document.getElementById('if-tanggal').value;
+      if (!idKelas || !tanggal) { toast('Pilih kelas dan tanggal dulu.', 'warn'); return; }
+
+      var entries = [];
+      document.querySelectorAll('#tabel-infaq tbody tr[data-id-siswa]').forEach(function (tr) {
+        var jumlah = tr.querySelector('.input-jumlah').value;
+        if (jumlah && Number(jumlah) > 0) {
+          entries.push({ idSiswa: tr.getAttribute('data-id-siswa'), jumlah: Number(jumlah), metode: tr.querySelector('.input-metode').value });
+        }
+      });
+      if (!entries.length) { toast('Isi jumlah infaq minimal satu siswa dulu.', 'warn'); return; }
+
+      var btn = document.getElementById('btn-simpan-infaq');
+      setBusy(btn, true, 'Menyimpan...');
+      panggilAman('simpanInfaqBatch', idKelas, tanggal, entries).then(function (hasil) {
+        toast(hasil.jumlahEntri + ' entri infaq tersimpan (' + formatRupiah(hasil.totalRupiah) + ').');
+        muatDaftarInfaq();
+      }).catch(function () {}).finally(function () { setBusy(btn, false); });
+    });
+
+    // ---------- Modal input perorangan ----------
+    var modalSatuan = document.getElementById('modal-infaq-satuan');
+    document.getElementById('btn-infaq-satuan').addEventListener('click', function () {
+      document.getElementById('form-infaq-satuan').reset();
+      document.getElementById('ifs-tanggal').value = hariIniStr();
+      document.getElementById('ifs-siswa').innerHTML = '<option value="">Pilih kelas dulu</option>';
+      modalSatuan.hidden = false;
+    });
+    document.getElementById('btn-batal-infaq-satuan').addEventListener('click', function () { modalSatuan.hidden = true; });
+    modalSatuan.addEventListener('click', function (e) { if (e.target === modalSatuan) modalSatuan.hidden = true; });
+
+    document.getElementById('ifs-kelas').addEventListener('change', function () {
+      var idKelas = this.value;
+      var select = document.getElementById('ifs-siswa');
+      if (!idKelas) { select.innerHTML = '<option value="">Pilih kelas dulu</option>'; return; }
+      select.innerHTML = '<option value="">Memuat...</option>';
+      panggilAman('listSiswa', { idKelas: idKelas, pageSize: 100 }).then(function (hasil) {
+        select.innerHTML = hasil.items.length
+          ? hasil.items.map(function (s) { return '<option value="' + escapeHtml(s.idSiswa) + '">' + escapeHtml(s.nama) + '</option>'; }).join('')
+          : '<option value="">Tidak ada siswa aktif</option>';
+      }).catch(function () {});
+    });
+
+    document.getElementById('form-infaq-satuan').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var idSiswa = document.getElementById('ifs-siswa').value;
+      if (!idSiswa) { toast('Pilih siswa dulu.', 'warn'); return; }
+      var payload = {
+        idSiswa: idSiswa,
+        tanggal: document.getElementById('ifs-tanggal').value,
+        jumlah: Number(document.getElementById('ifs-jumlah').value),
+        metode: document.getElementById('ifs-metode').value,
+        keterangan: document.getElementById('ifs-keterangan').value.trim()
+      };
+      var btn = document.getElementById('btn-simpan-infaq-satuan');
+      setBusy(btn, true);
+      panggilAman('simpanInfaqSatuan', payload).then(function () {
+        toast('Infaq perorangan tersimpan.');
+        modalSatuan.hidden = true;
+        muatDaftarInfaq();
+      }).catch(function () {}).finally(function () { setBusy(btn, false); });
+    });
+  })();
+</script>

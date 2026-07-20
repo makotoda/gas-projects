@@ -1,0 +1,131 @@
+<section id="page-admin" class="page" hidden>
+  <div class="section-title"><h2>Kelola Akun Admin</h2></div>
+
+  <div class="glass glass-pad" style="margin-bottom:1.25rem;">
+    <div class="flex-between">
+      <div>
+        <strong id="admin-count-label">-</strong>
+        <p class="muted mb-0" style="margin-top:.2rem;">Maksimum 4 admin pengelola + 1 super admin.</p>
+      </div>
+      <button type="button" class="btn btn-gold" id="btn-tambah-admin">+ Tambah Admin</button>
+    </div>
+  </div>
+
+  <div class="table-scroll surface-solid">
+    <table class="data" id="tabel-admin">
+      <thead><tr><th>Nama</th><th>Username</th><th>Peran</th><th>Status</th><th>Login Terakhir</th><th class="col-actions">Aksi</th></tr></thead>
+      <tbody><tr><td colspan="6" class="muted">Memuat...</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="section-title"><h2>Ganti Password Saya</h2></div>
+  <form id="form-ganti-password" class="glass glass-pad form-card">
+    <div class="field"><label for="pw-lama">Password Lama</label><input type="password" id="pw-lama" required autocomplete="current-password"></div>
+    <div class="field" style="margin-bottom:.4rem;"><label for="pw-baru">Password Baru</label><input type="password" id="pw-baru" required minlength="8" autocomplete="new-password"></div>
+    <p class="field-hint">Minimal 8 karakter.</p>
+    <button type="submit" class="btn btn-primary mt-lg" id="btn-ganti-password">Simpan Password Baru</button>
+  </form>
+
+  <div class="section-title"><h2>Log Audit</h2></div>
+  <div class="table-scroll surface-solid">
+    <table class="data" id="tabel-log">
+      <thead><tr><th>Waktu</th><th>Username</th><th>Aksi</th><th>Detail</th></tr></thead>
+      <tbody><tr><td colspan="4" class="muted">Memuat...</td></tr></tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+  (function () {
+    Router.daftar('admin', { onShow: function () { muatAdminList(); muatLog(); } });
+
+    function muatAdminList() {
+      panggilAman('listAdmin').then(renderAdminList).catch(function () {});
+    }
+
+    function renderAdminList(list) {
+      var jumlahAdminBiasa = list.filter(function (a) { return a.peran === 'admin'; }).length;
+      document.getElementById('admin-count-label').textContent = jumlahAdminBiasa + '/4 admin pengelola, 1 super admin';
+
+      var tbody = document.querySelector('#tabel-admin tbody');
+      if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" class="muted">Belum ada akun.</td></tr>'; return; }
+      tbody.innerHTML = list.map(function (a) {
+        var aksi = '<span class="muted">&mdash;</span>';
+        if (a.peran !== 'super_admin') {
+          aksi = '<div class="btn-row" style="justify-content:flex-end;">' +
+            '<button type="button" class="btn btn-ghost btn-sm" data-aksi="reset" data-id="' + escapeHtml(a.idAdmin) + '">Reset Sandi</button>' +
+            (a.aktif
+              ? '<button type="button" class="btn btn-danger btn-sm" data-aksi="nonaktif" data-id="' + escapeHtml(a.idAdmin) + '">Nonaktifkan</button>'
+              : '<button type="button" class="btn btn-ghost btn-sm" data-aksi="aktifkan" data-id="' + escapeHtml(a.idAdmin) + '">Aktifkan</button>') +
+            '</div>';
+        }
+        return '<tr>' +
+          '<td>' + escapeHtml(a.nama) + '</td>' +
+          '<td>' + escapeHtml(a.username) + '</td>' +
+          '<td><span class="pill-peran">' + (a.peran === 'super_admin' ? 'Super Admin' : 'Admin') + '</span></td>' +
+          '<td><span class="pill-status ' + (a.aktif ? 'pill-aktif' : 'pill-nonaktif') + '">' + (a.aktif ? 'Aktif' : 'Nonaktif') + '</span></td>' +
+          '<td>' + (a.terakhirLogin ? escapeHtml(a.terakhirLogin) : '<span class="muted">Belum pernah</span>') + '</td>' +
+          '<td class="col-actions">' + aksi + '</td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    document.getElementById('tabel-admin').addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-aksi]');
+      if (!btn) return;
+      var id = btn.getAttribute('data-id');
+      var aksi = btn.getAttribute('data-aksi');
+
+      if (aksi === 'nonaktif') {
+        confirmDialog('Nonaktifkan akun admin ini? Admin tidak akan bisa login lagi sampai diaktifkan ulang.', { destruktif: true, labelOk: 'Nonaktifkan' }).then(function (ok) {
+          if (!ok) return;
+          panggilAman('nonaktifkanAdmin', id).then(function () { toast('Akun dinonaktifkan.'); muatAdminList(); }).catch(function () {});
+        });
+      } else if (aksi === 'aktifkan') {
+        panggilAman('aktifkanAdmin', id).then(function () { toast('Akun diaktifkan kembali.'); muatAdminList(); }).catch(function () {});
+      } else if (aksi === 'reset') {
+        confirmDialog('Reset password akun ini? Password baru akan dibuat otomatis.', { labelOk: 'Reset' }).then(function (ok) {
+          if (!ok) return;
+          panggilAman('resetPasswordAdmin', id).then(function (hasil) {
+            confirmDialog('Password baru untuk "' + hasil.username + '": ' + hasil.passwordBaru + ' — catat sekarang, tidak ditampilkan lagi.', { judul: 'Password Baru', labelOk: 'Sudah dicatat' });
+          }).catch(function () {});
+        });
+      }
+    });
+
+    document.getElementById('btn-tambah-admin').addEventListener('click', function () {
+      promptDialog('Tambah Admin Baru', [
+        { name: 'nama', label: 'Nama', placeholder: 'Nama lengkap' },
+        { name: 'username', label: 'Username', placeholder: 'huruf kecil, angka, . _ -' }
+      ]).then(function (data) {
+        if (!data || !data.nama || !data.username) return;
+        panggilAman('tambahAdmin', { nama: data.nama, username: data.username }).then(function (hasil) {
+          confirmDialog('Akun "' + hasil.username + '" dibuat. Password awal: ' + hasil.passwordAwal + ' — catat sekarang, tidak ditampilkan lagi.', { judul: 'Admin Baru Dibuat', labelOk: 'Sudah dicatat' });
+          muatAdminList();
+        }).catch(function () {});
+      });
+    });
+
+    document.getElementById('form-ganti-password').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var lama = document.getElementById('pw-lama').value;
+      var baru = document.getElementById('pw-baru').value;
+      var btn = document.getElementById('btn-ganti-password');
+      setBusy(btn, true);
+      panggilAman('gantiPasswordSendiri', lama, baru).then(function () {
+        toast('Password berhasil diganti.');
+        document.getElementById('form-ganti-password').reset();
+      }).catch(function () {}).finally(function () { setBusy(btn, false); });
+    });
+
+    function muatLog() {
+      panggilAman('getLog', { batas: 150 }).then(function (list) {
+        var tbody = document.querySelector('#tabel-log tbody');
+        if (!list.length) { tbody.innerHTML = '<tr><td colspan="4" class="muted">Belum ada aktivitas.</td></tr>'; return; }
+        tbody.innerHTML = list.map(function (l) {
+          return '<tr><td>' + escapeHtml(l.timestamp) + '</td><td>' + escapeHtml(l.username) + '</td><td>' + escapeHtml(l.aksi) + '</td><td class="wrap">' + escapeHtml(l.detail) + '</td></tr>';
+        }).join('');
+      }).catch(function () {});
+    }
+  })();
+</script>
