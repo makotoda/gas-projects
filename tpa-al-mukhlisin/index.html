@@ -9,6 +9,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Amiri&display=swap" rel="stylesheet">
   <?!= include('styles') ?>
+  <script>
+    // URL /exec kanonik dari server. WAJIB dipakai untuk link internal apa pun (mis. ke
+    // ?page=publik) — setelah dimuat, browser ada di URL sandbox
+    // "https://n-xxxx-script.googleusercontent.com/userCodeAppPanel..." (redirect internal
+    // GAS), BUKAN di URL /exec. Href relatif (mis. href="?page=publik") ikut ter-resolve
+    // terhadap URL sandbox itu dan berakhir di halaman blank/salah rute. Selalu bangun link
+    // dari EXEC_URL ini, jangan pakai href relatif atau location.href sebagai basis.
+    var EXEC_URL = <?!= JSON.stringify(ScriptApp.getService().getUrl()) ?>;
+  </script>
 </head>
 <body>
   <?!= include('scripts') ?>

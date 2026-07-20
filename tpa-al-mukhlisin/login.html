@@ -24,7 +24,7 @@
       <p id="login-error" class="field-hint" style="color:#F3A0A0; display:none;"></p>
       <button type="submit" class="btn btn-primary btn-block mt-lg" id="btn-login">Masuk</button>
       <p class="field-hint text-center mt-lg mb-0">
-        Orang tua santri? <a href="?page=publik" target="_top">Buka halaman pantau santri</a>
+        Orang tua santri? <a href="#" id="link-pantau-santri" target="_top">Buka halaman pantau santri</a>
       </p>
     </form>
   </div>
@@ -32,6 +32,9 @@
 
 <script>
   (function () {
+    var linkPublik = document.getElementById('link-pantau-santri');
+    if (linkPublik) linkPublik.href = EXEC_URL + '?page=publik';
+
     Router.daftar('login', {
       onShow: function () {
         var el = document.getElementById('input-username');
