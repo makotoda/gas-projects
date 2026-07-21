@@ -208,12 +208,18 @@
   .btn-row { display: flex; gap: .6rem; flex-wrap: wrap; }
 
   /* ===== Form ===== */
-  .field { display: flex; flex-direction: column; gap: .35rem; margin-bottom: 1rem; }
+  /* min-width:0 WAJIB: .field adalah item flex/grid (anak langsung .field-row.cols-2), dan
+     item flex/grid punya min-width:auto bawaan (dibatasi ukuran konten). Input type="tel"/
+     "date"/dll. punya lebar intrinsik berbeda-beda per browser; tanpa min-width:0 di sini +
+     width:100% di bawah, kolom yang berisi kontrol dengan lebar intrinsik lebih besar (mis.
+     No. HP Wali) melebar melebihi jatah 1fr-nya dan bisa meluber keluar kartu modal. */
+  .field { display: flex; flex-direction: column; gap: .35rem; margin-bottom: 1rem; min-width: 0; }
   .field label { font-size: .84rem; color: rgba(234,243,240,.75); font-weight: 600; }
   .field input, .field select, .field textarea,
   table.data input, table.data select {
     background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.16); border-radius: var(--radius-sm);
     padding: .65rem .8rem; color: var(--mist); font-size: 1rem; font-family: inherit; min-height: 44px;
+    width: 100%; min-width: 0; box-sizing: border-box;
   }
   .field select, table.data select { color-scheme: dark; }
   .field select option, table.data select option { background: var(--glass-tint); color: var(--mist); }
@@ -289,7 +295,11 @@
   /* ===== Modal konfirmasi ===== */
   .modal-backdrop { position: fixed; inset: 0; background: rgba(6,15,13,.6); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 200; display: flex; align-items: flex-end; justify-content: center; }
   @media (min-width: 640px) { .modal-backdrop { align-items: center; padding: 1rem; } }
-  .modal { background: #122F2A; border: 1px solid rgba(255,255,255,.12); border-radius: 20px 20px 0 0; width: 100%; max-width: 440px; padding: 1.5rem; box-shadow: var(--shadow-far); animation: modalIn .2s ease; }
+  /* max-height + overflow-y WAJIB: form panjang (mis. modal Ubah Siswa) bisa lebih tinggi
+     dari viewport pendek (laptop dengan browser chrome, atau layar landscape HP). Tanpa ini,
+     modal (dipusatkan/di-anchor lewat flex) meluber ke atas DAN bawah viewport tanpa cara
+     scroll — judul serta tombol Simpan/Batal jadi tidak terjangkau sama sekali. */
+  .modal { background: #122F2A; border: 1px solid rgba(255,255,255,.12); border-radius: 20px 20px 0 0; width: 100%; max-width: 440px; padding: 1.5rem; box-shadow: var(--shadow-far); animation: modalIn .2s ease; max-height: 88vh; overflow-y: auto; }
   @media (min-width: 640px) { .modal { border-radius: var(--radius-lg); } }
   @keyframes modalIn { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
 
