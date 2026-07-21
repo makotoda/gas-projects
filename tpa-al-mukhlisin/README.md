@@ -132,6 +132,22 @@ lihat pola "git sumber kebenaran" di CLAUDE.md root repo.
 - **Sesi login pakai CacheService, 6 jam** (bukan 8 jam seperti contoh di prompt) — itu batas
   maksimum `CacheService` di Apps Script; prompt sendiri menulis "mis. 8 jam" sebagai contoh,
   bukan angka wajib.
+- **Logo resmi TPA (hexagon hijau) di-embed sebagai data URI PNG**, satu kali, lewat CSS
+  custom property `--logo-img` di `styles.html` (`:root`) — dipakai oleh `.brand .mark`
+  (topbar admin), `.hero-orb` (hero login), dan `.pub-header .mark` (publik.html). Sumbernya
+  adalah PDF logo resmi (background putih); background putih itu **dibuang jadi transparan**
+  (algoritma "color-to-alpha" ala GIMP: jarak tiap piksel dari putih murni menentukan alpha,
+  lalu warna asli di-unmultiply), ditrim, dikuantisasi ke ~24 warna (art-nya cuma hijau solid
+  + transparan + sedikit anti-alias, jadi nyaris lossless), lalu di-resize ke lebar ±420px
+  (~17KB). Hijau logo (`rgb(75,188,59)`) kontrasnya rendah kalau ditaruh transparan langsung
+  di atas `--glass-tint`/`--bg-deep` (nyaris menyatu) — makanya ketiga tempat pakai plate
+  `var(--mist)` (persegi membulat untuk topbar/publik, lingkaran untuk hero) di belakang logo,
+  bukan transparan penuh. Favicon (`<link rel="icon">` di `index.html`/`publik.html`) adalah
+  aset terpisah yang lebih kecil (plate+logo di-flatten jadi satu PNG ~96px), bukan
+  `--logo-img`, karena favicon tidak bisa memakai CSS layering. Untuk mengganti logo di masa
+  depan: ulangi proses ini (trim → color-to-alpha → quantize → resize → base64), jangan
+  tempel PNG mentah beresolusi tinggi apa adanya — bisa menggembungkan `styles.html` secara
+  signifikan.
 - **`regenerasiKodePublik`** ditambahkan (tombol "Buat Ulang" di form ubah siswa) supaya PIN
   yang bocor/lupa bisa diganti tanpa harus utak-atik Sheet manual.
 
