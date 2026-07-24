@@ -276,7 +276,15 @@
       var tbody = document.querySelector('#tabel-pengeluaran tbody');
       tbody.innerHTML = '<tr><td colspan="6" class="muted">Memuat...</td></tr>';
       panggilAman('listPengeluaran', filterPengeluaran).then(renderPengeluaran)
-        .catch(function () { tbody.innerHTML = '<tr><td colspan="6" class="muted">Gagal memuat data.</td></tr>'; });
+        .catch(function (err) {
+          // panggilAman sudah menampilkan toast untuk error dari SERVER; kalau sampai
+          // di sini toast TIDAK muncul, berarti error terjadi di render (JS client),
+          // bukan RPC -- tampilkan detailnya langsung di tabel supaya tidak hilang
+          // begitu saja (beda dari toast yang otomatis lenyap dalam beberapa detik).
+          console.error('Gagal render Pengeluaran:', err);
+          tbody.innerHTML = '<tr><td colspan="6" class="muted">Gagal memuat data. Detail: ' +
+            escapeHtml((err && (err.message || err.toString())) || 'tidak diketahui') + '</td></tr>';
+        });
     }
 
     function renderPengeluaran(hasil) {
