@@ -17,10 +17,11 @@
       <div class="field"><label for="lap-selesai">Sampai Tanggal</label><input type="date" id="lap-selesai"></div>
     </div>
     <p class="field-hint">Rentang lebih dari satu bulan tetap didukung — grid bulanan dibuat terpisah untuk tiap bulan yang tercakup (maks. sekitar 13 bulan).</p>
+    <p class="field-hint">Laporan Infaq &amp; Pengeluaran menyertakan sheet Pengeluaran dan Ringkasan Keuangan (saldo bersih) hanya kalau Kelas = "Semua Kelas" — pengeluaran (honor pengajar, ATK, dst.) adalah pos institusi, bukan milik kelas tertentu.</p>
 
     <div class="btn-row mt-lg">
       <button type="button" class="btn btn-primary" id="btn-lap-kehadiran">Unduh Laporan Kehadiran</button>
-      <button type="button" class="btn btn-gold" id="btn-lap-infaq">Unduh Laporan Infaq</button>
+      <button type="button" class="btn btn-gold" id="btn-lap-infaq">Unduh Laporan Infaq &amp; Pengeluaran</button>
     </div>
   </div>
 
@@ -88,7 +89,7 @@
       var btn = this;
       setBusy(btn, true, 'Membuat laporan...');
       panggilAman('buatLaporanInfaq', o).then(function (hasil) {
-        tampilkanHasil('Laporan Infaq', o, hasil);
+        tampilkanHasil('Laporan Infaq & Pengeluaran', o, hasil);
         toast('Laporan infaq siap diunduh.');
       }).catch(function () {}).finally(function () { setBusy(btn, false); });
     });

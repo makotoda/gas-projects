@@ -9,6 +9,7 @@
     <div class="glass kpi-card"><div class="skeleton" style="height:2.5rem;"></div></div>
     <div class="glass kpi-card"><div class="skeleton" style="height:2.5rem;"></div></div>
     <div class="glass kpi-card"><div class="skeleton" style="height:2.5rem;"></div></div>
+    <div class="glass kpi-card"><div class="skeleton" style="height:2.5rem;"></div></div>
   </div>
 
   <div class="section-title"><h2>Siswa aktif per kelas</h2></div>
@@ -45,7 +46,8 @@
         kartuKpi('Siswa Aktif', d.totalSiswaAktif, d.jumlahKelasAktif + ' kelas aktif') +
         kartuKpi('Hadir Hari Ini', kh.hitung.H, kh.totalDicatat + '/' + kh.totalSiswaAktif + ' tercatat') +
         kartuKpi('Sakit / Izin / Alpa', (kh.hitung.S + kh.hitung.I + kh.hitung.A), 'S ' + kh.hitung.S + ' &middot; I ' + kh.hitung.I + ' &middot; A ' + kh.hitung.A) +
-        kartuKpi('Infaq Bulan Ini', formatRupiah(d.totalInfaqBulanIni), NAMA_BULAN[d.bulanIni.bulan - 1] + ' ' + d.bulanIni.tahun);
+        kartuKpi('Infaq Bulan Ini', formatRupiah(d.totalInfaqBulanIni), NAMA_BULAN[d.bulanIni.bulan - 1] + ' ' + d.bulanIni.tahun) +
+        kartuKpi('Saldo Kas Bulan Ini', formatRupiah(d.saldoKasBulanIni), 'Keluar ' + formatRupiah(d.totalPengeluaranBulanIni));
 
       var wrap = document.getElementById('dash-per-kelas');
       if (!d.siswaPerKelas.length) {

@@ -39,12 +39,17 @@ function getDashboardData(token) {
 
   var totalSiswaAktif = siswaSemua.filter(function (s) { return s.status === STATUS_SISWA.AKTIF; }).length;
 
+  var totalInfaqBulanIni = totalInfaqBulanIni_();
+  var totalPengeluaranBulanIni = totalPengeluaranBulanIni_();
+
   return {
     totalSiswaAktif: totalSiswaAktif,
     jumlahKelasAktif: kelasAktif.length,
     siswaPerKelas: siswaPerKelas,
     kehadiranHariIni: rekapHarianSemuaKelas_(hariIniStr_()),
-    totalInfaqBulanIni: totalInfaqBulanIni_(),
+    totalInfaqBulanIni: totalInfaqBulanIni,
+    totalPengeluaranBulanIni: totalPengeluaranBulanIni,
+    saldoKasBulanIni: totalInfaqBulanIni - totalPengeluaranBulanIni,
     bulanIni: bulanIniInfo_()
   };
 }

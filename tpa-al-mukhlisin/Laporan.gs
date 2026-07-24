@@ -139,7 +139,45 @@ function buatLaporanInfaq(token, opts) {
     if (barisRincian.length > 1) shRincian.getRange(2, 4, barisRincian.length - 1, 1).setNumberFormat('#,##0');
     formatHeaderSheet_(shRincian, headerRincian.length);
 
-    var namaFileDasar = 'Laporan Infaq - ' + namaRingkasKelas_(daftarKelas) + ' - ' + tglMulai + ' sd ' + tglSelesai;
+    // Pengeluaran tidak berelasi ke kelas tertentu (honor pengajar/ATK/dst. adalah
+    // pengeluaran institusi) -- hanya disertakan kalau laporan mencakup SEMUA kelas,
+    // supaya tidak menyiratkan seolah-olah pengeluaran itu milik satu kelas tertentu.
+    if (!idKelasFilter) {
+      var rincianPengeluaran = rincianPengeluaranPeriode_(tglMulai, tglSelesai);
+      var totalPengeluaran = rincianPengeluaran.reduce(function (t, p) { return t + p.jumlah; }, 0);
+
+      var shPengeluaran = ss.insertSheet('Pengeluaran');
+      var headerPengeluaran = ['Tanggal', 'Kategori', 'Jumlah (Rp)', 'Keterangan', 'Dicatat Oleh'];
+      var barisPengeluaran = [headerPengeluaran].concat(rincianPengeluaran.map(function (p) {
+        return [formatTanggalIndo_(p.tanggal), p.kategori, p.jumlah, p.keterangan, p.dicatatOleh];
+      }));
+      barisPengeluaran.push(['', '', '', '', '']);
+      barisPengeluaran.push(['', 'TOTAL PENGELUARAN', totalPengeluaran, '', '']);
+      shPengeluaran.getRange(1, 1, barisPengeluaran.length, headerPengeluaran.length).setValues(barisPengeluaran);
+      if (barisPengeluaran.length > 1) shPengeluaran.getRange(2, 3, barisPengeluaran.length - 1, 1).setNumberFormat('#,##0');
+      formatHeaderSheet_(shPengeluaran, headerPengeluaran.length);
+
+      var shRingkasan = ss.insertSheet('Ringkasan Keuangan');
+      var headerRingkasan = ['Pos', 'Jumlah (Rp)'];
+      var barisRingkasan = [
+        headerRingkasan,
+        ['Total Infaq Masuk', grandTotal],
+        ['Total Pengeluaran', totalPengeluaran],
+        ['Saldo Bersih', grandTotal - totalPengeluaran]
+      ];
+      shRingkasan.getRange(1, 1, barisRingkasan.length, 2).setValues(barisRingkasan);
+      shRingkasan.getRange(2, 2, barisRingkasan.length - 1, 1).setNumberFormat('#,##0');
+      shRingkasan.getRange(4, 1, 1, 2).setFontWeight('bold');
+      formatHeaderSheet_(shRingkasan, 2);
+
+      // Taruh Ringkasan Keuangan sebagai sheet pertama -- ini yang paling ingin dilihat
+      // duluan (bendahara/pengurus), rincian di sheet-sheet berikutnya.
+      shRingkasan.activate();
+      ss.moveActiveSheet(1);
+    }
+
+    var namaFileDasar = (idKelasFilter ? 'Laporan Infaq - ' : 'Laporan Keuangan (Infaq & Pengeluaran) - ') +
+      namaRingkasKelas_(daftarKelas) + ' - ' + tglMulai + ' sd ' + tglSelesai;
     var hasil = eksporSpreadsheet_(ss, format, namaFileDasar);
     catatLog_(sesi.username, 'unduh_laporan_infaq', namaFileDasar);
     return hasil;

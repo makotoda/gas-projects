@@ -75,7 +75,7 @@ function hapusPengeluaran(token, idPengeluaran) {
   });
 }
 
-// ---------- Helper rekap internal (dipakai Code.gs untuk dashboard) ----------
+// ---------- Helper rekap internal (dipakai Code.gs untuk dashboard, Laporan.gs untuk ekspor) ----------
 
 function totalPengeluaranBulanIni_() {
   var info = bulanIniInfo_();
@@ -85,4 +85,19 @@ function totalPengeluaranBulanIni_() {
     if (String(p.tanggal).indexOf(prefix) === 0) total += Number(p.jumlah);
   });
   return total;
+}
+
+/** Rincian pengeluaran dalam rentang tanggal, terlama dulu (urutan ledger). Tidak difilter
+ * per kelas -- pengeluaran memang tidak berelasi ke kelas tertentu (honor pengajar, ATK,
+ * dst. adalah pengeluaran institusi, bukan pengeluaran "kelas A"). */
+function rincianPengeluaranPeriode_(tglMulai, tglSelesai) {
+  return bacaSemuaBaris_(SHEET.PENGELUARAN)
+    .filter(function (p) { return p.tanggal >= tglMulai && p.tanggal <= tglSelesai; })
+    .map(function (p) {
+      return {
+        tanggal: p.tanggal, kategori: p.kategori, jumlah: Number(p.jumlah),
+        keterangan: p.keterangan, dicatatOleh: p.dicatat_oleh
+      };
+    })
+    .sort(function (a, b) { return a.tanggal < b.tanggal ? -1 : (a.tanggal > b.tanggal ? 1 : 0); });
 }
