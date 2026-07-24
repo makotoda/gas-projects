@@ -47,6 +47,35 @@ var METODE_INFAQ = ['Tunai', 'Transfer', 'QRIS'];
 // kalau menambah/mengubah kategori, ubah dua tempat (lihat pola METODE_INFAQ yang sama).
 var KATEGORI_PENGELUARAN = ['Honor Pengajar', 'Konsumsi', 'ATK & Perlengkapan', 'Operasional', 'Kegiatan Santri', 'Lainnya'];
 
+// ---------- Kolom yang WAJIB string, dipulihkan otomatis oleh bacaSemuaBaris_ ----------
+// Meski sudah diformat Teks Biasa ('@') lewat paksaFormatKolomTeks_ (lihat Setup.gs),
+// Google Sheets kadang tetap mengembalikan sel tanggal sebagai objek Date ASLI lewat
+// getValues() -- bukan cuma untuk sheet yang baru dibuat, terbukti juga terjadi pada sheet
+// Infaq yang sudah lama dipakai (lihat riwayat perbaikan Pengeluaran.gs). Kalau objek Date
+// itu lolos sampai ke return value fungsi yang dipanggil client, google.script.run GAGAL
+// men-serialize SELURUH respons dan client cuma menerima `null` (bukan error yang jelas).
+// Daftar ini SATU-SATUNYA sumber kebenaran (dipakai juga oleh paksaFormatKolomTeks_ di
+// Setup.gs supaya kedua daftar tidak bisa saling menyimpang) -- perbaikannya diterapkan
+// SEKALI di bacaSemuaBaris_ supaya SEMUA fungsi yang membaca sheet manapun otomatis aman,
+// bukan ditambal satu-satu tiap kali bug ini muncul lagi di sheet lain.
+var KOLOM_TANGGAL = [ // format string "yyyy-MM-dd"
+  [SHEET.SISWA, 'tanggal_masuk'],
+  [SHEET.KEHADIRAN, 'tanggal'],
+  [SHEET.INFAQ, 'tanggal'],
+  [SHEET.PENGELUARAN, 'tanggal']
+];
+var KOLOM_WAKTU = [ // format string "yyyy-MM-dd HH:mm:ss"
+  [SHEET.KEHADIRAN, 'timestamp'],
+  [SHEET.INFAQ, 'timestamp'],
+  [SHEET.PENGELUARAN, 'timestamp'],
+  [SHEET.ADMIN, 'terakhir_login'],
+  [SHEET.LOG, 'timestamp']
+];
+var KOLOM_KODE = [ // risiko beda (ke-Number-kan, nol di depan hilang -- bukan ke-Date-kan),
+  [SHEET.SISWA, 'no_hp_wali'],  // tapi sama-sama perlu String() paksa saat dibaca.
+  [SHEET.SISWA, 'kode_publik']
+];
+
 // 6 kelas awal TPA Al-Mukhlisin (lihat konteks §2 prompt).
 var KELAS_AWAL = [
   { nama_kelas: 'A', urutan: 1 },
@@ -86,9 +115,32 @@ function bacaSemuaBaris_(namaSheet) {
   for (var i = 0; i < values.length; i++) {
     var obj = { _row: i + 2 };
     for (var k = 0; k < header.length; k++) obj[header[k]] = values[i][k];
+    paksaKolomTeksBaris_(namaSheet, obj);
     hasil.push(obj);
   }
   return hasil;
+}
+
+/** Lihat komentar di atas KOLOM_TANGGAL/KOLOM_WAKTU/KOLOM_KODE -- pulihkan objek Date asli
+ * (kalau Sheets mengembalikannya begitu meski sudah diformat Teks Biasa) jadi string yang
+ * benar SEBELUM data ini sempat dipakai untuk perbandingan string ("2026-07-01" < ...) atau
+ * lolos ke return value RPC (yang bisa membuat google.script.run mengembalikan `null`). */
+function paksaKolomTeksBaris_(namaSheet, obj) {
+  KOLOM_TANGGAL.forEach(function (t) {
+    if (t[0] === namaSheet && obj[t[1]] instanceof Date) {
+      obj[t[1]] = Utilities.formatDate(obj[t[1]], 'Asia/Jakarta', 'yyyy-MM-dd');
+    }
+  });
+  KOLOM_WAKTU.forEach(function (t) {
+    if (t[0] === namaSheet && obj[t[1]] instanceof Date) {
+      obj[t[1]] = Utilities.formatDate(obj[t[1]], 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss');
+    }
+  });
+  KOLOM_KODE.forEach(function (t) {
+    if (t[0] === namaSheet && obj[t[1]] !== '' && obj[t[1]] !== undefined && obj[t[1]] !== null) {
+      obj[t[1]] = String(obj[t[1]]);
+    }
+  });
 }
 
 function tambahBaris_(namaSheet, obj) {

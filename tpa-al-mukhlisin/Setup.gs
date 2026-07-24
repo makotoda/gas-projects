@@ -87,21 +87,15 @@ function bersihkanSheetDefault_(ss) {
  * perbandingan string yang dipakai kode ini (tanggal, kode_publik, dst).
  * Pakai notasi "D:D" (satu kolom penuh) supaya berlaku juga untuk baris yang
  * ditambahkan nanti, bukan cuma baris yang sudah ada saat setup() dijalankan.
+ *
+ * Daftar kolomnya diambil dari KOLOM_TANGGAL/KOLOM_WAKTU/KOLOM_KODE (Util.gs) --
+ * SATU-SATUNYA sumber kebenaran, dipakai juga oleh bacaSemuaBaris_ untuk memulihkan
+ * objek Date yang lolos meski sudah diformat (lihat komentar di sana). Jangan buat
+ * daftar terpisah di sini -- dua daftar yang bisa saling menyimpang justru salah satu
+ * akar masalah yang pernah bikin bug ini muncul lagi di sheet yang berbeda.
  */
 function paksaFormatKolomTeks_(ss) {
-  var target = [
-    [SHEET.SISWA, 'no_hp_wali'],
-    [SHEET.SISWA, 'tanggal_masuk'],
-    [SHEET.SISWA, 'kode_publik'],
-    [SHEET.KEHADIRAN, 'tanggal'],
-    [SHEET.KEHADIRAN, 'timestamp'],
-    [SHEET.INFAQ, 'tanggal'],
-    [SHEET.INFAQ, 'timestamp'],
-    [SHEET.PENGELUARAN, 'tanggal'],
-    [SHEET.PENGELUARAN, 'timestamp'],
-    [SHEET.ADMIN, 'terakhir_login'],
-    [SHEET.LOG, 'timestamp']
-  ];
+  var target = [].concat(KOLOM_TANGGAL, KOLOM_WAKTU, KOLOM_KODE);
   target.forEach(function (t) {
     var sh = ss.getSheetByName(t[0]);
     var indeksKolom = HEADER[t[0]].indexOf(t[1]) + 1;

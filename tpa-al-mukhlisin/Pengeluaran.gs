@@ -5,31 +5,12 @@
  * beda subjek (bukan per siswa) dan beda skema kolom.
  */
 
-/**
- * Baca semua baris Pengeluaran dengan tanggal/timestamp DIPAKSA jadi string yyyy-MM-dd /
- * yyyy-MM-dd HH:mm:ss. Kolom-kolom ini sudah diformat Teks Biasa lewat paksaFormatKolomTeks_,
- * tapi baris PERTAMA yang ditulis ke sheet yang BARU SAJA dibuat+diformat dalam sesi yang
- * sama (mis. tepat setelah migrasi database, lihat Migrasi.gs) kadang tetap kembali sebagai
- * objek Date asli, bukan string -- kalau objek Date itu lolos sampai ke return value RPC,
- * google.script.run GAGAL men-serialize seluruh respons dan client cuma menerima `null`
- * (bukan error yang jelas; ini akar dari laporan "gagal memuat data, console bersih").
- * Deteksi & perbaiki di sini sekali, supaya semua fungsi lain di file ini otomatis aman.
- */
-function bacaSemuaPengeluaran_() {
-  return bacaSemuaBaris_(SHEET.PENGELUARAN).map(function (p) {
-    return Object.assign({}, p, {
-      tanggal: p.tanggal instanceof Date ? Utilities.formatDate(p.tanggal, 'Asia/Jakarta', 'yyyy-MM-dd') : String(p.tanggal),
-      timestamp: p.timestamp instanceof Date ? Utilities.formatDate(p.timestamp, 'Asia/Jakarta', 'yyyy-MM-dd HH:mm:ss') : String(p.timestamp)
-    });
-  });
-}
-
 /** Daftar pengeluaran dalam rentang tanggal (opsional filter kategori), terbaru dulu, dengan paginasi. */
 function listPengeluaran(token, filter) {
   requireRole_(token, [PERAN.SUPER_ADMIN, PERAN.ADMIN]);
   filter = filter || {};
 
-  var semua = bacaSemuaPengeluaran_().filter(function (p) {
+  var semua = bacaSemuaBaris_(SHEET.PENGELUARAN).filter(function (p) {
     if (filter.tglMulai && p.tanggal < filter.tglMulai) return false;
     if (filter.tglSelesai && p.tanggal > filter.tglSelesai) return false;
     if (filter.kategori && p.kategori !== filter.kategori) return false;
@@ -100,8 +81,8 @@ function totalPengeluaranBulanIni_() {
   var info = bulanIniInfo_();
   var prefix = info.tahun + '-' + Utilities.formatString('%02d', info.bulan) + '-';
   var total = 0;
-  bacaSemuaPengeluaran_().forEach(function (p) {
-    if (p.tanggal.indexOf(prefix) === 0) total += Number(p.jumlah);
+  bacaSemuaBaris_(SHEET.PENGELUARAN).forEach(function (p) {
+    if (String(p.tanggal).indexOf(prefix) === 0) total += Number(p.jumlah);
   });
   return total;
 }
@@ -110,7 +91,7 @@ function totalPengeluaranBulanIni_() {
  * per kelas -- pengeluaran memang tidak berelasi ke kelas tertentu (honor pengajar, ATK,
  * dst. adalah pengeluaran institusi, bukan pengeluaran "kelas A"). */
 function rincianPengeluaranPeriode_(tglMulai, tglSelesai) {
-  return bacaSemuaPengeluaran_()
+  return bacaSemuaBaris_(SHEET.PENGELUARAN)
     .filter(function (p) { return p.tanggal >= tglMulai && p.tanggal <= tglSelesai; })
     .map(function (p) {
       return {
