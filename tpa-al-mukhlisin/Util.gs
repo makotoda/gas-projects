@@ -29,7 +29,11 @@ var HEADER = {};
 HEADER[SHEET.KELAS] = ['id_kelas', 'nama_kelas', 'jadwal', 'wali_kelas', 'urutan', 'aktif'];
 HEADER[SHEET.SISWA] = ['id_siswa', 'nama', 'jenis_kelamin', 'id_kelas', 'nama_wali', 'no_hp_wali', 'tanggal_masuk', 'status', 'catatan', 'kode_publik'];
 HEADER[SHEET.KEHADIRAN] = ['id', 'id_siswa', 'id_kelas', 'tanggal', 'status', 'dicatat_oleh', 'timestamp'];
-HEADER[SHEET.INFAQ] = ['id', 'id_siswa', 'id_kelas', 'tanggal', 'jumlah', 'metode', 'keterangan', 'dicatat_oleh', 'timestamp'];
+// 'sumber_lain' SENGAJA ditambahkan di UJUNG (bukan disisipkan di tengah) -- baris lama
+// tanpa kolom ini tetap aman, posisi kolom lain tak berubah. Diisi HANYA kalau id_siswa
+// kosong (infaq dari donatur/sumber non-siswa, mis. kotak amal); untuk infaq siswa biasa
+// kolom ini tetap kosong. Lihat simpanInfaqSatuan di Infaq.gs.
+HEADER[SHEET.INFAQ] = ['id', 'id_siswa', 'id_kelas', 'tanggal', 'jumlah', 'metode', 'keterangan', 'dicatat_oleh', 'timestamp', 'sumber_lain'];
 HEADER[SHEET.PENGELUARAN] = ['id', 'tanggal', 'kategori', 'jumlah', 'keterangan', 'dicatat_oleh', 'timestamp'];
 HEADER[SHEET.ADMIN] = ['id_admin', 'nama', 'username', 'password_hash', 'salt', 'peran', 'aktif', 'terakhir_login'];
 HEADER[SHEET.LOG] = ['timestamp', 'username', 'aksi', 'detail'];

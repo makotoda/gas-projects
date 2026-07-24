@@ -157,17 +157,27 @@ function buatLaporanInfaq(token, opts) {
       if (barisPengeluaran.length > 1) shPengeluaran.getRange(2, 3, barisPengeluaran.length - 1, 1).setNumberFormat('#,##0');
       formatHeaderSheet_(shPengeluaran, headerPengeluaran.length);
 
+      // grandTotal (dari sheet "Rekap Infaq") cuma infaq yang berelasi ke siswa/kelas.
+      // Infaq dari sumber lain (donatur umum, kotak amal, dst.) tidak berelasi ke siswa
+      // manapun sehingga tak ikut ke grandTotal -- tanpa ditambahkan di sini, "Total Infaq
+      // Masuk" akan meleset (kurang) dari uang yang sungguh-sungguh masuk.
+      var totalInfaqSumberLain = totalInfaqSumberLainPeriode_(tglMulai, tglSelesai);
+      var totalInfaqKeseluruhan = grandTotal + totalInfaqSumberLain;
+
       var shRingkasan = ss.insertSheet('Ringkasan Keuangan');
       var headerRingkasan = ['Pos', 'Jumlah (Rp)'];
       var barisRingkasan = [
         headerRingkasan,
-        ['Total Infaq Masuk', grandTotal],
+        ['Infaq dari Siswa', grandTotal],
+        ['Infaq dari Sumber Lain', totalInfaqSumberLain],
+        ['Total Infaq Masuk', totalInfaqKeseluruhan],
         ['Total Pengeluaran', totalPengeluaran],
-        ['Saldo Bersih', grandTotal - totalPengeluaran]
+        ['Saldo Bersih', totalInfaqKeseluruhan - totalPengeluaran]
       ];
       shRingkasan.getRange(1, 1, barisRingkasan.length, 2).setValues(barisRingkasan);
       shRingkasan.getRange(2, 2, barisRingkasan.length - 1, 1).setNumberFormat('#,##0');
       shRingkasan.getRange(4, 1, 1, 2).setFontWeight('bold');
+      shRingkasan.getRange(6, 1, 1, 2).setFontWeight('bold');
       formatHeaderSheet_(shRingkasan, 2);
 
       // Taruh Ringkasan Keuangan sebagai sheet pertama -- ini yang paling ingin dilihat

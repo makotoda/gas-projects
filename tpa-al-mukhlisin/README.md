@@ -164,6 +164,26 @@ lihat pola "git sumber kebenaran" di CLAUDE.md root repo.
   `setup()` sekali lagi dari editor (aman/idempoten) supaya sheet `Pengeluaran` dan format
   teks kolom tanggalnya terbuat — tanpa ini, tab Pengeluaran akan error "Sheet Pengeluaran
   tidak ditemukan" sampai `setup()` dijalankan ulang.
+- **Infaq dari "sumber lain"** (donatur umum, kotak amal, infaq online, dst.) memakai sheet
+  `Infaq` yang SAMA (bukan sheet terpisah seperti Pengeluaran) — `id_siswa`/`id_kelas`
+  dikosongkan dan kolom baru `sumber_lain` (ditambahkan di UJUNG header, bukan disisipkan di
+  tengah, supaya baris lama tetap valid) diisi teks bebas. Konsekuensinya:
+  - `totalInfaqBulanIni_()` (dashboard) menjumlah SEMUA baris infaq tanpa peduli
+    siswa/sumber lain — sudah benar tanpa perubahan.
+  - Rekap PER SISWA/PER KELAS manapun (termasuk sheet "Rekap Infaq" di Laporan) otomatis
+    TIDAK menyertakan entri sumber lain (wajar — tidak berelasi ke siswa/kelas manapun).
+    "Ringkasan Keuangan" di Laporan karena itu menjumlah infaq siswa + infaq sumber lain
+    secara terpisah lalu menampilkan totalnya supaya "Total Infaq Masuk" tidak meleset.
+  - `simpanInfaqSatuan` sekarang dua mode (branching berdasar `data.sumberLain` vs
+    `data.idSiswa`), bukan dua fungsi terpisah, supaya boilerplate (lock, alokasi ID, log,
+    bentuk return) tidak terduplikasi.
+  - Hapus entri sumber lain lewat `hapusInfaqSumberLain` (BUKAN endpoint generik) —
+    sengaja menolak menghapus baris yang punya `id_siswa` terisi, supaya endpoint ini
+    tidak bisa disalahgunakan untuk menghapus catatan infaq siswa sungguhan.
+  - Kolom `sumber_lain` di sheet lama (yang di-setup sebelum fitur ini) akan blank sampai
+    `setup()` dijalankan ulang (menulis ulang baris header dengan 10 kolom) — TIDAK
+    memblokir fungsi (posisi kolom dikendalikan array `HEADER`, bukan teks di baris 1),
+    cuma kosmetik (label kolom J di Sheets tetap kosong sampai setup() dijalankan ulang).
 
 ## Manual QA checklist (belum ada automated test)
 
