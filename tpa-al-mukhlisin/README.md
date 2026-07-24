@@ -18,6 +18,9 @@ Pengeluaran.gs     catat pengeluaran kas (honor pengajar, konsumsi, ATK, dst.) -
 Laporan.gs         generate & ekspor .xlsx/PDF (rekap + grid bulanan ala Excel)
 Publik.gs          endpoint read-only untuk halaman orang tua (digerbangi kode PIN)
 Setup.gs           setup() sekali-jalan: bikin Sheet + header + seed kelas + super admin
+Migrasi.gs         ALAT SEKALI-PAKAI: pindahkanDatabase() menyalin semua sheet ke
+                   spreadsheet lain lalu mengarahkan SPREADSHEET_ID ke sana. Bukan bagian
+                   alur normal aplikasi -- boleh dihapus dari project setelah dipakai.
 Util.gs            konstanta, skema kolom Sheet, helper baca/tulis, format, validasi
 
 index.html         shell admin (nav + seluruh section, router client-side)
