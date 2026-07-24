@@ -1,29 +1,74 @@
 <section id="page-infaq" class="page" hidden>
-  <div class="section-title">
-    <h2>Input Infaq</h2>
-    <button type="button" class="btn btn-ghost btn-sm" id="btn-infaq-satuan">+ Input Perorangan</button>
+  <div class="section-title"><h2>Kelola Infaq</h2></div>
+
+  <div class="chip-row">
+    <button type="button" class="chip active" data-tab="masuk">Infaq Masuk</button>
+    <button type="button" class="chip" data-tab="keluar">Pengeluaran</button>
   </div>
 
-  <div class="filter-bar">
-    <div class="field mb-0"><select id="if-kelas"><option value="">Pilih kelas</option></select></div>
-    <div class="field mb-0"><input type="date" id="if-tanggal"></div>
+  <div id="infaq-tab-masuk">
+    <div class="flex-between" style="margin-bottom:1rem;">
+      <span class="muted" style="font-size:.85rem;">Catat infaq per kelas, atau perorangan lewat tombol di kanan.</span>
+      <button type="button" class="btn btn-ghost btn-sm" id="btn-infaq-satuan">+ Input Perorangan</button>
+    </div>
+
+    <div class="filter-bar">
+      <div class="field mb-0"><select id="if-kelas"><option value="">Pilih kelas</option></select></div>
+      <div class="field mb-0"><input type="date" id="if-tanggal"></div>
+    </div>
+
+    <div class="table-scroll surface-solid">
+      <table class="data" id="tabel-infaq">
+        <thead><tr><th>No</th><th>Nama</th><th>Sudah Tercatat</th><th>Jumlah (Rp)</th><th>Metode</th></tr></thead>
+        <tbody><tr><td colspan="5" class="muted">Pilih kelas dan tanggal.</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="subtotal-bar surface-solid mt-lg">
+      <span>Subtotal hari ini</span>
+      <span class="val tabular" id="if-subtotal">Rp 0</span>
+    </div>
+
+    <div class="flex-between mt-lg">
+      <span class="muted" id="if-ringkasan"></span>
+      <button type="button" class="btn btn-primary" id="btn-simpan-infaq">Simpan Infaq</button>
+    </div>
   </div>
 
-  <div class="table-scroll surface-solid">
-    <table class="data" id="tabel-infaq">
-      <thead><tr><th>No</th><th>Nama</th><th>Sudah Tercatat</th><th>Jumlah (Rp)</th><th>Metode</th></tr></thead>
-      <tbody><tr><td colspan="5" class="muted">Pilih kelas dan tanggal.</td></tr></tbody>
-    </table>
-  </div>
+  <div id="infaq-tab-keluar" hidden>
+    <div class="flex-between" style="margin-bottom:1rem;">
+      <span class="muted" style="font-size:.85rem;">Catat pengeluaran kas TPA (honor pengajar, konsumsi, ATK, dst).</span>
+      <button type="button" class="btn btn-gold btn-sm" id="btn-tambah-pengeluaran">+ Catat Pengeluaran</button>
+    </div>
 
-  <div class="subtotal-bar surface-solid mt-lg">
-    <span>Subtotal hari ini</span>
-    <span class="val tabular" id="if-subtotal">Rp 0</span>
-  </div>
+    <div class="filter-bar">
+      <div class="field mb-0"><label class="field-hint mb-0">Dari</label><input type="date" id="png-filter-mulai"></div>
+      <div class="field mb-0"><label class="field-hint mb-0">Sampai</label><input type="date" id="png-filter-selesai"></div>
+      <div class="field mb-0">
+        <select id="png-filter-kategori">
+          <option value="">Semua kategori</option>
+          <option value="Honor Pengajar">Honor Pengajar</option>
+          <option value="Konsumsi">Konsumsi</option>
+          <option value="ATK & Perlengkapan">ATK &amp; Perlengkapan</option>
+          <option value="Operasional">Operasional</option>
+          <option value="Kegiatan Santri">Kegiatan Santri</option>
+          <option value="Lainnya">Lainnya</option>
+        </select>
+      </div>
+    </div>
 
-  <div class="flex-between mt-lg">
-    <span class="muted" id="if-ringkasan"></span>
-    <button type="button" class="btn btn-primary" id="btn-simpan-infaq">Simpan Infaq</button>
+    <div class="table-scroll surface-solid">
+      <table class="data" id="tabel-pengeluaran">
+        <thead><tr><th>Tanggal</th><th>Kategori</th><th>Jumlah (Rp)</th><th>Keterangan</th><th>Dicatat Oleh</th><th class="col-actions">Aksi</th></tr></thead>
+        <tbody><tr><td colspan="6" class="muted">Memuat...</td></tr></tbody>
+      </table>
+    </div>
+    <div class="table-foot" id="png-paginasi"></div>
+
+    <div class="subtotal-bar surface-solid mt-lg">
+      <span>Total pengeluaran periode ini</span>
+      <span class="val tabular" id="png-subtotal">Rp 0</span>
+    </div>
   </div>
 
   <div class="modal-backdrop" id="modal-infaq-satuan" hidden>
@@ -47,6 +92,31 @@
       </form>
     </div>
   </div>
+
+  <div class="modal-backdrop" id="modal-pengeluaran" hidden>
+    <div class="modal">
+      <h3>Catat Pengeluaran</h3>
+      <form id="form-pengeluaran">
+        <div class="field"><label for="png-tanggal">Tanggal</label><input type="date" id="png-tanggal"></div>
+        <div class="field"><label for="png-kategori">Kategori</label>
+          <select id="png-kategori">
+            <option value="Honor Pengajar">Honor Pengajar</option>
+            <option value="Konsumsi">Konsumsi</option>
+            <option value="ATK & Perlengkapan">ATK &amp; Perlengkapan</option>
+            <option value="Operasional">Operasional</option>
+            <option value="Kegiatan Santri">Kegiatan Santri</option>
+            <option value="Lainnya">Lainnya</option>
+          </select>
+        </div>
+        <div class="field"><label for="png-jumlah">Jumlah (Rp)</label><input type="number" id="png-jumlah" min="1" step="500" placeholder="0"></div>
+        <div class="field" style="margin-bottom:.5rem;"><label for="png-keterangan">Keterangan</label><input type="text" id="png-keterangan" placeholder="mis. Honor ustadz bulan Juli"></div>
+        <div class="btn-row mt-lg">
+          <button type="button" class="btn btn-ghost" id="btn-batal-pengeluaran">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btn-simpan-pengeluaran">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </section>
 
 <script>
@@ -55,9 +125,22 @@
       onShow: function () {
         document.getElementById('if-tanggal').value = document.getElementById('if-tanggal').value || hariIniStr();
         muatKelasInfaq();
+        if (!document.getElementById('infaq-tab-keluar').hidden) muatPengeluaran();
       }
     });
 
+    // ---------- Tab switching ----------
+    document.querySelectorAll('#page-infaq .chip[data-tab]').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        document.querySelectorAll('#page-infaq .chip[data-tab]').forEach(function (c) { c.classList.toggle('active', c === chip); });
+        var tab = chip.getAttribute('data-tab');
+        document.getElementById('infaq-tab-masuk').hidden = tab !== 'masuk';
+        document.getElementById('infaq-tab-keluar').hidden = tab !== 'keluar';
+        if (tab === 'keluar') muatPengeluaran();
+      });
+    });
+
+    // ---------- Infaq masuk ----------
     function muatKelasInfaq() {
       panggilAman('listKelas').then(function (list) {
         var aktifList = list.filter(function (k) { return k.aktif; });
@@ -180,6 +263,85 @@
         toast('Infaq perorangan tersimpan.');
         modalSatuan.hidden = true;
         muatDaftarInfaq();
+      }).catch(function () {}).finally(function () { setBusy(btn, false); });
+    });
+
+    // ---------- Pengeluaran ----------
+    var filterPengeluaran = { page: 1, pageSize: 20 };
+
+    function muatPengeluaran() {
+      filterPengeluaran.tglMulai = document.getElementById('png-filter-mulai').value || undefined;
+      filterPengeluaran.tglSelesai = document.getElementById('png-filter-selesai').value || undefined;
+      filterPengeluaran.kategori = document.getElementById('png-filter-kategori').value || undefined;
+      var tbody = document.querySelector('#tabel-pengeluaran tbody');
+      tbody.innerHTML = '<tr><td colspan="6" class="muted">Memuat...</td></tr>';
+      panggilAman('listPengeluaran', filterPengeluaran).then(renderPengeluaran)
+        .catch(function () { tbody.innerHTML = '<tr><td colspan="6" class="muted">Gagal memuat data.</td></tr>'; });
+    }
+
+    function renderPengeluaran(hasil) {
+      var tbody = document.querySelector('#tabel-pengeluaran tbody');
+      document.getElementById('png-subtotal').textContent = formatRupiah(hasil.totalJumlah);
+      if (!hasil.items.length) {
+        tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="ic">🧾</div>Belum ada pengeluaran tercatat pada periode/filter ini.</div></td></tr>';
+        document.getElementById('png-paginasi').innerHTML = '';
+        return;
+      }
+      tbody.innerHTML = hasil.items.map(function (p) {
+        return '<tr>' +
+          '<td>' + formatTanggalIndo(p.tanggal, true) + '</td>' +
+          '<td>' + escapeHtml(p.kategori) + '</td>' +
+          '<td>' + formatRupiah(p.jumlah) + '</td>' +
+          '<td class="wrap">' + (p.keterangan ? escapeHtml(p.keterangan) : '<span class="muted">-</span>') + '</td>' +
+          '<td>' + escapeHtml(p.dicatatOleh) + '</td>' +
+          '<td class="col-actions"><button type="button" class="btn btn-danger btn-sm" data-aksi="hapus" data-id="' + escapeHtml(p.idPengeluaran) + '">Hapus</button></td>' +
+          '</tr>';
+      }).join('');
+
+      renderPaginasi(document.getElementById('png-paginasi'), hasil, function (halamanBaru) {
+        filterPengeluaran.page = halamanBaru;
+        muatPengeluaran();
+      });
+    }
+
+    document.getElementById('png-filter-mulai').addEventListener('change', function () { filterPengeluaran.page = 1; muatPengeluaran(); });
+    document.getElementById('png-filter-selesai').addEventListener('change', function () { filterPengeluaran.page = 1; muatPengeluaran(); });
+    document.getElementById('png-filter-kategori').addEventListener('change', function () { filterPengeluaran.page = 1; muatPengeluaran(); });
+
+    document.querySelector('#tabel-pengeluaran').addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-aksi="hapus"]');
+      if (!btn) return;
+      var id = btn.getAttribute('data-id');
+      confirmDialog('Hapus catatan pengeluaran ini? Tindakan ini tidak bisa dibatalkan.', { destruktif: true, labelOk: 'Hapus' }).then(function (ok) {
+        if (!ok) return;
+        panggilAman('hapusPengeluaran', id).then(function () { toast('Pengeluaran dihapus.'); muatPengeluaran(); }).catch(function () {});
+      });
+    });
+
+    // ---------- Modal catat pengeluaran ----------
+    var modalPengeluaran = document.getElementById('modal-pengeluaran');
+    document.getElementById('btn-tambah-pengeluaran').addEventListener('click', function () {
+      document.getElementById('form-pengeluaran').reset();
+      document.getElementById('png-tanggal').value = hariIniStr();
+      modalPengeluaran.hidden = false;
+    });
+    document.getElementById('btn-batal-pengeluaran').addEventListener('click', function () { modalPengeluaran.hidden = true; });
+    modalPengeluaran.addEventListener('click', function (e) { if (e.target === modalPengeluaran) modalPengeluaran.hidden = true; });
+
+    document.getElementById('form-pengeluaran').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var payload = {
+        tanggal: document.getElementById('png-tanggal').value,
+        kategori: document.getElementById('png-kategori').value,
+        jumlah: Number(document.getElementById('png-jumlah').value),
+        keterangan: document.getElementById('png-keterangan').value.trim()
+      };
+      var btn = document.getElementById('btn-simpan-pengeluaran');
+      setBusy(btn, true);
+      panggilAman('simpanPengeluaran', payload).then(function () {
+        toast('Pengeluaran tersimpan.');
+        modalPengeluaran.hidden = true;
+        muatPengeluaran();
       }).catch(function () {}).finally(function () { setBusy(btn, false); });
     });
   })();

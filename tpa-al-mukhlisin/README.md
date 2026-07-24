@@ -13,7 +13,8 @@ Auth.gs            login, hash password, sesi, verifikasi peran, rate-limit, man
 Siswa.gs           CRUD siswa, filter/pencarian/paginasi, impor massal, kode PIN publik
 Kelas.gs           CRUD kelas
 Kehadiran.gs       input harian (batch upsert) + grid bulanan + rekap
-Infaq.gs           input batch/satuan + subtotal + rekap
+Infaq.gs           input batch/satuan + subtotal + rekap (infaq masuk)
+Pengeluaran.gs     catat pengeluaran kas (honor pengajar, konsumsi, ATK, dst.) -- tab di halaman Infaq
 Laporan.gs         generate & ekspor .xlsx/PDF (rekap + grid bulanan ala Excel)
 Publik.gs          endpoint read-only untuk halaman orang tua (digerbangi kode PIN)
 Setup.gs           setup() sekali-jalan: bikin Sheet + header + seed kelas + super admin
@@ -150,6 +151,16 @@ lihat pola "git sumber kebenaran" di CLAUDE.md root repo.
   signifikan.
 - **`regenerasiKodePublik`** ditambahkan (tombol "Buat Ulang" di form ubah siswa) supaya PIN
   yang bocor/lupa bisa diganti tanpa harus utak-atik Sheet manual.
+- **Pengeluaran adalah sheet & backend terpisah dari Infaq** (`Pengeluaran.gs`, sheet
+  `Pengeluaran`) meski tampil sebagai tab di halaman/menu Infaq yang sama ("Infaq Masuk" /
+  "Pengeluaran") — datanya beda subjek (bukan per siswa) dan beda skema kolom, jadi disatukan
+  di level UI (satu modul keuangan kas) tapi dipisah di level data. Hard-delete (bukan
+  soft-delete seperti siswa/kelas) karena ini catatan kas yang butuh koreksi mudah, bukan
+  entitas yang butuh jejak riwayat.
+  **Penting:** di deployment yang sudah pernah `setup()` sebelum fitur ini ada, jalankan
+  `setup()` sekali lagi dari editor (aman/idempoten) supaya sheet `Pengeluaran` dan format
+  teks kolom tanggalnya terbuat — tanpa ini, tab Pengeluaran akan error "Sheet Pengeluaran
+  tidak ditemukan" sampai `setup()` dijalankan ulang.
 
 ## Manual QA checklist (belum ada automated test)
 

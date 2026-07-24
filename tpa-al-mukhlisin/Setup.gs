@@ -97,6 +97,8 @@ function paksaFormatKolomTeks_(ss) {
     [SHEET.KEHADIRAN, 'timestamp'],
     [SHEET.INFAQ, 'tanggal'],
     [SHEET.INFAQ, 'timestamp'],
+    [SHEET.PENGELUARAN, 'tanggal'],
+    [SHEET.PENGELUARAN, 'timestamp'],
     [SHEET.ADMIN, 'terakhir_login'],
     [SHEET.LOG, 'timestamp']
   ];

@@ -20,6 +20,7 @@ var SHEET = {
   SISWA: 'Siswa',
   KEHADIRAN: 'Kehadiran',
   INFAQ: 'Infaq',
+  PENGELUARAN: 'Pengeluaran',
   ADMIN: 'Admin',
   LOG: 'Log'
 };
@@ -29,6 +30,7 @@ HEADER[SHEET.KELAS] = ['id_kelas', 'nama_kelas', 'jadwal', 'wali_kelas', 'urutan
 HEADER[SHEET.SISWA] = ['id_siswa', 'nama', 'jenis_kelamin', 'id_kelas', 'nama_wali', 'no_hp_wali', 'tanggal_masuk', 'status', 'catatan', 'kode_publik'];
 HEADER[SHEET.KEHADIRAN] = ['id', 'id_siswa', 'id_kelas', 'tanggal', 'status', 'dicatat_oleh', 'timestamp'];
 HEADER[SHEET.INFAQ] = ['id', 'id_siswa', 'id_kelas', 'tanggal', 'jumlah', 'metode', 'keterangan', 'dicatat_oleh', 'timestamp'];
+HEADER[SHEET.PENGELUARAN] = ['id', 'tanggal', 'kategori', 'jumlah', 'keterangan', 'dicatat_oleh', 'timestamp'];
 HEADER[SHEET.ADMIN] = ['id_admin', 'nama', 'username', 'password_hash', 'salt', 'peran', 'aktif', 'terakhir_login'];
 HEADER[SHEET.LOG] = ['timestamp', 'username', 'aksi', 'detail'];
 
@@ -37,6 +39,9 @@ var LABEL_STATUS_KEHADIRAN = { H: 'Hadir', S: 'Sakit', I: 'Izin', A: 'Alpa' };
 var PERAN = { SUPER_ADMIN: 'super_admin', ADMIN: 'admin' };
 var STATUS_SISWA = { AKTIF: 'Aktif', NONAKTIF: 'Nonaktif' };
 var METODE_INFAQ = ['Tunai', 'Transfer', 'QRIS'];
+// Kategori pengeluaran kas TPA. Daftar ini di-hardcode SAMA di infaq.html (dropdown) --
+// kalau menambah/mengubah kategori, ubah dua tempat (lihat pola METODE_INFAQ yang sama).
+var KATEGORI_PENGELUARAN = ['Honor Pengajar', 'Konsumsi', 'ATK & Perlengkapan', 'Operasional', 'Kegiatan Santri', 'Lainnya'];
 
 // 6 kelas awal TPA Al-Mukhlisin (lihat konteks §2 prompt).
 var KELAS_AWAL = [
@@ -251,10 +256,19 @@ function validasiJenisKelamin_(nilai) {
   return v;
 }
 
+function validasiKategoriPengeluaran_(nilai) {
+  if (KATEGORI_PENGELUARAN.indexOf(nilai) === -1) {
+    throw new Error('Kategori pengeluaran tidak valid.');
+  }
+  return nilai;
+}
+
+// Dipakai bersama oleh Infaq.gs (jumlah infaq) dan Pengeluaran.gs (jumlah pengeluaran) --
+// makanya pesannya generik "Jumlah", bukan spesifik "Jumlah infaq".
 function validasiNominal_(nilai) {
   var n = Number(nilai);
   if (isNaN(n) || n <= 0) {
-    throw new Error('Jumlah infaq harus berupa angka lebih dari 0.');
+    throw new Error('Jumlah harus berupa angka lebih dari 0.');
   }
   return Math.round(n);
 }
