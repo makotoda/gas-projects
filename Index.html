@@ -664,8 +664,17 @@
     transition: opacity .25s;
   }
   #statModal.show, #rekModal.show, #laporanModal.show, #strukModal.show { opacity: 1; pointer-events: auto; }
+  /* Kunci scroll halaman utama selagi modal terbuka — tanpa ini, gesture
+     scroll di mobile "bocor" ke body di belakang begitu isi modal-card
+     lebih tinggi dari viewport, alih-alih men-scroll modal itu sendiri. */
+  body:has(#statModal.show, #rekModal.show, #laporanModal.show, #strukModal.show) {
+    overflow: hidden;
+  }
   .modal-card {
     width: 100%; max-width: 420px;
+    max-height: min(85vh, 640px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     background: rgba(19,19,40,.94);
     border: 1px solid var(--border);
     border-radius: var(--radius);
