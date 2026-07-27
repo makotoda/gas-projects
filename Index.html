@@ -1520,7 +1520,7 @@
         <button class="music-btn" id="strukBtn" type="button" style="flex:1">📷 Upload Struk</button>
         <button class="music-btn" id="buktiBtn" type="button" style="flex:1">🏦 Bukti Transfer</button>
       </div>
-      <input type="file" id="strukFile" accept="image/*" style="display:none">
+      <input type="file" id="strukFile" accept="image/*" multiple style="display:none">
     </div>
 
     <!-- ===== Leaderboard & riwayat ===== -->
@@ -1846,10 +1846,21 @@
   let strukMode = 'struk';
   $('strukBtn').addEventListener('click', () => { strukMode = 'struk'; $('strukFile').click(); });
   $('buktiBtn').addEventListener('click', () => { strukMode = 'transfer'; $('strukFile').click(); });
+  function parseStrukAsync_(base64, mimeType, mode) {
+    return new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .parseStruk(base64, mimeType, mode);
+    });
+  }
+
   $('strukFile').addEventListener('change', async () => {
-    const file = $('strukFile').files[0];
+    // multiple: struk panjang sering butuh beberapa screenshot (scroll) —
+    // tiap file dibaca Gemini terpisah lalu barisnya digabung satu review list.
+    const files = [...$('strukFile').files];
     $('strukFile').value = ''; // biar bisa pilih file yang sama lagi
-    if (!file) return;
+    if (!files.length) return;
     // Loader sama seperti saat submit: logo 3D dipasang ulang ke slot loader
     // (kalau cuma remove 'hide', class logo3d sisa dari load awal menyembunyikan
     // spinner fallback → yang tampil hanya blur kosong).
@@ -1865,29 +1876,25 @@
       if (window.KodomoLogo3D) window.KodomoLogo3D.keHeader();
     };
     try {
-      const base64 = await bacaFileSebagaiBase64_(file);
-      google.script.run
-        .withSuccessHandler(rows => {
-          tutupLoader();
-          bentukBarisStruk_(rows);
-          const isTopup = strukMode === 'transfer';
-          $('strukTitle').textContent = isTopup ? '🏦 Konfirmasi Top-up' : '📷 Konfirmasi Struk';
-          $('strukDesc').textContent = isTopup
-            ? 'Cocokkan nama pengirim & nominal, lalu simpan sebagai Pahala (top-up).'
-            : 'Cocokkan nama & nominal tiap orang, lalu simpan sebagai Dosa. Baris yang namanya kosong tidak akan disimpan.';
-          $('strukKeterangan').value = isTopup && rows[0] && rows[0].bank
-            ? 'Melalui ' + rows[0].bank : '';
-          $('strukStatus').textContent = '';
-          $('strukModal').classList.add('show');
-        })
-        .withFailureHandler(err => {
-          tutupLoader();
-          toast(err.message || 'Gagal membaca struk.', 'err');
-        })
-        .parseStruk(base64, file.type, strukMode);
+      let rows = [];
+      for (const file of files) {
+        const base64 = await bacaFileSebagaiBase64_(file);
+        rows = rows.concat(await parseStrukAsync_(base64, file.type, strukMode));
+      }
+      tutupLoader();
+      bentukBarisStruk_(rows);
+      const isTopup = strukMode === 'transfer';
+      $('strukTitle').textContent = isTopup ? '🏦 Konfirmasi Top-up' : '📷 Konfirmasi Struk';
+      $('strukDesc').textContent = isTopup
+        ? 'Cocokkan nama pengirim & nominal, lalu simpan sebagai Pahala (top-up).'
+        : 'Cocokkan nama & nominal tiap orang, lalu simpan sebagai Dosa. Baris yang namanya kosong tidak akan disimpan.';
+      $('strukKeterangan').value = isTopup && rows[0] && rows[0].bank
+        ? 'Melalui ' + rows[0].bank : '';
+      $('strukStatus').textContent = '';
+      $('strukModal').classList.add('show');
     } catch (e) {
       tutupLoader();
-      toast('Gagal membaca file gambar.', 'err');
+      toast(e.message || 'Gagal membaca struk.', 'err');
     }
   });
 
