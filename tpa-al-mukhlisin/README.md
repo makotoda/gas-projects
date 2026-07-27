@@ -184,6 +184,20 @@ lihat pola "git sumber kebenaran" di CLAUDE.md root repo.
     `setup()` dijalankan ulang (menulis ulang baris header dengan 10 kolom) — TIDAK
     memblokir fungsi (posisi kolom dikendalikan array `HEADER`, bukan teks di baris 1),
     cuma kosmetik (label kolom J di Sheets tetap kosong sampai setup() dijalankan ulang).
+- **`oauthScopes` di `appsscript.json` pakai `drive` (bukan `drive.file`).** Laporan.gs
+  membuat spreadsheet sementara (`SpreadsheetApp.create`) untuk membangun laporan lalu
+  membuangnya (`DriveApp.getFileById(...).setTrashed(true)`) setelah diekspor. Scope
+  `drive.file` (awalnya dipakai, lebih sempit/prinsip least-privilege) TERNYATA tidak
+  cukup untuk `DriveApp.getFileById` + `setTrashed` pada file yang dibuat lewat
+  `SpreadsheetApp.create()` (beda dari file yang dibuat lewat `DriveApp.createFile()` —
+  keduanya "dibuat oleh app" secara konsep, tapi cakupan `drive.file` GAS ternyata tidak
+  konsisten mengenali keduanya sama). Errornya baru muncul saat runtime ("Specified
+  permissions are not sufficient..."), bukan saat deploy — kalau nanti menambah pemakaian
+  DriveApp baru, uji betulan (unduh laporan sungguhan), jangan asumsikan `drive.file`
+  cukup hanya karena scope-nya "kelihatan pas". **Konsekuensi:** setelah scope berubah,
+  deployment yang sudah berjalan perlu di-otorisasi ulang (pemilik akan diminta
+  mengizinkan akses Drive penuh saat pertama kali mengunduh laporan lagi) — ini bukan
+  config tweak biasa, level akses akun Google pendeploy ke Drive-nya sendiri berubah.
 
 ## Manual QA checklist (belum ada automated test)
 
