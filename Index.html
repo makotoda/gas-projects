@@ -1603,6 +1603,10 @@
       <label for="strukKeterangan">Keterangan <span style="font-weight:400">(opsional, berlaku untuk semua baris)</span></label>
       <input type="text" id="strukKeterangan" maxlength="120" placeholder="Contoh: patungan makan siang">
     </div>
+    <div class="lap-field" id="strukTraktirField" style="margin-top:10px">
+      <label for="strukTraktir">Yang traktir <span style="font-weight:400">(opsional — otomatis dapat Pahala sebesar total struk)</span></label>
+      <select id="strukTraktir"><option value="">Tidak ada, bagi rata biasa</option></select>
+    </div>
     <button class="submit-btn" id="strukConfirmBtn" type="button" style="margin-top:10px">Simpan semua</button>
     <div class="lap-status" id="strukStatus"></div>
   </div>
@@ -1898,6 +1902,11 @@
         : 'Cocokkan nama & nominal tiap orang, lalu simpan sebagai Dosa. Baris yang namanya kosong tidak akan disimpan.';
       $('strukKeterangan').value = isTopup && rows[0] && rows[0].bank
         ? 'Melalui ' + rows[0].bank : '';
+      // Dropdown "yang traktir" cuma masuk akal untuk split tagihan (bukan top-up).
+      $('strukTraktirField').style.display = isTopup ? 'none' : '';
+      const rosterTraktir = dataAnggota.filter(n => n !== KAS_NAMA);
+      $('strukTraktir').innerHTML = '<option value="">Tidak ada, bagi rata biasa</option>' +
+        rosterTraktir.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
       $('strukStatus').textContent = '';
       $('strukModal').classList.add('show');
     } catch (e) {
@@ -1912,15 +1921,25 @@
   });
 
   $('strukConfirmBtn').addEventListener('click', () => {
+    const tipeDasar = strukMode === 'transfer' ? 'Pahala' : 'Dosa';
     const antrian = [...$('strukList').querySelectorAll('.struk-row:not(.removed)')]
       .map(row => ({
         nama: row.querySelector('.struk-nama').value,
         nominal: Number(row.querySelector('.struk-nominal').value.replace(/\./g, '')) || 0,
-        asli: row.dataset.ocr
+        asli: row.dataset.ocr,
+        tipe: tipeDasar
       }))
       .filter(it => it.nama && it.nominal > 0);
 
     if (!antrian.length) { toast('Tidak ada baris valid untuk disimpan.', 'err'); return; }
+
+    // Opsional: yang traktir otomatis dapat Pahala sebesar total yang dibagi
+    // ke orang lain (pasangan Dosa/Pahala, sama seperti pola fitur Transfer).
+    const traktirNama = strukMode === 'struk' ? $('strukTraktir').value : '';
+    if (traktirNama) {
+      const totalTraktir = antrian.reduce((s, it) => s + it.nominal, 0);
+      antrian.push({ nama: traktirNama, nominal: totalTraktir, asli: null, tipe: 'Pahala', traktir: true });
+    }
 
     // Pelajari koreksi nama: kalau nama OCR ≠ nama yang dipilih (setelah
     // dinormalisasi), simpan sebagai alias supaya jadi tebakan pertama
@@ -1973,9 +1992,11 @@
         })
         .submitAmalan({
           nama: it.nama,
-          tipe: strukMode === 'transfer' ? 'Pahala' : 'Dosa',
+          tipe: it.tipe,
           nominal: it.nominal,
-          keterangan: ketBersama
+          keterangan: it.traktir
+            ? ('Traktir struk' + (ketBersama ? ': ' + ketBersama : ''))
+            : ketBersama
         });
     }
     simpanBerikutnya();
