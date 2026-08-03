@@ -1956,50 +1956,42 @@
 
     // Keterangan bersama, dipakai apa adanya untuk semua baris.
     const ketBersama = $('strukKeterangan').value.trim();
+    const payload = antrian.map(it => ({
+      nama: it.nama,
+      tipe: it.tipe,
+      nominal: it.nominal,
+      keterangan: it.traktir
+        ? ('Traktir struk' + (ketBersama ? ': ' + ketBersama : ''))
+        : ketBersama
+    }));
 
     const btn = $('strukConfirmBtn');
     btn.disabled = true;
-    let sisa = antrian.length, sukses = 0, terakhir = null, totalNominal = 0;
     // ponytail: saldo-sebelum untuk pengumuman diambil dari baris pertama saja —
     // top-up bukti transfer praktis selalu satu baris; kalau nanti multi-baris
     // jadi lazim, hitung per orang.
     const saldoSebelum = saldoSaatIni(antrian[0].nama);
-    $('strukStatus').textContent = `Menyimpan 0/${sisa}…`;
+    const totalNominal = antrian.reduce((s, it) => s + it.nominal, 0);
+    $('strukStatus').textContent = `Menyimpan ${payload.length} transaksi…`;
 
-    function simpanBerikutnya() {
-      if (!antrian.length) {
+    // Satu request untuk semua baris (termasuk baris traktir) — server menulis
+    // semuanya dalam satu batch write, bukan appendRow bergantian per baris.
+    google.script.run
+      .withSuccessHandler(data => {
         btn.disabled = false;
         $('strukModal').classList.remove('show');
-        if (terakhir) render(terakhir);
-        toast(`${sukses} transaksi dari struk tersimpan ✓`, 'ok');
-        if (sukses > 0) {
-          // Top-up: ka-ching kasir dulu, baru pengumuman suara.
-          if (strukMode === 'transfer') playSfxUrut(['kaching'].concat(daftarUmumanPahala_(saldoSebelum, totalNominal)));
-          else playSfx('mantul');
-        }
-        return;
-      }
-      const it = antrian.shift();
-      google.script.run
-        .withSuccessHandler(data => {
-          sukses++; terakhir = data; totalNominal += it.nominal;
-          $('strukStatus').textContent = `Menyimpan ${sisa - antrian.length}/${sisa}…`;
-          simpanBerikutnya();
-        })
-        .withFailureHandler(err => {
-          $('strukStatus').textContent = `Gagal simpan "${it.nama}": ${err.message || 'error'} — lanjut...`;
-          simpanBerikutnya();
-        })
-        .submitAmalan({
-          nama: it.nama,
-          tipe: it.tipe,
-          nominal: it.nominal,
-          keterangan: it.traktir
-            ? ('Traktir struk' + (ketBersama ? ': ' + ketBersama : ''))
-            : ketBersama
-        });
-    }
-    simpanBerikutnya();
+        render(data);
+        toast(`${payload.length} transaksi dari struk tersimpan ✓`, 'ok');
+        // Top-up: ka-ching kasir dulu, baru pengumuman suara.
+        if (strukMode === 'transfer') playSfxUrut(['kaching'].concat(daftarUmumanPahala_(saldoSebelum, totalNominal)));
+        else playSfx('mantul');
+      })
+      .withFailureHandler(err => {
+        btn.disabled = false;
+        $('strukStatus').textContent = 'Gagal simpan: ' + (err.message || 'error');
+        toast(err.message || 'Gagal menyimpan transaksi.', 'err');
+      })
+      .submitAmalanBatch(payload);
   });
 
   /* ================= Laporan bulanan (PDF) =================
