@@ -708,13 +708,37 @@ const RESTO_MIN_TRX = 10;
  *  sini setelah melihat sebaran asli lewat debugResto(). */
 const RESTO_MAD_K = 3;
 
+/** Lebar band minimal sebagai pecahan median (lihat statistikResto_). */
+const RESTO_BAND_MIN = 0.35;
+
 /** Kata pengisi di awal/akhir keterangan yang bukan bagian nama resto. */
 const RESTO_STOPWORD = [
   'makan', 'mkn', 'mam', 'makanan', 'jajan', 'jajanan', 'beli', 'bayar',
   'bayarin', 'traktir', 'traktiran', 'ditraktir', 'sarapan', 'brunch',
   'lunch', 'dinner', 'siang', 'malam', 'pagi', 'sore', 'di', 'ke', 'dari',
   'utang', 'hutang', 'split', 'bill', 'tagihan', 'pesan', 'order', 'pesen',
-  'gofood', 'grabfood', 'shopeefood', 'delivery', 'takeaway', 'ta', 'nongkrong'
+  'gofood', 'grabfood', 'shopeefood', 'delivery', 'takeaway', 'ta', 'nongkrong',
+  'maksi', 'maksia', 'mamsi', 'mardun', 'buka', 'sahur'
+];
+
+/** Keterangan yang memuat salah satu kata ini bukan belanja makan sama sekali
+ *  (migrasi saldo, langganan, tarik tunai, biaya admin). Dicek pada kunci yang
+ *  sudah dinormalisasi, jadi cukup tulis dalam huruf kecil. */
+const RESTO_BUKAN_BELANJA = [
+  'migrasi', 'netflix', 'spotify', 'youtube', 'langganan', 'gestun', 'tartun',
+  'tarik tunai', 'transfer', 'topup', 'top up', 'saldo', 'admin', 'kas',
+  'tissue', 'tisu', 'tip', 'parkir', 'bensin', 'pulsa', 'listrik', 'gaji'
+];
+
+/** Kata yang terlalu umum untuk dipakai menyatukan dua nama tempat. 'kopi'
+ *  sendirian pernah menggabungkan 'kopi dari hati' + 'kopi toko djawa' jadi
+ *  satu resto — tiga tempat berbeda. Kunci yang SELURUH katanya generik tidak
+ *  boleh menyerap kunci lain. */
+const RESTO_GENERIK = [
+  'kopi', 'coffee', 'kafe', 'cafe', 'sate', 'satay', 'jus', 'juice', 'teh',
+  'susu', 'nasi', 'nasgor', 'mie', 'mi', 'bakmi', 'ayam', 'ikan', 'sayur',
+  'bakso', 'soto', 'roti', 'martabak', 'dimsum', 'es', 'aqua', 'air',
+  'makan', 'minum', 'snack', 'warung', 'warteg', 'kedai', 'resto', 'restoran'
 ];
 
 /** Keterangan yang jelas bukan aktivitas beli makan (transfer & infaq). */
@@ -738,7 +762,25 @@ function normalisasiResto_(ket) {
   let kata = s.split(' ').filter(Boolean);
   while (kata.length && RESTO_STOPWORD.indexOf(kata[0]) >= 0) kata.shift();
   while (kata.length && RESTO_STOPWORD.indexOf(kata[kata.length - 1]) >= 0) kata.pop();
-  return kata.join(' ');
+  const kunci = kata.join(' ');
+  if (!kunci) return '';
+  const berpagar = ' ' + kunci + ' ';
+  if (RESTO_BUKAN_BELANJA.some(w => berpagar.indexOf(' ' + w + ' ') >= 0)) return '';
+  return kunci;
+}
+
+/** Seluruh katanya kata umum → tidak layak jadi induk penggabungan. */
+function kunciGenerik_(k) {
+  const kata = k.split(' ').filter(Boolean);
+  return kata.length > 0 && kata.every(w => RESTO_GENERIK.indexOf(w) >= 0);
+}
+
+/** 'kopi toko djawa' → 'Kopi Toko Djawa'. Label diambil dari kunci, bukan dari
+ *  keterangan mentah, supaya konsisten dan bebas karakter aneh. */
+function judulResto_(k) {
+  return k.split(' ').filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
 }
 
 /**
@@ -750,10 +792,13 @@ function normalisasiResto_(ket) {
 function restoMirip_(a, b) {
   if (!a || !b) return false;
   if (a === b) return true;
+  // Kunci yang isinya kata umum saja ('kopi', 'sate') tidak boleh menyerap yang
+  // lain — itu nama jenis makanan, bukan nama tempat.
+  if (kunciGenerik_(a) || kunciGenerik_(b)) return false;
   if ((' ' + a + ' ').indexOf(' ' + b + ' ') >= 0) return true;
   if ((' ' + b + ' ').indexOf(' ' + a + ' ') >= 0) return true;
-  const ta = a.split(' ').filter(w => w.length >= 3);
-  const tb = b.split(' ').filter(w => w.length >= 3);
+  const ta = a.split(' ').filter(w => w.length >= 3 && RESTO_GENERIK.indexOf(w) < 0);
+  const tb = b.split(' ').filter(w => w.length >= 3 && RESTO_GENERIK.indexOf(w) < 0);
   if (!ta.length || !tb.length) return false;
   const setB = {};
   tb.forEach(w => { setB[w] = true; });
@@ -782,7 +827,10 @@ function statistikResto_(nominals) {
   const med = median_(s);
   const dev = s.map(v => Math.abs(v - med)).sort((a, b) => a - b);
   const mad = median_(dev);
-  const batas = mad > 0 ? RESTO_MAD_K * mad : med * 0.5;
+  // Lantai band: MAD bisa nyaris 0 kalau banyak nominal kembar (split tagihan
+  // rata), dan 3 x MAD lantas membuang harga yang masih sangat wajar. Band
+  // minimal +-35% median menjaga itu tanpa melonggarkan kasus normal.
+  const batas = Math.max(RESTO_MAD_K * mad, med * RESTO_BAND_MIN);
   let pakai = s.filter(v => Math.abs(v - med) <= batas);
   if (pakai.length < 3) pakai = s;
   const total = pakai.reduce((a, b) => a + b, 0);
@@ -814,7 +862,7 @@ function pindaiResto_(minTrx, kunciWajib) {
     if (val <= 0) return;
     const kunci = normalisasiResto_(ket);
     if (!kunci) return;
-    if (!varian[kunci]) varian[kunci] = { kunci: kunci, label: String(ket).trim(), nominals: [] };
+    if (!varian[kunci]) varian[kunci] = { kunci: kunci, nominals: [] };
     varian[kunci].nominals.push(val);
   });
 
@@ -829,7 +877,7 @@ function pindaiResto_(minTrx, kunciWajib) {
       induk.varian.push(k);
       induk.nominals.push.apply(induk.nominals, v.nominals);
     } else {
-      grup.push({ kunci: k, label: v.label, varian: [k], nominals: v.nominals.slice() });
+      grup.push({ kunci: k, varian: [k], nominals: v.nominals.slice() });
     }
   });
 
@@ -842,7 +890,7 @@ function pindaiResto_(minTrx, kunciWajib) {
     .map(g => {
       const st = statistikResto_(g.nominals);
       return {
-        nama: g.label, kunci: g.kunci, varian: g.varian.join(' | '),
+        nama: judulResto_(g.kunci), kunci: g.kunci, varian: g.varian.join(' | '),
         jumlah: st.jumlah, dipakai: st.dipakai,
         rata: st.rata, min: st.min, max: st.max
       };
