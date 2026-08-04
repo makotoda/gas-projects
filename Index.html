@@ -446,6 +446,42 @@
     to   { opacity: 1; transform: translateY(0); }
   }
 
+  /* CTA utama "Bukti Transfer" — ditaruh di ATAS kartu, bukan tombol kecil di
+     dasar seperti dulu: mayoritas orang datang justru untuk ini (top-up /
+     bayar dosa), tapi banyak yang tidak tahu fiturnya ada karena tombolnya
+     mungil dan tenggelam di bawah form. Gradient mint→cyan = warna "Pahala",
+     menegaskan bahwa alur ini menaikkan saldo. */
+  .cta-tf {
+    width: 100%;
+    display: flex; align-items: center; gap: 14px;
+    text-align: left;
+    padding: 15px 18px;
+    margin-bottom: 20px;
+    font: inherit;
+    color: #06121a;
+    background: linear-gradient(135deg, var(--mint), var(--cyan));
+    border: none; border-radius: 16px;
+    cursor: pointer;
+    box-shadow: 0 6px 24px rgba(52,211,153,.35);
+    transition: transform .15s, box-shadow .2s;
+  }
+  .cta-tf:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(52,211,153,.5); }
+  .cta-tf .ic { font-size: 25px; line-height: 1; flex: none; }
+  .cta-tf .tx { flex: 1; min-width: 0; }
+  .cta-tf .tx strong {
+    display: block;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px; font-weight: 700;
+  }
+  /* Tanpa opacity: di tema terang aksen mint/cyan lebih gelap, teks 11.5px
+     yang diredupkan jatuh ke ~3.8:1 (di bawah ambang AA 4.5:1). Hierarki
+     sudah cukup ditanggung ukuran & tebal huruf. */
+  .cta-tf .tx small {
+    display: block; margin-top: 3px;
+    font-size: 11.5px; line-height: 1.4;
+  }
+  .cta-tf .ar { font-size: 20px; font-weight: 700; flex: none; opacity: .6; }
+
   .submit-btn {
     width: 100%;
     margin-top: 22px;
@@ -1483,6 +1519,15 @@
   <div class="main">
     <!-- ===== Form input ===== -->
     <div class="card" id="formCard">
+      <button class="cta-tf" id="buktiBtn" type="button">
+        <span class="ic">🏦</span>
+        <span class="tx">
+          <strong>Sudah transfer? Upload buktinya</strong>
+          <small>Saldo otomatis nambah — nggak perlu isi form manual di bawah</small>
+        </span>
+        <span class="ar">›</span>
+      </button>
+
       <h2><span class="bar"></span>Catat Amalan</h2>
 
       <div id="namaField">
@@ -1523,8 +1568,7 @@
 
       <button class="submit-btn" id="submitBtn">Simpan catatan</button>
       <div style="display:flex; gap:8px; margin-top:8px">
-        <button class="music-btn" id="strukBtn" type="button" style="flex:1">📷 Upload Struk</button>
-        <button class="music-btn" id="buktiBtn" type="button" style="flex:1">🏦 Bukti Transfer</button>
+        <button class="music-btn" id="strukBtn" type="button" style="flex:1; justify-content:center">📷 Upload Struk (split tagihan)</button>
       </div>
       <input type="file" id="strukFile" accept="image/*" multiple style="display:none">
     </div>
@@ -2863,7 +2907,7 @@
     },
     {
       title: "Catat Amalan ✍️",
-      desc: "Nah ini yang paling penting. Ini buat rekam semua transaksi. Kalo antum abis bayar makanan, atau mau top up saldo (pahala) biar ga bolak-balik transfer nantinya, pilihnya yang pahala. Pilih dosa cuma kalo antum memang niatnya abis makan dikumpulin dulu utangnya, which is gapapa but thanks udah bantu ngurangin kerjaan ana untuk nyatet utang antum.<br><br>Nah kalau transfer, itu fitur buat ngirim saldo (pahala) ke semeton lain. Misal kelen berdua ada transaksi (gelap misalnya), daripada transfer, mending input aja di mari.",
+      desc: "Nah ini yang paling penting. Ini buat rekam semua transaksi. Kalo antum abis bayar makanan, atau mau top up saldo (pahala) biar ga bolak-balik transfer nantinya, pilihnya yang pahala. Pilih dosa cuma kalo antum memang niatnya abis makan dikumpulin dulu utangnya, which is gapapa but thanks udah bantu ngurangin kerjaan ana untuk nyatet utang antum.<br><br>Nah kalau transfer, itu fitur buat ngirim saldo (pahala) ke semeton lain. Misal kelen berdua ada transaksi (gelap misalnya), daripada transfer, mending input aja di mari.<br><br><strong>TAPI paling gampang:</strong> kalo antum udah TF beneran (top up saldo atau bayar utang), ga usah ngisi form ini sama sekali — pencet aja tombol hijau <strong>\"Sudah transfer? Upload buktinya\"</strong> di paling atas, foto/screenshot bukti TF-nya, beres. Nama sama nominalnya kebaca otomatis.",
       targetId: "formCard"
     },
     {
