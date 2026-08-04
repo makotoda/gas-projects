@@ -2802,11 +2802,14 @@
     const n = hari.length;
     if (n < 2) return '<div class="empty">Belum cukup data untuk grafik.</div>';
 
+    // Saldo TERAKHIR menentukan orang ini masuk grafik Pahala (saldo > 0) atau
+    // Dosa (saldo < 0). Yang digambar tetap saldo apa adanya — termasuk saat
+    // saldonya sempat menyeberang nol di tengah periode.
     const arah = metric === 'pahala' ? 1 : -1;
     const orang = (dataDeret.orang || [])
       .filter(o => !isGold_(o) && o.nilai[n - 1] * arah > 0)
-      .map(o => ({ nama: o.nama, foto: o.foto, nilai: o.nilai.map(v => v * arah) }))
-      .sort((a, b) => b.nilai[n - 1] - a.nilai[n - 1]);
+      .map(o => ({ nama: o.nama, foto: o.foto, nilai: o.nilai.slice() }))
+      .sort((a, b) => (b.nilai[n - 1] - a.nilai[n - 1]) * arah);
     if (!orang.length) return '<div class="empty">Belum ada data.</div>';
 
     let vMax = 0, vMin = 0;
@@ -2825,6 +2828,12 @@
       const gy = y(v);
       grid += `<line class="grafik-grid" x1="${GR_KIRI}" y1="${gy.toFixed(1)}" x2="${GRAFIK_W - GR_KANAN}" y2="${gy.toFixed(1)}"/>` +
         `<text class="grafik-sumbu" x="${GR_KIRI - 10}" y="${(gy + 4).toFixed(1)}" text-anchor="end">${fmt(Math.round(v))}</text>`;
+    }
+    // Garis nol: penanda batas pahala/dosa kalau saldo sempat menyeberang.
+    if (vMin < 0 && vMax > 0) {
+      const y0 = y(0);
+      grid += `<line x1="${GR_KIRI}" y1="${y0.toFixed(1)}" x2="${GRAFIK_W - GR_KANAN}" y2="${y0.toFixed(1)}" ` +
+        `stroke="var(--muted)" stroke-width="1.4" stroke-dasharray="5 4" opacity=".7"/>`;
     }
     // Label tanggal — tiap ~5 hari supaya tidak berdesakan
     const langkah = Math.max(1, Math.round(n / 6));
@@ -2863,7 +2872,7 @@
     }).join('');
 
     return '<div class="grafik-wrap">' +
-      `<div class="grafik-sub">Saldo ${metric === 'pahala' ? 'pahala' : 'dosa'} kumulatif ` +
+      `<div class="grafik-sub">Saldo akhir tiap hari · ` +
         `${esc(hari[0])} – ${esc(hari[n - 1])} · ${orang.length} orang</div>` +
       `<svg viewBox="0 0 ${GRAFIK_W} ${GRAFIK_H}" role="img">${grid}${garis}${label}</svg></div>`;
   }
