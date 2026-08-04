@@ -764,6 +764,22 @@
     transition: color .2s, border-color .2s;
   }
   .modal-close:hover { color: var(--text); border-color: var(--border); }
+  /* Papan resto (tab 🍜 Resto) — memakai ulang .lb-item/.lb-expand */
+  .resto-ikon {
+    width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px;
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border-soft);
+  }
+  .resto-detail {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px;
+    font-size: 12.5px;
+  }
+  .resto-detail > div { display: flex; justify-content: space-between; gap: 8px; }
+  .resto-detail span { color: var(--muted); }
+  .resto-note { font-size: 11px; color: var(--muted); margin-top: 8px; }
+
   .sm-row {
     display: grid;
     grid-template-columns: 34px 34px 1fr auto;
@@ -1742,11 +1758,13 @@
         <button class="tab" data-view="gold">🥇 Gold</button>
         <button class="tab" data-view="riwayat">🕐 Riwayat</button>
         <button class="tab" data-view="kas">💰 Kas</button>
+        <button class="tab" data-view="resto">🍜 Resto</button>
       </div>
       <div id="viewLeaderboard"></div>
       <div id="viewGold" style="display:none"></div>
       <div id="viewRiwayat" style="display:none"></div>
       <div id="viewKas" style="display:none"></div>
+      <div id="viewResto" style="display:none"></div>
     </div>
   </div>
 </div>
@@ -1842,6 +1860,7 @@
   let dataLeaderboard = [];
   let dataHistory = [];
   let dataKas = { saldo: 0, history: [], leaderboard: [] };
+  let dataResto = [];
   let dataAnggota = [];   // termasuk KAS (untuk pemilih laporan)
   let dataBulan = [];     // [{key:'2026-07', label:'Juli 2026'}] terbaru dulu
   let namaOptsDenganKas = '', namaOptsTanpaKas = '';
@@ -2637,6 +2656,63 @@
       animasiAngka(v, dataKas.leaderboard[i].total, 'kasboard:' + dataKas.leaderboard[i].nama));
   }
 
+  /* ---- Papan harga rata-rata resto (tab 🍜 Resto) ----
+     Urut termurah dulu (sudah diurutkan server). Angka rata-rata sudah bersih
+     dari transaksi borongan — rinciannya muncul saat baris diklik. */
+  let restoTerbuka = null;
+  function renderRestoBoard() {
+    const el = $('viewResto');
+    if (!dataResto.length) {
+      el.innerHTML = '<div class="empty">Belum ada data resto. Butuh minimal 10 transaksi ' +
+        'dengan keterangan yang sama sebelum sebuah tempat makan dikenali. 🍜</div>';
+      return;
+    }
+    const maxRata = Math.max(...dataResto.map(o => o.rata), 1);
+    el.innerHTML = dataResto.map((o, i) => {
+      const rank = i + 1;
+      const pct = Math.max(4, Math.round(o.rata / maxRata * 100));
+      const open = restoTerbuka === o.nama;
+      return `
+      <div class="lb-item resto-item${open ? ' open' : ''}" data-nama="${esc(o.nama)}">
+        <div class="lb-row">
+          <div class="rank${rank <= 3 ? ' r' + rank : ''}">${rank}</div>
+          <div class="resto-ikon">🍜</div>
+          <div>
+            <div class="lb-name">${esc(o.nama)} <span class="chev">▼</span></div>
+            <div class="lb-meter"><i style="width:${pct}%"></i></div>
+          </div>
+          <div>
+            <div class="lb-saldo pos" data-resto-rata>${fmt(o.rata)}</div>
+            <div class="lb-sub">${o.dipakai} transaksi</div>
+          </div>
+        </div>
+        <div class="lb-expand"><div>
+          <div class="lb-expand-inner">
+            <div class="lb-expand-title">Rincian harga</div>
+            <div class="resto-detail">
+              <div><span>Termurah</span><b>${fmt(o.min)}</b></div>
+              <div><span>Termahal</span><b>${fmt(o.max)}</b></div>
+              <div><span>Dipakai</span><b>${o.dipakai} dari ${o.jumlah}</b></div>
+              <div><span>Diperbarui</span><b>${esc(o.update || '-')}</b></div>
+            </div>
+            <div class="resto-note">${o.jumlah - o.dipakai} transaksi borongan
+              (jauh dari harga wajar) tidak ikut dihitung.</div>
+          </div>
+        </div></div>
+      </div>`;
+    }).join('');
+
+    el.querySelectorAll('.resto-item').forEach(item => {
+      item.querySelector('.lb-row').addEventListener('click', () => {
+        restoTerbuka = restoTerbuka === item.dataset.nama ? null : item.dataset.nama;
+        el.querySelectorAll('.resto-item').forEach(it =>
+          it.classList.toggle('open', it.dataset.nama === restoTerbuka));
+      });
+    });
+    el.querySelectorAll('[data-resto-rata]').forEach((v, i) =>
+      animasiAngka(v, dataResto[i].rata, 'resto:' + dataResto[i].nama));
+  }
+
   /* ---- Modal leaderboard per statistik (klik kartu Total ...) ---- */
   const statMeta = {
     pahala: { title: '✨ Leaderboard Pahala' },
@@ -2765,6 +2841,7 @@
     dataLeaderboard = data.leaderboard;
     dataHistory = data.history;
     dataKas = data.kas;
+    dataResto = data.resto || [];
     dataAnggota = data.anggota || [];
     dataBulan = data.bulanList || [];
     dataStrukAlias = data.strukAlias || dataStrukAlias;
@@ -2772,6 +2849,7 @@
     renderLeaderboard();
     renderGoldBoard();
     renderKasBoard();
+    renderRestoBoard();
 
     // Kalau modal leaderboard sedang terbuka, segarkan isinya juga
     if ($('statModal').classList.contains('show')) renderStatModal();
@@ -3195,6 +3273,7 @@
     $('viewGold').style.display = view === 'gold' ? '' : 'none';
     $('viewRiwayat').style.display = view === 'riwayat' ? '' : 'none';
     $('viewKas').style.display = view === 'kas' ? '' : 'none';
+    $('viewResto').style.display = view === 'resto' ? '' : 'none';
   }
 
   function startTutorial() {

@@ -131,6 +131,15 @@ Do this deliberately, not casually — it's user-visible and affects everyone wi
   via `setupSheets()`, **resetting `Anggota` back to the hardcoded default list** and wiping
   any custom roster edits. There is no confirmation prompt and no backup.
   Be careful before renaming/deleting sheets on the live spreadsheet.
+- **Daftar resto (sheet `Resto`) tidak dihitung ulang tiap load.** Ia adalah cache yang
+  ditulis hanya saat (a) ada transaksi `Dosa` baru yang keterangannya cocok dengan resto
+  yang SUDAH terdaftar, atau (b) `refreshResto()` / `tambahResto('nama')` dijalankan manual
+  dari editor Apps Script. Resto baru (< 10 transaksi) **tidak akan muncul sendiri** — itu
+  disengaja. Pakai `debugResto()` untuk melihat sebaran nominal asli sebelum menyetel
+  `RESTO_MIN_TRX` / `RESTO_MAD_K`.
+- **Nama resto tidak punya kolom sendiri** — ditebak dari kolom `Keterangan` baris `Dosa`
+  lewat `normalisasiResto_` + `restoMirip_`. Salah tangkap itu wajar; buang dengan
+  `hapusResto('nama')`, jangan tambal dengan aturan khusus di `submitAmalan`.
 - **`clasp push` pushes everything in the directory**, including `harga.gs.js` — there is no
   `.claspignore`. If you add scratch/experimental files to this folder, they will get pushed
   to the live Apps Script project unless you add a `.claspignore`.
