@@ -75,6 +75,12 @@
     background: rgba(252, 252, 255, 0.97);
     box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
   }
+  /* Tanpa ini, latar pekat gelap tooltip terbawa ke tema terang dan
+     bertabrakan dengan warna teksnya yang ikut var(--text) jadi gelap. */
+  body.light #tutorialTooltip {
+    background: rgba(252, 252, 255, 0.98);
+    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(15, 23, 42, 0.05);
+  }
   /* Aksen light lebih gelap, jadi teks putih terbaca di ketiga slider */
   body.light .toggle button.active { color: #fff; }
 
@@ -1016,7 +1022,13 @@
     position: fixed;
     z-index: 10002;
     width: 320px;
-    background: var(--glass-strong);
+    /* Latar nyaris pekat, BUKAN var(--glass-strong) (putih 9% di tema gelap).
+       Kaca setipis itu hanya terbaca kalau backdrop-filter hidup, padahal di
+       layar sentuh blur dimatikan permanen (lihat aturan di awal berkas) —
+       akibatnya tulisan latar tembus dan tooltip sulit dibaca di HP. Ikut pola
+       .modal-card, tapi lebih pekat: blur #tutorialOverlay di belakangnya juga
+       ikut mati di mobile, jadi bantuannya lebih sedikit daripada modal. */
+    background: rgba(19, 19, 40, .97);
     border: 1px solid var(--border);
     border-radius: 18px;
     padding: 20px;
@@ -1034,6 +1046,15 @@
     transform: scale(1);
     pointer-events: auto;
   }
+  /* Sejak latar tooltip jadi pekat, kontras teksnya bisa diukur pasti — dan
+     dua di antaranya ternyata di bawah ambang AA 4.5:1 untuk teks kecil:
+     indikator langkah di tema gelap (4.31) dan teks isi di tema terang
+     (4.26). Diperbaiki dalam lingkup tooltip saja supaya palet global,
+     yang dipakai di angka besar/tebal dengan ambang 3:1, tidak ikut berubah. */
+  #tutorialTooltip .tutorial-step-indicator { color: #a78bfa; }
+  #tutorialTooltip .tutorial-desc { color: rgba(226, 224, 255, .85); }
+  body.light #tutorialTooltip .tutorial-step-indicator { color: #6d28d9; }
+  body.light #tutorialTooltip .tutorial-desc { color: rgba(26, 22, 51, .8); }
   .tutorial-step-indicator {
     font-size: 11px;
     font-weight: 600;
