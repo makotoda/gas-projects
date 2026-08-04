@@ -449,8 +449,10 @@ function saveInfaqMap(map) {
   return getDashboardData();
 }
 
-/** Jumlah hari yang digambar di grafik saldo harian (modal Total Pahala/Dosa). */
-const DERET_HARI = 30;
+/** Batas aman jumlah hari di grafik saldo harian. Untuk sementara grafik
+ *  memakai SELURUH riwayat (sejak transaksi pertama), bukan jendela tetap;
+ *  batas ini hanya menjaga payload tidak meledak kalau data sudah bertahun. */
+const DERET_HARI_MAX = 730;
 
 /**
  * Saldo kumulatif tiap orang per hari untuk DERET_HARI hari terakhir.
@@ -459,10 +461,27 @@ const DERET_HARI = 30;
  * Dipakai grafik garis di modal Total Pahala/Dosa (tampilan desktop).
  */
 function deretHarian_(rows, tz, fotoMap) {
-  const hariKey = [];
+  const hariDari = t => Utilities.formatDate(t, tz, 'yyyy-MM-dd');
+  const tglDari = ts => {
+    const t = ts instanceof Date ? ts : new Date(ts);
+    return (!t || isNaN(t.getTime())) ? null : t;
+  };
+
+  // Rentang = sejak transaksi pertama sampai hari ini (dibatasi DERET_HARI_MAX).
   const now = new Date();
-  for (let i = DERET_HARI - 1; i >= 0; i--) {
-    hariKey.push(Utilities.formatDate(new Date(now.getTime() - i * 86400000), tz, 'yyyy-MM-dd'));
+  let paling = null;
+  rows.forEach(r => {
+    const t = tglDari(r[0]);
+    if (t && t.getTime() < now.getTime() && (!paling || t.getTime() < paling.getTime())) paling = t;
+  });
+  const hariAwal = new Date(now.getTime() -
+    Math.min(DERET_HARI_MAX - 1,
+      paling ? Math.floor((now.getTime() - paling.getTime()) / 86400000) : 29) * 86400000);
+  const jumlahHari = Math.floor((now.getTime() - hariAwal.getTime()) / 86400000) + 1;
+
+  const hariKey = [];
+  for (let i = 0; i < jumlahHari; i++) {
+    hariKey.push(hariDari(new Date(hariAwal.getTime() + i * 86400000)));
   }
   const posisi = {};
   hariKey.forEach((h, i) => { posisi[h] = i; });
@@ -475,7 +494,7 @@ function deretHarian_(rows, tz, fotoMap) {
   // tidak terbaca (mis. hasil migrasi yang tersimpan sebagai teks) — baris
   // seperti itu tetap masuk saldo, hanya tidak memengaruhi bentuk kurvanya.
   const saldo = {};
-  const delta = {};  // nama → perubahan saldo per hari dalam jendela
+  const delta = {};  // nama → perubahan saldo per hari dalam rentang
   rows.forEach(r => {
     const [ts, nama, tipe, nominal] = r;
     const nm = String(nama).trim();
@@ -484,12 +503,12 @@ function deretHarian_(rows, tz, fotoMap) {
     const d = tipe === 'Dosa' ? -val : val;
     saldo[nm] = (saldo[nm] || 0) + d;
 
-    const t = ts instanceof Date ? ts : new Date(ts);
-    if (!t || isNaN(t.getTime())) return;                  // tak terbaca → hanya ke saldo
-    const k = Utilities.formatDate(t, tz, 'yyyy-MM-dd');
-    if (k < batasAwal) return;                             // sebelum jendela
-    const i = posisi[k] === undefined ? DERET_HARI - 1 : posisi[k]; // masa depan → hari ini
-    if (!delta[nm]) delta[nm] = new Array(DERET_HARI).fill(0);
+    const t = tglDari(ts);
+    if (!t) return;                                        // tak terbaca → hanya ke saldo
+    const k = hariDari(t);
+    if (k < batasAwal) return;                             // di luar rentang (terpotong batas)
+    const i = posisi[k] === undefined ? jumlahHari - 1 : posisi[k]; // masa depan → hari ini
+    if (!delta[nm]) delta[nm] = new Array(jumlahHari).fill(0);
     delta[nm][i] += d;
   });
 
@@ -498,9 +517,9 @@ function deretHarian_(rows, tz, fotoMap) {
     tanggal: hariKey,
     orang: Object.keys(saldo).map(nm => {
       const dl = delta[nm] || [];
-      const nilai = new Array(DERET_HARI);
+      const nilai = new Array(jumlahHari);
       let run = saldo[nm];
-      for (let i = DERET_HARI - 1; i >= 0; i--) {
+      for (let i = jumlahHari - 1; i >= 0; i--) {
         nilai[i] = run;              // saldo pada akhir hari ke-i
         run -= (dl[i] || 0);         // mundur satu hari
       }

@@ -2769,8 +2769,25 @@
      Nilai yang digambar = saldo kumulatif; untuk metrik 'dosa' dipakai
      besarnya (−saldo) supaya semua garis positif dan bisa dibandingkan. */
   const GRAFIK_MIN_LEBAR = 900;   // di bawah ini modal tetap memakai daftar peringkat
-  const GRAFIK_W = 1180, GRAFIK_H = 560;
+  const GRAFIK_W = 1180, GRAFIK_H_MIN = 560;
   const GR_KIRI = 76, GR_KANAN = 168, GR_ATAS = 18, GR_BAWAH = 38;
+  const GR_JARAK = 34;   // jarak vertikal minimal antar label ujung garis
+
+  /** Titik-titik → jalur SVG mulus (Catmull-Rom diubah ke kurva bézier kubik),
+   *  supaya garis tidak patah-patah di tiap hari. */
+  function jalurMulus_(t) {
+    if (t.length < 2) return '';
+    let d = 'M' + t[0][0].toFixed(1) + ' ' + t[0][1].toFixed(1);
+    for (let i = 0; i < t.length - 1; i++) {
+      const p0 = t[i - 1] || t[i], p1 = t[i], p2 = t[i + 1], p3 = t[i + 2] || p2;
+      const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+      const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+      d += ' C' + c1x.toFixed(1) + ' ' + c1y.toFixed(1) + ',' +
+        c2x.toFixed(1) + ' ' + c2y.toFixed(1) + ',' +
+        p2[0].toFixed(1) + ' ' + p2[1].toFixed(1);
+    }
+    return d;
+  }
 
   function warnaGaris_(i) {
     return 'hsl(' + Math.round((i * 137.508) % 360) + ' 72% 62%)';
@@ -2818,8 +2835,21 @@
     const pad = (vMax - vMin) * 0.06;
     vMax += pad; vMin -= pad;
 
+    // Tinggi menyesuaikan jumlah orang: dengan tinggi tetap, label ujung yang
+    // sudah dirapikan bisa terdorong ke luar kanvas sehingga sebagian orang
+    // seolah hilang padahal garisnya tergambar.
+    const GRAFIK_H = Math.max(GRAFIK_H_MIN,
+      GR_ATAS + GR_BAWAH + 40 + (orang.length - 1) * GR_JARAK);
+
+    // Grafik Dosa memakai sumbu Y terbalik: dosa TERBANYAK (saldo paling
+    // negatif) di atas, sesuai urutan peringkat. Nilai yang ditulis tetap
+    // saldo apa adanya — yang dibalik arah sumbunya, bukan angkanya.
+    const terbalik = arah < 0;
     const x = i => GR_KIRI + i * (GRAFIK_W - GR_KIRI - GR_KANAN) / (n - 1);
-    const y = v => GR_ATAS + (vMax - v) / (vMax - vMin) * (GRAFIK_H - GR_ATAS - GR_BAWAH);
+    const y = v => {
+      const r = (vMax - v) / (vMax - vMin);
+      return GR_ATAS + (terbalik ? 1 - r : r) * (GRAFIK_H - GR_ATAS - GR_BAWAH);
+    };
 
     // Garis bantu horizontal + label nilai
     let grid = '';
@@ -2842,11 +2872,11 @@
     }
 
     const ujung = orang.map((o, i) => ({ i: i, y: y(o.nilai[n - 1]) }));
-    rapikanUjung_(ujung, 34, GR_ATAS + 16, GRAFIK_H - GR_BAWAH - 4);
+    rapikanUjung_(ujung, GR_JARAK, GR_ATAS + 16, GRAFIK_H - GR_BAWAH - 4);
 
     const garis = orang.map((o, i) => {
-      const titik = o.nilai.map((v, j) => x(j).toFixed(1) + ',' + y(v).toFixed(1)).join(' ');
-      return `<polyline class="grafik-garis" data-garis="${i}" points="${titik}" stroke="${warnaGaris_(i)}"/>`;
+      const jalur = jalurMulus_(o.nilai.map((v, j) => [x(j), y(v)]));
+      return `<path class="grafik-garis" data-garis="${i}" d="${jalur}" stroke="${warnaGaris_(i)}"/>`;
     }).join('');
 
     const xAkhir = x(n - 1);
