@@ -904,7 +904,10 @@
      margin-right (bukan gap) supaya tiap kartu lebarnya seragam
      (kartu + margin); dengan gap, -50% meleset setengah gap dan geserannya
      terlihat meloncat tiap putaran. */
-  .ayat-sec { margin-top: 30px; }
+  /* 20px = jarak yang sama dengan .stats terhadap header, supaya ritme
+     vertikal halaman tetap seragam sekarang pita ini duduk tepat di
+     bawah kartu header. */
+  .ayat-sec { margin-top: 20px; }
   .ayat-head {
     display: flex; align-items: center; gap: 10px;
     margin-bottom: 14px; padding: 0 2px;
@@ -1605,6 +1608,19 @@
     </div>
   </header>
 
+  <!-- Pita ayat 6 agama; isinya dirender dari array di script (dua kali,
+       demi loop mulus) — lihat komentar di .ayat-track. -->
+  <section class="ayat-sec">
+    <div class="ayat-head">
+      <span class="bar"></span>
+      <h2>Kata Kitab Soal Utang</h2>
+      <span>Enam agama, satu pesan: catat &amp; lunasi</span>
+    </div>
+    <div class="ayat-wrap">
+      <div class="ayat-track" id="ayatTrack"></div>
+    </div>
+  </section>
+
   <section class="stats" id="statsContainer">
     <div class="stat pahala" data-metric="pahala" role="button">
       <div class="label">Total Pahala</div>
@@ -1691,19 +1707,6 @@
       <div id="viewKas" style="display:none"></div>
     </div>
   </div>
-
-  <!-- Pita ayat 6 agama; isinya dirender dari array di script (dua kali,
-       demi loop mulus) — lihat komentar di .ayat-track. -->
-  <section class="ayat-sec">
-    <div class="ayat-head">
-      <span class="bar"></span>
-      <h2>Kata Kitab Soal Utang</h2>
-      <span>Enam agama, satu pesan: catat &amp; lunasi</span>
-    </div>
-    <div class="ayat-wrap">
-      <div class="ayat-track" id="ayatTrack"></div>
-    </div>
-  </section>
 </div>
 
 <div id="statModal">
