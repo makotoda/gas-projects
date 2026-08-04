@@ -1113,17 +1113,32 @@
 
   @media (max-width: 680px) {
     #tutorialTooltip {
+      /* absolute = koordinat DOKUMEN, bukan viewport. Di embed Google Sites
+         halaman ini hidup dalam iframe, dan "viewport" bagi position:fixed
+         adalah tinggi IFRAME (bisa ribuan px), bukan layar HP — tooltip yang
+         dipatok ke dasar viewport mendarat jauh di bawah area yang terlihat
+         sehingga tombolnya hilang. Posisi `top` diisi positionTooltip(). */
+      position: absolute;
       width: calc(100% - 32px) !important;
       left: 16px !important;
-      right: 16px !important;
-      bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
-      top: auto !important;
+      right: auto !important;
+      bottom: auto !important;
       transform: translateY(20px);
       /* Jangan sampai keluar frame: batasi tinggi & scroll di dalam */
       display: flex;
       flex-direction: column;
-      max-height: calc(100vh - 32px - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px));
-      max-height: calc(100dvh - 32px - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px));
+      /* Batas px mutlak wajib ada: di dalam embed 100dvh juga mengukur tinggi
+         IFRAME, jadi dvh sendirian tidak membatasi apa pun dan tombol kembali
+         terdorong keluar layar. Kalau dibuka langsung, dvh yang lebih kecil
+         tetap menang lewat min().
+         ponytail: 340px itu tebakan konservatif — dari dalam iframe lintas
+         domain tinggi layar HP yang sebenarnya memang tidak bisa dibaca.
+         Cukup untuk layar >= ~620px terlihat; kalau nanti ada laporan
+         terpotong di HP mungil, ukur pakai IntersectionObserver
+         (intersectionRect tetap terpotong oleh frame induk) lalu pakai
+         tinggi hasil ukurnya sebagai ganti angka ini. */
+      max-height: 340px;
+      max-height: min(340px, calc(100dvh - 32px - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px)));
     }
     #tutorialTooltip.show {
       transform: translateY(0);
@@ -3144,11 +3159,13 @@
     }
 
     setTimeout(() => {
-      positionTooltip(target);
+      positionTooltip(target, true);
     }, 150);
   }
 
-  function positionTooltip(target) {
+  // reveal: gulirkan tooltip ke tampak. Hanya boleh true dari showTutorialStep,
+  // tidak dari handler scroll/resize (lihat catatan di cabang mobile).
+  function positionTooltip(target, reveal) {
     const tooltip = $('tutorialTooltip');
     const overlay = $('tutorialOverlay');
     
@@ -3187,7 +3204,45 @@
     }
 
     if (window.innerWidth < 680) {
+      // Koordinat DOKUMEN, bukan viewport — alasannya di catatan CSS
+      // #tutorialTooltip (media query mobile): di embed Sites, viewport bagi
+      // position:fixed adalah tinggi iframe, bukan layar HP.
+      const y = window.scrollY || document.documentElement.scrollTop || 0;
+      let atas;
+      if (target) {
+        const r = target.getBoundingClientRect();
+        // Di bawah elemen yang disorot — tapi jangan terlalu jauh dari
+        // puncaknya: kartu form/leaderboard tingginya bisa ratusan piksel,
+        // dan showTutorialStep sudah menggulir puncak target ke atas layar.
+        // Tanpa batas ini tooltip mendarat jauh di bawah lipatan lagi.
+        atas = Math.min(y + r.bottom + 12, y + r.top + 200);
+      } else {
+        atas = y + 24;
+      }
+      // Jangan sampai jatuh di bawah layar. Saat dibuka LANGSUNG, innerHeight
+      // memang tinggi layar, dan pembatas ini menyelamatkan kasus target yang
+      // tidak bisa digulir ke puncak karena dokumennya sudah mentok (mis.
+      // kartu leaderboard yang paling bawah). Saat di-EMBED, innerHeight =
+      // tinggi iframe sehingga pembatas ini tidak berpengaruh — di sana yang
+      // bekerja pembatas jarak ke puncak target di atas.
+      const maksAtas = y + window.innerHeight - th - 16;
+      tooltip.style.top = Math.max(y + 12, Math.min(atas, maksAtas)) + 'px';
+      tooltip.style.bottom = 'auto';
+      // Biarkan CSS yang menganimasikan masuknya; inline transform sisa dari
+      // render versi desktop akan mematikan animasi itu.
+      tooltip.style.transform = '';
       tooltip.classList.add('show');
+      // Gulirkan ke tampak hanya untuk langkah TANPA target (langkah 1 & 7);
+      // langkah bertarget sudah digulirkan lewat target.scrollIntoView di
+      // showTutorialStep, dan menggulir dua kali malah saling rebutan.
+      // block:'center', BUKAN 'nearest': di dalam iframe setinggi ribuan
+      // piksel hampir semua elemen dianggap "sudah terlihat", sehingga
+      // 'nearest' memutuskan tidak menggulir apa pun dan tooltip tetap di
+      // luar layar HP. 'center' selalu menggulir, dan gulirannya merambat
+      // ke frame induk saat halaman di-embed.
+      if (reveal && !target) {
+        tooltip.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
       return;
     }
 
