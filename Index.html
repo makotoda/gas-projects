@@ -3075,34 +3075,52 @@
     const bingkai = trek.parentElement;
     const LAJU = 26;            // px/detik, kira-kira sama dengan versi animasi 70 detik
     const JEDA_SETELAH_SENTUH = 1200;  // beri waktu inersia geseran selesai dulu
-    let bolehJalan = motionOK;  // hormati prefers-reduced-motion
+    let tahanHover = false;
     let lanjutPada = 0;
     let frameTerakhir = 0;
+    // Posisi disimpan sebagai PECAHAN di sini lalu ditulis ke scrollLeft
+    // sebagai nilai MUTLAK. Menaikkan scrollLeft dengan += tidak bisa dipakai:
+    // kenaikan per frame cuma ~0.43px sedangkan scrollLeft membulatkan nilainya
+    // ke piksel perangkat. Mesin yang membulatkan ke BAWAH membuat pita tak
+    // pernah bergerak sama sekali; yang membulatkan ke ATAS membuat lajunya
+    // melenceng jauh (terukur 40px alih-alih 26px per detik).
+    let posisi = 0;
+    let perluSinkron = true;
 
-    const tahan = () => { bolehJalan = false; };
-    const lepas = () => {
-      if (!motionOK) return;
+    const tunda = () => {
       lanjutPada = performance.now() + JEDA_SETELAH_SENTUH;
-      bolehJalan = true;
+      perluSinkron = true;   // hormati ke mana pengguna menggeser
     };
-    ['pointerenter', 'pointerdown', 'touchstart'].forEach(ev =>
-      bingkai.addEventListener(ev, tahan, { passive: true }));
-    ['pointerleave', 'pointerup', 'touchend', 'touchcancel'].forEach(ev =>
-      bingkai.addEventListener(ev, lepas, { passive: true }));
+    // Jeda-saat-hover hanya untuk tetikus: di layar sentuh pointerenter ikut
+    // menyala waktu jari menyentuh, dan kalau pointerleave-nya tak pernah
+    // datang, pita akan diam selamanya.
+    bingkai.addEventListener('pointerenter', e => {
+      if (e.pointerType === 'mouse') tahanHover = true;
+    }, { passive: true });
+    bingkai.addEventListener('pointerleave', e => {
+      if (e.pointerType === 'mouse') tahanHover = false;
+      tunda();
+    }, { passive: true });
+    ['pointerdown', 'pointerup', 'touchstart', 'touchmove', 'touchend', 'touchcancel', 'wheel']
+      .forEach(ev => bingkai.addEventListener(ev, tunda, { passive: true }));
 
     function langkah(t) {
       const separuh = trek.scrollWidth / 2;
       if (separuh > 0) {
         const dt = frameTerakhir ? (t - frameTerakhir) / 1000 : 0;
         frameTerakhir = t;
-        // dt besar = tab sempat tidak aktif; jangan melompat jauh saat kembali.
-        if (bolehJalan && t >= lanjutPada && dt > 0 && dt < 0.5) {
-          bingkai.scrollLeft += LAJU * dt;
+        if (motionOK && !tahanHover && t >= lanjutPada) {
+          if (perluSinkron) { posisi = bingkai.scrollLeft; perluSinkron = false; }
+          // dt besar = tab sempat tidak aktif; jangan melompat jauh saat kembali.
+          if (dt > 0 && dt < 0.5) posisi += LAJU * dt;
+          // Lipat balik ke salinan pertama/kedua — tak terlihat karena identik.
+          // Berlaku dua arah, jadi digeser mundur pun tetap tak berujung.
+          if (posisi >= separuh) posisi -= separuh;
+          else if (posisi < 0) posisi += separuh;
+          bingkai.scrollLeft = posisi;
+        } else {
+          perluSinkron = true;
         }
-        // Lipat balik ke salinan pertama/kedua — tak terlihat karena identik.
-        // Berlaku dua arah, jadi digeser mundur pun tetap tak berujung.
-        if (bingkai.scrollLeft >= separuh) bingkai.scrollLeft -= separuh;
-        else if (bingkai.scrollLeft < 0) bingkai.scrollLeft += separuh;
       }
       requestAnimationFrame(langkah);
     }
