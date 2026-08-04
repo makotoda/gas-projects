@@ -468,7 +468,13 @@ function deretHarian_(rows, tz, fotoMap) {
   hariKey.forEach((h, i) => { posisi[h] = i; });
   const batasAwal = hariKey[0];
 
-  const awal = {};   // nama → saldo sebelum jendela
+  // saldo = TOTAL semua transaksi, dihitung dengan aturan yang sama persis
+  // dengan leaderboard. Deret harian diturunkan MUNDUR dari angka ini, bukan
+  // dijumlahkan maju dari nol: dengan begitu titik terakhir grafik dijamin
+  // sama dengan saldo di leaderboard walau ada baris yang stempel waktunya
+  // tidak terbaca (mis. hasil migrasi yang tersimpan sebagai teks) — baris
+  // seperti itu tetap masuk saldo, hanya tidak memengaruhi bentuk kurvanya.
+  const saldo = {};
   const delta = {};  // nama → perubahan saldo per hari dalam jendela
   rows.forEach(r => {
     const [ts, nama, tipe, nominal] = r;
@@ -476,26 +482,28 @@ function deretHarian_(rows, tz, fotoMap) {
     const val = Number(nominal) || 0;
     if (!nm || !val || nm === KAS_NAMA) return;
     const d = tipe === 'Dosa' ? -val : val;
-    const k = ts instanceof Date ? Utilities.formatDate(ts, tz, 'yyyy-MM-dd') : '';
-    if (!k) return;
-    if (k < batasAwal) { awal[nm] = (awal[nm] || 0) + d; return; }
-    const i = posisi[k];
-    if (i === undefined) return; // timestamp di masa depan — abaikan
+    saldo[nm] = (saldo[nm] || 0) + d;
+
+    const t = ts instanceof Date ? ts : new Date(ts);
+    if (!t || isNaN(t.getTime())) return;                  // tak terbaca → hanya ke saldo
+    const k = Utilities.formatDate(t, tz, 'yyyy-MM-dd');
+    if (k < batasAwal) return;                             // sebelum jendela
+    const i = posisi[k] === undefined ? DERET_HARI - 1 : posisi[k]; // masa depan → hari ini
     if (!delta[nm]) delta[nm] = new Array(DERET_HARI).fill(0);
     delta[nm][i] += d;
   });
 
-  const semua = {};
-  Object.keys(awal).forEach(n => { semua[n] = true; });
-  Object.keys(delta).forEach(n => { semua[n] = true; });
-
   return {
     hari: hariKey.map(k => k.slice(8) + '/' + k.slice(5, 7)), // 'dd/MM'
     tanggal: hariKey,
-    orang: Object.keys(semua).map(nm => {
+    orang: Object.keys(saldo).map(nm => {
       const dl = delta[nm] || [];
-      let run = awal[nm] || 0;
-      const nilai = hariKey.map((_, i) => { run += (dl[i] || 0); return run; });
+      const nilai = new Array(DERET_HARI);
+      let run = saldo[nm];
+      for (let i = DERET_HARI - 1; i >= 0; i--) {
+        nilai[i] = run;              // saldo pada akhir hari ke-i
+        run -= (dl[i] || 0);         // mundur satu hari
+      }
       return { nama: nm, foto: fotoMap[nm] || '', nilai: nilai };
     })
   };
