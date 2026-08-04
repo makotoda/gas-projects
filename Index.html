@@ -121,10 +121,9 @@
   @media (prefers-reduced-motion: reduce) {
     .orb { animation: none; }
     * { transition: none !important; }
-    /* Pita ayat berhenti bergerak; ditukar jadi strip yang digeser manual
-       supaya kartu di belakang tetap bisa dibaca, bukan sekadar terpotong. */
-    .ayat-track { animation: none; }
-    .ayat-wrap { overflow-x: auto; }
+    /* Pita ayat: jalan-otomatisnya dimatikan di script (lihat motionOK di
+       jalankanPitaAyat_). Tidak ada lagi yang perlu diatur di sini — pita
+       memang sudah berupa strip yang bisa digeser manual. */
   }
 
   /* Saat pinch-zoom dalam (visualViewport.scale besar), semua efek blur
@@ -904,11 +903,15 @@
   #toast.err { border-color: rgba(251,113,133,.5); box-shadow: 0 0 24px rgba(251,113,133,.25); }
 
   /* ===== Pita ayat: kartu bergerak horizontal, 6 agama =====
-     Murni CSS: satu keyframe menggeser track sejauh -50%, dan daftar kartu
-     dirender DUA KALI oleh script sehingga titik -50% jatuh persis di awal
-     salinan kedua → loop tanpa sambungan. Jarak antarkartu memakai
-     margin-right (bukan gap) supaya tiap kartu lebarnya seragam
-     (kartu + margin); dengan gap, -50% meleset setengah gap dan geserannya
+     Gerakannya memakai scroll NATIVE (scrollLeft dinaikkan tiap frame), bukan
+     animasi transform. Dengan begitu menggeser manual jadi gratis: sentuhan,
+     trackpad, dan roda mouse ditangani browser sendiri — tak perlu menunggu
+     pita berjalan sampai kartu yang ingin dibaca lewat.
+     Daftar kartu dirender DUA KALI oleh script; begitu scrollLeft melewati
+     separuh lebar track, angkanya dikurangi separuh sehingga loop tak
+     berujung dan sambungannya tak terlihat (kartunya identik). Jarak
+     antarkartu memakai margin-right (bukan gap) supaya tiap kartu lebarnya
+     seragam — dengan gap, titik separuh meleset setengah gap dan geserannya
      terlihat meloncat tiap putaran. */
   /* 20px = jarak yang sama dengan .stats terhadap header, supaya ritme
      vertikal halaman tetap seragam sekarang pita ini duduk tepat di
@@ -933,20 +936,23 @@
   }
   .ayat-wrap {
     position: relative;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
+    /* Jangan sampai geseran mendatar di tepi memicu navigasi "kembali". */
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    /* Batang gulir disembunyikan: ini pita hiasan, bukan daftar yang perlu
+       penunjuk posisi — lagi pula gulirannya tak berujung. */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
     /* Tepi kiri-kanan dilembutkan supaya kartu tidak terpotong mendadak. */
     -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
     mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
   }
+  .ayat-wrap::-webkit-scrollbar { display: none; }
   .ayat-track {
     display: flex;
     width: max-content;
-    animation: ayat-jalan 70s linear infinite;
-  }
-  .ayat-wrap:hover .ayat-track { animation-play-state: paused; }
-  @keyframes ayat-jalan {
-    from { transform: translateX(0); }
-    to   { transform: translateX(-50%); }
   }
   .ayat-card {
     flex: none;
@@ -3060,6 +3066,49 @@
   $('ayatTrack').innerHTML =
     AYAT.map(a => kartuAyat_(a, false)).join('') +
     AYAT.map(a => kartuAyat_(a, true)).join('');
+
+  // Jalan otomatis dengan menaikkan scrollLeft tiap frame — BUKAN animasi
+  // transform, supaya menggeser manual ditangani browser sendiri (sentuh,
+  // trackpad, roda mouse) tanpa kode tambahan.
+  function jalankanPitaAyat_() {
+    const trek = $('ayatTrack');
+    const bingkai = trek.parentElement;
+    const LAJU = 26;            // px/detik, kira-kira sama dengan versi animasi 70 detik
+    const JEDA_SETELAH_SENTUH = 1200;  // beri waktu inersia geseran selesai dulu
+    let bolehJalan = motionOK;  // hormati prefers-reduced-motion
+    let lanjutPada = 0;
+    let frameTerakhir = 0;
+
+    const tahan = () => { bolehJalan = false; };
+    const lepas = () => {
+      if (!motionOK) return;
+      lanjutPada = performance.now() + JEDA_SETELAH_SENTUH;
+      bolehJalan = true;
+    };
+    ['pointerenter', 'pointerdown', 'touchstart'].forEach(ev =>
+      bingkai.addEventListener(ev, tahan, { passive: true }));
+    ['pointerleave', 'pointerup', 'touchend', 'touchcancel'].forEach(ev =>
+      bingkai.addEventListener(ev, lepas, { passive: true }));
+
+    function langkah(t) {
+      const separuh = trek.scrollWidth / 2;
+      if (separuh > 0) {
+        const dt = frameTerakhir ? (t - frameTerakhir) / 1000 : 0;
+        frameTerakhir = t;
+        // dt besar = tab sempat tidak aktif; jangan melompat jauh saat kembali.
+        if (bolehJalan && t >= lanjutPada && dt > 0 && dt < 0.5) {
+          bingkai.scrollLeft += LAJU * dt;
+        }
+        // Lipat balik ke salinan pertama/kedua — tak terlihat karena identik.
+        // Berlaku dua arah, jadi digeser mundur pun tetap tak berujung.
+        if (bingkai.scrollLeft >= separuh) bingkai.scrollLeft -= separuh;
+        else if (bingkai.scrollLeft < 0) bingkai.scrollLeft += separuh;
+      }
+      requestAnimationFrame(langkah);
+    }
+    requestAnimationFrame(langkah);
+  }
+  jalankanPitaAyat_();
 
   /* ---- Muat awal ---- */
   google.script.run
