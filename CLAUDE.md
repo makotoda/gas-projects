@@ -131,6 +131,10 @@ Do this deliberately, not casually — it's user-visible and affects everyone wi
   via `setupSheets()`, **resetting `Anggota` back to the hardcoded default list** and wiping
   any custom roster edits. There is no confirmation prompt and no backup.
   Be careful before renaming/deleting sheets on the live spreadsheet.
+- **Modal Total Pahala/Dosa punya dua wujud.** Di layar >= 900px ia grafik garis
+  saldo kumulatif 30 hari (satu garis per orang, foto profil di ujung garis), di bawah
+  itu daftar peringkat berhalaman seperti semula. Datanya dari `deret` di
+  `getDashboardData()` (lihat `deretHarian_`), bukan dari `leaderboard`.
 - **Daftar resto (sheet `Resto`) tidak dihitung ulang tiap load.** Ia adalah cache yang
   ditulis hanya saat (a) ada transaksi `Dosa` baru yang keterangannya cocok dengan resto
   yang SUDAH terdaftar, atau (b) `refreshResto()` / `tambahResto('nama')` dijalankan manual

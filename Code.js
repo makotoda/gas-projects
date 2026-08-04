@@ -449,6 +449,58 @@ function saveInfaqMap(map) {
   return getDashboardData();
 }
 
+/** Jumlah hari yang digambar di grafik saldo harian (modal Total Pahala/Dosa). */
+const DERET_HARI = 30;
+
+/**
+ * Saldo kumulatif tiap orang per hari untuk DERET_HARI hari terakhir.
+ * Saldo hari pertama sudah memperhitungkan SELURUH transaksi sebelum jendela
+ * ini, jadi titik terakhir grafik selalu sama dengan angka di leaderboard.
+ * Dipakai grafik garis di modal Total Pahala/Dosa (tampilan desktop).
+ */
+function deretHarian_(rows, tz, fotoMap) {
+  const hariKey = [];
+  const now = new Date();
+  for (let i = DERET_HARI - 1; i >= 0; i--) {
+    hariKey.push(Utilities.formatDate(new Date(now.getTime() - i * 86400000), tz, 'yyyy-MM-dd'));
+  }
+  const posisi = {};
+  hariKey.forEach((h, i) => { posisi[h] = i; });
+  const batasAwal = hariKey[0];
+
+  const awal = {};   // nama → saldo sebelum jendela
+  const delta = {};  // nama → perubahan saldo per hari dalam jendela
+  rows.forEach(r => {
+    const [ts, nama, tipe, nominal] = r;
+    const nm = String(nama).trim();
+    const val = Number(nominal) || 0;
+    if (!nm || !val || nm === KAS_NAMA) return;
+    const d = tipe === 'Dosa' ? -val : val;
+    const k = ts instanceof Date ? Utilities.formatDate(ts, tz, 'yyyy-MM-dd') : '';
+    if (!k) return;
+    if (k < batasAwal) { awal[nm] = (awal[nm] || 0) + d; return; }
+    const i = posisi[k];
+    if (i === undefined) return; // timestamp di masa depan — abaikan
+    if (!delta[nm]) delta[nm] = new Array(DERET_HARI).fill(0);
+    delta[nm][i] += d;
+  });
+
+  const semua = {};
+  Object.keys(awal).forEach(n => { semua[n] = true; });
+  Object.keys(delta).forEach(n => { semua[n] = true; });
+
+  return {
+    hari: hariKey.map(k => k.slice(8) + '/' + k.slice(5, 7)), // 'dd/MM'
+    tanggal: hariKey,
+    orang: Object.keys(semua).map(nm => {
+      const dl = delta[nm] || [];
+      let run = awal[nm] || 0;
+      const nilai = hariKey.map((_, i) => { run += (dl[i] || 0); return run; });
+      return { nama: nm, foto: fotoMap[nm] || '', nilai: nilai };
+    })
+  };
+}
+
 /** Data lengkap untuk dashboard: statistik, leaderboard (+5 transaksi terakhir per orang), riwayat */
 function getDashboardData() {
   const sheet = getSheet_(SHEET_TRANSAKSI);
@@ -532,6 +584,7 @@ function getDashboardData() {
         .map(nm => ({ nama: nm, foto: fotoMap[nm] || '', total: infaqMap[nm] }))
         .sort((a, b) => b.total - a.total)
     },
+    deret: deretHarian_(rows, tz, fotoMap), // grafik saldo harian (modal desktop)
     resto: bacaSheetResto_(),   // urut termurah dulu; lihat modul infografis resto
     infaqMap: getInfaqMap_(),
     strukAlias: getStrukAlias_(),
