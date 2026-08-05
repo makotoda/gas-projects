@@ -122,6 +122,27 @@
   }
   body.mp #headerControls .sound-btn:hover { border-color: #ce1126; }
 
+  /* Tab papan (Leaderboard/Gold/Riwayat/Kas/Resto) ikut selang-seling.
+     Tab aktif tetap harus menonjol padahal warnanya sudah dipakai pola, jadi
+     penandanya digeser ke cincin + bayangan, bukan ke warna latar. */
+  body.mp .tabs .tab:nth-of-type(odd) {
+    color: #fff;
+    background: #ce1126;
+    border-color: #a30d1e;
+  }
+  body.mp .tabs .tab:nth-of-type(even) {
+    color: #ce1126;
+    background: #fff;
+    border-color: rgba(206,17,38,.45);
+  }
+  body.mp .tabs .tab:nth-of-type(odd):hover { background: #b30f21; }
+  body.mp .tabs .tab:nth-of-type(even):hover { background: #fff5f6; }
+  body.mp .tabs .tab.active {
+    border-color: #7f0a17;
+    box-shadow: 0 0 0 2px rgba(206,17,38,.35), 0 4px 14px rgba(206,17,38,.35);
+    font-weight: 700;
+  }
+
   /* ---- Hujan bendera Merah Putih ----
      Murni CSS: tiap bendera punya animasi jatuh + goyang sendiri lewat
      custom property, jadi tidak ada satu pun timer JavaScript yang berjalan.
