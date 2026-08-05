@@ -111,6 +111,25 @@ Do this deliberately, not casually — it's user-visible and affects everyone wi
   mengubah aturan cakupannya. Menambah berkas = tambah satu baris `include` di
   `Index.html` pada urutan yang benar (urutan = urutan eksekusi).
 
+## Peta berkas server (buka yang relevan saja)
+
+Semua berkas `.js` di sini menjadi `.gs` di Apps Script dan **berbagi satu namespace
+global** — tidak ada import/require, fungsi mana pun bisa memanggil fungsi berkas lain
+apa adanya. Satu-satunya hal yang peka urutan adalah pernyataan tingkat atas yang
+merujuk konstanta berkas lain; hindari itu (satu-satunya yang ada, `KET_INFAQ_LAMA`
+yang memakai `KAS_NAMA`, sengaja ditaruh sebekas).
+
+| Berkas | Isi |
+|---|---|
+| `Code.js` | konstanta bersama, `doGet` + `include`, `setupSheets`, `getSheet_`, `getAnggota`, helper foto & nominal |
+| `Struk.js` | baca struk/bukti transfer via Gemini (`parseStruk`) + alias nama OCR |
+| `Amalan.js` | `submitAmalan`, `submitAmalanBatch`, baris infaq KAS otomatis |
+| `Kopdos.js` | katalog belanja (`KATALOG_KOPDOS`) + `submitBelanja` |
+| `Infaq.js` | `getInfaqMap_` / `saveInfaqMap` (kolom C sheet Anggota) |
+| `Dasbor.js` | `getDashboardData` + `deretHarian_` (deret grafik) |
+| `Laporan.js` | `getLaporanBulanan` |
+| `Resto.js` | deteksi nama resto, statistik harga, cache sheet `Resto`, `refreshResto`/`tambahResto`/`hapusResto`/`debugResto` |
+
 ## Peta berkas frontend (buka yang relevan saja)
 
 `Index.html` cuma kerangka. Isinya:
@@ -210,6 +229,9 @@ Do this deliberately, not casually — it's user-visible and affects everyone wi
   `Transaksi`) is an unwritten schema shared by `setupSheets()`, `submitAmalan()`, and
   `getDashboardData()`. Changing column order/count requires updating all three in lockstep
   — there is no schema versioning or migration.
+- **Jangan gabungkan lagi berkas server jadi satu.** `Code.js` dulu ~1.200 baris dan
+  membuat setiap tugas server menuntut membaca semuanya. Fitur baru yang berdiri sendiri
+  sebaiknya jadi berkas `.js` sendiri, bukan ditempel ke `Code.js`.
 - **`.clasp.json`'s `scriptId`** binds this local directory to one specific live Apps
   Script project. Never regenerate or hand-edit this unless you deliberately intend to
   retarget a different Apps Script project.
