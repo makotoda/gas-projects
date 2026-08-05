@@ -90,6 +90,130 @@
     background-image: linear-gradient(180deg, rgba(206,17,38,.08), transparent 120px);
   }
   body.mp .orb { opacity: .28; }
+
+  /* ---- Hujan bendera Merah Putih ----
+     Murni CSS: tiap bendera punya animasi jatuh + goyang sendiri lewat
+     custom property, jadi tidak ada satu pun timer JavaScript yang berjalan.
+     Ditaruh di bawah lapisan modal (z-index 45) supaya tidak menutupi dialog,
+     dan pointer-events none supaya tidak pernah menghalangi klik. */
+  #benderaHujan {
+    position: fixed; inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 40;
+    display: none;
+  }
+  body.mp #benderaHujan { display: block; }
+  .bendera {
+    position: absolute;
+    top: -60px;
+    left: var(--x);
+    animation: benderaJatuh var(--d) linear var(--del) infinite;
+    will-change: transform;
+  }
+  .bendera > i {                     /* lapisan goyang kiri-kanan */
+    display: block;
+    animation: benderaGoyang calc(var(--d) / 5) ease-in-out var(--del) infinite alternate;
+  }
+  .bendera b {                       /* kain bendera */
+    display: block;
+    width: var(--w);
+    height: calc(var(--w) * .66);
+    margin-left: 2px;
+    background: linear-gradient(180deg, #ce1126 0 50%, #fff 50% 100%);
+    border-radius: 1px 3px 3px 1px;
+    box-shadow: 0 2px 7px rgba(0,0,0,.18);
+    transform-origin: left center;
+    /* Berkibar: perspektif + rotasi sumbu Y bolak-balik, ditambah sedikit
+       skew supaya tepi kanannya ikut melambai, bukan sekadar berputar. */
+    animation: benderaKibar 1.15s ease-in-out infinite;
+  }
+  .bendera::before {                 /* tiang */
+    content: '';
+    position: absolute; left: 0; top: -2px;
+    width: 2px; height: calc(var(--w) * .78 + 4px);
+    border-radius: 2px;
+    background: rgba(120,113,108,.85);
+  }
+  @keyframes benderaJatuh {
+    from { transform: translateY(-10vh) rotate(var(--r0)); }
+    to   { transform: translateY(112vh) rotate(var(--r1)); }
+  }
+  @keyframes benderaGoyang {
+    from { transform: translateX(-16px); }
+    to   { transform: translateX(16px); }
+  }
+  @keyframes benderaKibar {
+    0%   { transform: perspective(140px) rotateY(0deg) skewY(0deg); }
+    35%  { transform: perspective(140px) rotateY(38deg) skewY(-4deg); }
+    70%  { transform: perspective(140px) rotateY(-22deg) skewY(3deg); }
+    100% { transform: perspective(140px) rotateY(0deg) skewY(0deg); }
+  }
+  /* Hormati preferensi sistem: animasi tak henti di latar itu melelahkan bagi
+     sebagian orang, dan ini murni dekorasi. */
+  @media (prefers-reduced-motion: reduce) {
+    body.mp #benderaHujan { display: none; }
+  }
+
+  /* CTA "Bukti Transfer": di tema ini --mint/--cyan keduanya warna gelap,
+     sehingga teks gelap bawaannya jadi gelap-di-atas-gelap. Dibalik menjadi
+     merah bendera dengan teks putih. */
+  body.mp .cta-tf {
+    color: #fff;
+    background: linear-gradient(135deg, #ce1126, #9f1239);
+    box-shadow: 0 6px 24px rgba(206,17,38,.35);
+  }
+  body.mp .cta-tf:hover { box-shadow: 0 10px 32px rgba(206,17,38,.5); }
+
+  /* Baris leaderboard dwiwarna: saldo positif = merah bendera dengan tulisan
+     putih, saldo negatif = putih dengan tulisan merah. Elemen di dalam baris
+     (peringkat, meter, sub-angka) ikut diwarnai ulang karena warna
+     bawaannya mengandaikan latar netral. */
+  body.mp .lb-item.pos .lb-row {
+    background: #ce1126;
+    border-color: #a30d1e;
+  }
+  body.mp .lb-item.pos.open .lb-row { background: #b30f21; border-color: #8a0b19; }
+  body.mp .lb-item.pos .lb-name,
+  body.mp .lb-item.pos .lb-saldo,
+  body.mp .lb-item.pos .lb-saldo.pos { color: #fff; }
+  body.mp .lb-item.pos .lb-sub,
+  body.mp .lb-item.pos .lb-sub span,
+  body.mp .lb-item.pos .lb-name .chev { color: rgba(255,255,255,.82); }
+  body.mp .lb-item.pos .rank {
+    background: rgba(255,255,255,.18);
+    border-color: rgba(255,255,255,.4);
+    color: #fff;
+  }
+  body.mp .lb-item.pos .lb-ava { border-color: rgba(255,255,255,.55); }
+  body.mp .lb-item.pos .lb-meter { background: rgba(255,255,255,.28); }
+  body.mp .lb-item.pos .lb-meter i {
+    background: #fff;
+    box-shadow: 0 0 8px rgba(255,255,255,.7);
+  }
+
+  body.mp .lb-item.neg .lb-row {
+    background: #fff;
+    border-color: rgba(206,17,38,.35);
+  }
+  body.mp .lb-item.neg.open .lb-row { background: #fff5f6; border-color: #ce1126; }
+  body.mp .lb-item.neg .lb-name,
+  body.mp .lb-item.neg .lb-saldo,
+  body.mp .lb-item.neg .lb-saldo.neg { color: #ce1126; }
+  body.mp .lb-item.neg .lb-sub,
+  body.mp .lb-item.neg .lb-sub span,
+  body.mp .lb-item.neg .lb-name .chev { color: rgba(206,17,38,.75); }
+  body.mp .lb-item.neg .rank {
+    background: rgba(206,17,38,.10);
+    border-color: rgba(206,17,38,.30);
+    color: #ce1126;
+  }
+  body.mp .lb-item.neg .lb-ava { border-color: rgba(206,17,38,.35); }
+  body.mp .lb-item.neg .lb-meter { background: rgba(206,17,38,.15); }
+  body.mp .lb-item.neg .lb-meter i {
+    background: #ce1126;
+    box-shadow: 0 0 8px rgba(206,17,38,.45);
+  }
   body.light .orb { opacity: .28; }
   body.light .orb-3 { opacity: .18; }
   body.light select option { background: #fff; }
@@ -1766,6 +1890,10 @@
   </div>
 </div>
 
+<!-- Hujan bendera 17-an. Isinya diisi dari script (lihat siapkanHujanBendera_)
+     dan hanya tampil pada tema Merah Putih. -->
+<div id="benderaHujan" aria-hidden="true"></div>
+
 <div class="orb orb-1"></div>
 <div class="orb orb-2"></div>
 <div class="orb orb-3"></div>
@@ -2704,6 +2832,32 @@
      Kunci localStorage sengaja baru ('kodomoTema') supaya pemakai lama ikut
      mendapat Merah Putih sebagai default menjelang 17-an, bukan tersangkut
      pilihan lamanya. */
+  /* Isi wadah hujan bendera sekali di awal. Elemennya tetap ada di DOM pada
+     tema lain, cuma disembunyikan lewat CSS — jauh lebih murah daripada
+     membangun ulang tiap kali tema berganti, dan animasi CSS pada elemen
+     display:none memang tidak berjalan. */
+  function siapkanHujanBendera_() {
+    const wadah = $('benderaHujan');
+    if (!wadah) return;
+    const sempit = window.innerWidth < 700;
+    const jumlah = sempit ? 10 : 18;
+    const acak = (a, b) => a + Math.random() * (b - a);
+    let html = '';
+    for (let i = 0; i < jumlah; i++) {
+      const w = Math.round(acak(16, 30));
+      html += `<span class="bendera" style="` +
+        `--x:${acak(0, 98).toFixed(1)}vw;` +
+        `--w:${w}px;` +
+        `--d:${acak(9, 18).toFixed(1)}s;` +
+        `--del:-${acak(0, 18).toFixed(1)}s;` +   // negatif = mulai di tengah jalan
+        `--r0:${Math.round(acak(-25, 25))}deg;` +
+        `--r1:${Math.round(acak(-200, 200))}deg;` +
+        `"><i><b></b></i></span>`;
+    }
+    wadah.innerHTML = html;
+  }
+  siapkanHujanBendera_();
+
   const TEMA_URUT = ['mp', 'dark', 'light'];
   const TEMA_LABEL = { mp: '🇮🇩 Merah Putih', dark: '🌙 Gelap', light: '☀️ Terang' };
   const themeBtn = $('themeBtn');
@@ -2834,7 +2988,7 @@
       const neg = o.saldo < 0;
       const open = expandTerbuka === o.nama;
       return `
-      <div class="lb-item${open ? ' open' : ''}" data-nama="${esc(o.nama)}">
+      <div class="lb-item ${neg ? 'neg' : 'pos'}${open ? ' open' : ''}" data-nama="${esc(o.nama)}">
         <div class="lb-row">
           <div class="rank${rank <= 3 ? ' r' + rank : ''}">${rank}</div>
           ${avaHtml(o)}
