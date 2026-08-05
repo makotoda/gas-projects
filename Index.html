@@ -3405,9 +3405,16 @@
      Lazy: file baru diunduh saat pertama dibunyikan, lalu objek Audio-nya
      di-cache — halaman tidak menanggung beratnya saat load. ---- */
   const SFX_BASE = 'https://cdn.jsdelivr.net/gh/makotoda/gas-projects@main/sounds/';
+  // Pengalihan klip sementara (17-an): semua 'mantul' berbunyi 'merdeka'.
+  // Dipasang di satu tempat supaya pemanggilnya — termasuk rangkaian
+  // playSfxUrut — tidak perlu tahu, dan mengembalikannya nanti cukup dengan
+  // mengosongkan objek ini.
+  const SFX_ALIAS = { mantul: 'merdeka' };
+  const sfxNama_ = n => SFX_ALIAS[n] || n;
   const sfxCache = {};
   function playSfx(nama) {
     if (!soundOn) return;
+    nama = sfxNama_(nama);
     let a = sfxCache[nama];
     if (!a) a = sfxCache[nama] = new Audio(SFX_BASE + nama + '.mp3');
     a.currentTime = 0;
@@ -3417,6 +3424,7 @@
   // Semua klip di-prefetch dulu supaya jeda antar kata minim di putaran pertama.
   function playSfxUrut(daftar) {
     if (!soundOn || !daftar.length) return;
+    daftar = daftar.map(sfxNama_);
     daftar.forEach(n => { if (!sfxCache[n]) sfxCache[n] = new Audio(SFX_BASE + n + '.mp3'); });
     const next = i => {
       if (i >= daftar.length) return;
