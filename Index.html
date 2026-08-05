@@ -113,13 +113,24 @@
   }
   .bendera > i {                     /* lapisan goyang kiri-kanan */
     display: block;
+    position: relative;              /* jangkar tiang — lihat ::before di bawah */
     animation: benderaGoyang calc(var(--d) / 5) ease-in-out var(--del) infinite alternate;
+  }
+  /* Tiang HARUS berada di dalam lapisan yang bergoyang. Waktu ia dipasang di
+     .bendera (lapisan luar), kain ikut bergeser ±16px oleh animasi goyang
+     sementara tiangnya diam — hasilnya bendera tampak lepas dari tiangnya. */
+  .bendera > i::before {
+    content: '';
+    position: absolute; left: 0; top: 0;
+    width: 2px; height: calc(var(--w) * 1.15);
+    border-radius: 0 0 2px 2px;
+    background: linear-gradient(180deg, #a8a29e, #78716c);
   }
   .bendera b {                       /* kain bendera */
     display: block;
     width: var(--w);
     height: calc(var(--w) * .66);
-    margin-left: 2px;
+    margin-left: 2px;                /* tepat di sisi kanan tiang, tanpa celah */
     background: linear-gradient(180deg, #ce1126 0 50%, #fff 50% 100%);
     border-radius: 1px 3px 3px 1px;
     box-shadow: 0 2px 7px rgba(0,0,0,.18);
@@ -127,13 +138,6 @@
     /* Berkibar: perspektif + rotasi sumbu Y bolak-balik, ditambah sedikit
        skew supaya tepi kanannya ikut melambai, bukan sekadar berputar. */
     animation: benderaKibar 1.15s ease-in-out infinite;
-  }
-  .bendera::before {                 /* tiang */
-    content: '';
-    position: absolute; left: 0; top: -2px;
-    width: 2px; height: calc(var(--w) * .78 + 4px);
-    border-radius: 2px;
-    background: rgba(120,113,108,.85);
   }
   @keyframes benderaJatuh {
     from { transform: translateY(-10vh) rotate(var(--r0)); }
