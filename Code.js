@@ -82,9 +82,19 @@ function doGet() {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-/** Sisipkan isi sebuah berkas HTML apa adanya (dipanggil dari Index.html). */
+/**
+ * Sisipkan isi sebuah berkas apa adanya (dipanggil dari Index.html).
+ *
+ * WAJIB memakai createTemplateFromFile(...).getRawContent(). Pola include yang
+ * lazim beredar memakai createHtmlOutputFromFile(...).getContent(), tapi itu
+ * MEM-PARSING isinya sebagai HTML — sementara berkas potongan di sini berisi
+ * CSS dan JS mentah (tanpa tag <style>/<script>, karena tagnya sudah ada di
+ * Index.html). Operator seperti `a < b` atau `=>` di dalamnya membuat parser
+ * gagal dengan "Malformed HTML content" dan seluruh aplikasi mati.
+ * getRawContent() mengembalikan teks apa adanya tanpa validasi.
+ */
 function include(nama) {
-  return HtmlService.createHtmlOutputFromFile(nama).getContent();
+  return HtmlService.createTemplateFromFile(nama).getRawContent();
 }
 
 /** Jalankan sekali untuk menyiapkan spreadsheet */
