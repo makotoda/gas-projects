@@ -56,6 +56,40 @@
     --ay-buddha: #a16207;
     --ay-khonghucu: #be123c;
   }
+
+  /* ===== Tema Merah Putih (17 Agustus) =====
+     Dibangun DI ATAS tema terang — elemen bertema memakai kelas .light juga
+     (lihat setTheme_), jadi di sini cukup menimpa paletnya saja. Urutannya
+     harus setelah body.light karena spesifisitasnya sama. */
+  body.mp {
+    --bg: #fff5f6;
+    --glass: rgba(255, 255, 255, 0.72);
+    --glass-strong: rgba(255, 255, 255, 0.93);
+    --border: rgba(206, 17, 38, 0.30);
+    --border-soft: rgba(206, 17, 38, 0.15);
+    --text: #24070c;
+    --muted: rgba(36, 7, 12, 0.60);
+    --violet: #ce1126;   /* merah bendera — aksen utama */
+    --cyan: #9f1239;
+    --pink: #e11d48;
+    /* Pahala vs dosa tetap harus bisa dibedakan sekilas, dan bendera cuma
+       punya dua warna. Dosa memakai merah bendera; pahala memakai tinta
+       gelap supaya kontras di atas putih tanpa menambah warna ketiga. */
+    --mint: #1f2937;
+    --rose: #ce1126;
+    --ay-islam: #9f1239;
+    --ay-protestan: #7f1d1d;
+    --ay-katolik: #a21caf;
+    --ay-hindu: #b45309;
+    --ay-buddha: #a16207;
+    --ay-khonghucu: #be123c;
+  }
+  /* Pita merah-putih tipis di tepi atas header, sebagai penanda tema. */
+  body.mp header {
+    border-top: 4px solid #ce1126;
+    background-image: linear-gradient(180deg, rgba(206,17,38,.08), transparent 120px);
+  }
+  body.mp .orb { opacity: .28; }
   body.light .orb { opacity: .28; }
   body.light .orb-3 { opacity: .18; }
   body.light select option { background: #fff; }
@@ -70,7 +104,8 @@
   body.light .lb-meter { background: rgba(15, 23, 42, 0.09); }
   body.light .modal-close, body.light .modal-foot button { background: rgba(15, 23, 42, 0.05); }
   body.light .stat:hover { border-color: rgba(15, 23, 42, 0.32); }
-  body.light #statModal, body.light #rekModal, body.light #laporanModal { background: rgba(238, 240, 248, 0.72); }
+  body.light #statModal, body.light #rekModal, body.light #laporanModal,
+  body.light #kopdosModal { background: rgba(238, 240, 248, 0.72); }
   body.light .modal-card {
     background: rgba(252, 252, 255, 0.97);
     box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
@@ -152,7 +187,7 @@
   @media (max-width: 900px), (pointer: coarse) {
     .orb { filter: none; opacity: .4; }
     header, .card, .stat, .modal-card, #statModal, #rekModal,
-    #laporanModal, #strukModal, #loader.overlay, #toast,
+    #laporanModal, #strukModal, #kopdosModal, #loader.overlay, #toast,
     #tutorialOverlay, #tutorialTooltip {
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
@@ -214,6 +249,75 @@
   .music-btn:hover { color: var(--text); border-color: var(--border); }
 
   /* ===== Modal Rekening ===== */
+  /* ---- Kopdos Merah Putih (katalog belanja) ---- */
+  .kop-intro { font-size: 12.5px; color: var(--muted); margin: -2px 0 14px; line-height: 1.5; }
+  .kop-list { display: flex; flex-direction: column; gap: 10px; }
+  .kop-row {
+    display: grid;
+    grid-template-columns: 44px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--glass);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+  }
+  .kop-emoji {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border-soft);
+  }
+  .kop-nama { font-weight: 600; font-size: 14.5px; }
+  .kop-harga { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .kop-qty { display: flex; align-items: center; gap: 6px; }
+  .kop-qty button {
+    width: 30px; height: 30px;
+    font: inherit; font-size: 16px; line-height: 1;
+    color: var(--text);
+    background: rgba(255,255,255,.06);
+    border: 1px solid var(--border-soft);
+    border-radius: 9px;
+    cursor: pointer;
+  }
+  .kop-qty button:hover { border-color: var(--border); }
+  .kop-qty input {
+    width: 46px; text-align: center;
+    font: inherit; font-size: 14px; font-weight: 600;
+    color: var(--text);
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--border-soft);
+    border-radius: 9px;
+    padding: 6px 2px;
+    -moz-appearance: textfield;
+  }
+  .kop-qty input::-webkit-outer-spin-button,
+  .kop-qty input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .kop-label {
+    display: block; margin: 16px 0 6px;
+    font-size: 11.5px; text-transform: uppercase; letter-spacing: 1.1px;
+    color: var(--muted);
+  }
+  #kopdosNama {
+    width: 100%; padding: 11px 12px;
+    font: inherit; font-size: 14.5px;
+    color: var(--text);
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+  }
+  .kop-total {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 16px 0 12px; padding-top: 12px;
+    border-top: 1px solid var(--border-soft);
+    font-size: 13px; color: var(--muted);
+  }
+  .kop-total b {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 20px; color: var(--rose);
+  }
+
   .rek-list { display: flex; flex-direction: column; gap: 10px; }
   .rek-row {
     display: grid;
@@ -715,7 +819,7 @@
   .empty.mini { padding: 12px 4px; text-align: left; font-size: 12.5px; }
 
   /* ===== Modal leaderboard statistik ===== */
-  #statModal, #rekModal, #laporanModal, #strukModal {
+  #statModal, #rekModal, #laporanModal, #strukModal, #kopdosModal {
     position: fixed; inset: 0;
     display: grid; place-items: center;
     padding: 20px;
@@ -726,11 +830,13 @@
     opacity: 0; pointer-events: none;
     transition: opacity .25s;
   }
-  #statModal.show, #rekModal.show, #laporanModal.show, #strukModal.show { opacity: 1; pointer-events: auto; }
+  #statModal.show, #rekModal.show, #laporanModal.show, #strukModal.show,
+  #kopdosModal.show { opacity: 1; pointer-events: auto; }
   /* Kunci scroll halaman utama selagi modal terbuka — tanpa ini, gesture
      scroll di mobile "bocor" ke body di belakang begitu isi modal-card
      lebih tinggi dari viewport, alih-alih men-scroll modal itu sendiri. */
-  body:has(#statModal.show, #rekModal.show, #laporanModal.show, #strukModal.show) {
+  body:has(#statModal.show, #rekModal.show, #laporanModal.show, #strukModal.show,
+           #kopdosModal.show) {
     overflow: hidden;
   }
   .modal-card {
@@ -1686,6 +1792,7 @@
       <button class="music-btn" id="themeBtn" type="button">☀️ Terang</button>
       <button class="music-btn" id="rekeningBtn" type="button">🏦 Rekening</button>
       <button class="music-btn" id="laporanBtn" type="button">📄 Laporan</button>
+      <button class="music-btn" id="kopdosBtn" type="button">🛒 Kopdos Merah Putih</button>
       <div class="header-right">
         <button type="button" class="sound-btn" id="soundBtn" title="Suara efek">🔊</button>
       </div>
@@ -1810,6 +1917,25 @@
   </div>
 </div>
 
+<div id="kopdosModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>🛒 Kopdos Merah Putih</h3>
+      <button class="modal-close" id="kopdosClose" type="button">✕</button>
+    </div>
+    <div class="kop-intro">Belanja barang koperasi. Total belanja otomatis
+      tercatat sebagai <strong>Dosa</strong> atas nama yang dipilih.</div>
+    <div class="kop-list" id="kopdosList"></div>
+    <label class="kop-label" for="kopdosNama">Atas nama</label>
+    <select id="kopdosNama"></select>
+    <div class="kop-total">
+      <span>Total</span>
+      <b id="kopdosTotal">0</b>
+    </div>
+    <button class="submit-btn" id="kopdosCheckout" type="button">Checkout</button>
+  </div>
+</div>
+
 <div id="rekModal">
   <div class="modal-card">
     <div class="modal-head">
@@ -1887,6 +2013,7 @@
   let dataHistory = [];
   let dataKas = { saldo: 0, history: [], leaderboard: [] };
   let dataResto = [];
+  let dataKatalog = [];
   let dataDeret = { hari: [], tanggal: [], orang: [] };
   let dataAnggota = [];   // termasuk KAS (untuk pemilih laporan)
   let dataBulan = [];     // [{key:'2026-07', label:'Juli 2026'}] terbaru dulu
@@ -2029,6 +2156,95 @@
         setTimeout(() => { btn.textContent = asli; btn.classList.remove('copied'); }, 1500);
       }, () => toast('Gagal menyalin.', 'err'));
     });
+  });
+
+  /* ================= Kopdos Merah Putih (katalog belanja) =================
+     Belanja masuk sebagai transaksi Dosa lewat submitBelanja() — jalur
+     terpisah dari submitAmalan karena pembelian barang koperasi sengaja
+     TIDAK memicu baris infaq KAS. Harga tidak dikirim dari sini; server
+     mengambilnya sendiri dari KATALOG_KOPDOS berdasarkan id barang. */
+  const kopQty = {};   // id barang → jumlah unit di keranjang
+
+  function kopTotal_() {
+    return dataKatalog.reduce((t, b) => t + b.harga * (kopQty[b.id] || 0), 0);
+  }
+
+  function renderKopdos() {
+    const el = $('kopdosList');
+    if (!dataKatalog.length) {
+      el.innerHTML = '<div class="empty">Katalog masih kosong.</div>';
+      return;
+    }
+    el.innerHTML = dataKatalog.map(b => `
+      <div class="kop-row" data-id="${esc(b.id)}">
+        <div class="kop-emoji">${esc(b.emoji || '📦')}</div>
+        <div>
+          <div class="kop-nama">${esc(b.nama)}</div>
+          <div class="kop-harga">${fmt(b.harga)} / unit</div>
+        </div>
+        <div class="kop-qty">
+          <button type="button" data-aksi="kurang" aria-label="Kurangi">−</button>
+          <input type="number" inputmode="numeric" min="0" max="99" value="${kopQty[b.id] || 0}">
+          <button type="button" data-aksi="tambah" aria-label="Tambah">+</button>
+        </div>
+      </div>`).join('');
+
+    el.querySelectorAll('.kop-row').forEach(row => {
+      const id = row.dataset.id;
+      const input = row.querySelector('input');
+      const setQty = n => {
+        kopQty[id] = Math.max(0, Math.min(99, Math.floor(n) || 0));
+        input.value = kopQty[id];
+        $('kopdosTotal').textContent = fmt(kopTotal_());
+      };
+      row.querySelector('[data-aksi="kurang"]').addEventListener('click', () => setQty((kopQty[id] || 0) - 1));
+      row.querySelector('[data-aksi="tambah"]').addEventListener('click', () => setQty((kopQty[id] || 0) + 1));
+      input.addEventListener('input', () => setQty(input.value));
+    });
+    $('kopdosTotal').textContent = fmt(kopTotal_());
+  }
+
+  $('kopdosBtn').addEventListener('click', () => {
+    // Roster tanpa KAS — KAS bukan pembeli.
+    $('kopdosNama').innerHTML = '<option value="">— pilih nama —</option>' +
+      dataAnggota.filter(n => n !== KAS_NAMA)
+        .map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    renderKopdos();
+    $('kopdosModal').classList.add('show');
+  });
+  $('kopdosClose').addEventListener('click', () => $('kopdosModal').classList.remove('show'));
+  $('kopdosModal').addEventListener('click', e => {
+    if (e.target === $('kopdosModal')) $('kopdosModal').classList.remove('show');
+  });
+
+  $('kopdosCheckout').addEventListener('click', () => {
+    const nama = $('kopdosNama').value;
+    if (!nama) { toast('Pilih nama dulu.', 'err'); return; }
+    const items = dataKatalog
+      .filter(b => (kopQty[b.id] || 0) > 0)
+      .map(b => ({ id: b.id, qty: kopQty[b.id] }));
+    if (!items.length) { toast('Keranjang masih kosong.', 'err'); return; }
+
+    const btn = $('kopdosCheckout');
+    const total = kopTotal_();
+    btn.disabled = true;
+    btn.textContent = 'Menyimpan…';
+    google.script.run
+      .withSuccessHandler(data => {
+        btn.disabled = false;
+        btn.textContent = 'Checkout';
+        dataKatalog.forEach(b => { kopQty[b.id] = 0; });
+        $('kopdosModal').classList.remove('show');
+        render(data);
+        toast(`Belanja ${fmt(total)} tercatat sebagai dosa ${nama} ✓`, 'ok');
+        playSfx('kaching');
+      })
+      .withFailureHandler(err => {
+        btn.disabled = false;
+        btn.textContent = 'Checkout';
+        toast(err.message, 'err');
+      })
+      .submitBelanja({ nama: nama, items: items });
   });
 
   $('rekeningBtn').addEventListener('click', () => $('rekModal').classList.add('show'));
@@ -2482,19 +2698,30 @@
       .getLaporanBulanan(nama, bulan);
   });
 
-  /* ---- Tema terang/gelap (default gelap; tersimpan di localStorage) ----
-     Label tombol menunjukkan tema TUJUAN, bukan tema aktif. */
+  /* ---- Tema: Merah Putih / gelap / terang, berputar saat tombol diklik ----
+     Label tombol menunjukkan tema TUJUAN (berikutnya), bukan tema aktif.
+     'mp' dibangun di atas tema terang, jadi ia memasang kelas .light juga.
+     Kunci localStorage sengaja baru ('kodomoTema') supaya pemakai lama ikut
+     mendapat Merah Putih sebagai default menjelang 17-an, bukan tersangkut
+     pilihan lamanya. */
+  const TEMA_URUT = ['mp', 'dark', 'light'];
+  const TEMA_LABEL = { mp: '🇮🇩 Merah Putih', dark: '🌙 Gelap', light: '☀️ Terang' };
   const themeBtn = $('themeBtn');
-  function setTheme_(light) {
-    document.body.classList.toggle('light', light);
-    themeBtn.textContent = light ? '🌙 Gelap' : '☀️ Terang';
-    try { localStorage.setItem('kodomoTheme', light ? 'light' : 'dark'); } catch (e) {}
+  let temaAktif = 'mp';
+
+  function setTheme_(nama) {
+    temaAktif = TEMA_URUT.indexOf(nama) >= 0 ? nama : 'mp';
+    document.body.classList.toggle('mp', temaAktif === 'mp');
+    document.body.classList.toggle('light', temaAktif === 'light' || temaAktif === 'mp');
+    const next = TEMA_URUT[(TEMA_URUT.indexOf(temaAktif) + 1) % TEMA_URUT.length];
+    themeBtn.textContent = TEMA_LABEL[next];
+    try { localStorage.setItem('kodomoTema', temaAktif); } catch (e) {}
   }
   let temaTersimpan = null;
-  try { temaTersimpan = localStorage.getItem('kodomoTheme'); } catch (e) {}
-  setTheme_(temaTersimpan === 'light');
+  try { temaTersimpan = localStorage.getItem('kodomoTema'); } catch (e) {}
+  setTheme_(temaTersimpan || 'mp');
   themeBtn.addEventListener('click', () =>
-    setTheme_(!document.body.classList.contains('light')));
+    setTheme_(TEMA_URUT[(TEMA_URUT.indexOf(temaAktif) + 1) % TEMA_URUT.length]));
 
   /* ---- Tabs ---- */
   document.querySelectorAll('.tab').forEach(tab => {
@@ -3053,6 +3280,7 @@
     dataHistory = data.history;
     dataKas = data.kas;
     dataResto = data.resto || [];
+    dataKatalog = data.katalog || dataKatalog;
     dataDeret = data.deret || dataDeret;
     dataAnggota = data.anggota || [];
     dataBulan = data.bulanList || [];
@@ -3445,7 +3673,7 @@
     },
     {
       title: "Menu Atas ⚙️",
-      desc: "Deretan tombol di pojok kanan atas ini isinya:<br><br>• <strong>❓ Bantuan</strong> — muterin ulang tutorial ini kapan aja.<br>• <strong>☀️ Terang / 🌙 Gelap</strong> — ganti tema terang atau gelap, sesuai selera mata.<br>• <strong>🏦 Rekening</strong> — liat &amp; salin nomor rekening buat transfer beneran ke KAS/admin.<br>• <strong>📄 Laporan</strong> — unduh laporan bulanan (PDF) per orang atau KAS, gaya statement bank.<br>• <strong>🔊</strong> — nyalain atau matiin efek suara.",
+      desc: "Deretan tombol di pojok kanan atas ini isinya:<br><br>• <strong>❓ Bantuan</strong> — muterin ulang tutorial ini kapan aja.<br>• <strong>☀️ Terang / 🌙 Gelap</strong> — ganti tema terang atau gelap, sesuai selera mata.<br>• <strong>🏦 Rekening</strong> — liat &amp; salin nomor rekening buat transfer beneran ke KAS/admin.<br>• <strong>📄 Laporan</strong> — unduh laporan bulanan (PDF) per orang atau KAS, gaya statement bank.<br>• <strong>🛒 Kopdos Merah Putih</strong> — katalog belanja koperasi; totalnya langsung tercatat jadi dosa (tanpa potongan infaq KAS).<br>• <strong>🔊</strong> — nyalain atau matiin efek suara.",
       targetId: "headerControls"
     },
     {

@@ -131,6 +131,14 @@ Do this deliberately, not casually — it's user-visible and affects everyone wi
   via `setupSheets()`, **resetting `Anggota` back to the hardcoded default list** and wiping
   any custom roster edits. There is no confirmation prompt and no backup.
   Be careful before renaming/deleting sheets on the live spreadsheet.
+- **Belanja Kopdos TIDAK lewat `submitAmalan`.** Katalog (`KATALOG_KOPDOS`) dan harganya
+  hidup di server; `submitBelanja` hanya menerima `{id, qty}` lalu mengalikan sendiri, jadi
+  klien yang dimodifikasi tak bisa menawar harga. Ia menulis baris `Dosa` **tanpa** baris
+  infaq KAS — itu disengaja, jangan "diseragamkan" dengan `submitAmalan`.
+- **Tema ada tiga, berputar**: `mp` (Merah Putih, default sementara) → `dark` → `light`.
+  `mp` dibangun di atas tema terang, jadi ia memasang kelas `.light` DAN `.mp`; blok
+  `body.mp` di CSS harus tetap berada setelah `body.light` karena spesifisitasnya sama.
+  Kuncinya `kodomoTema` (bukan `kodomoTheme` yang lama).
 - **Modal Total Pahala/Dosa punya dua wujud.** Di layar >= 900px ia grafik garis
   saldo kumulatif 30 hari (satu garis per orang, foto profil di ujung garis), di bawah
   itu daftar peringkat berhalaman seperti semula. Datanya dari `deret` di
