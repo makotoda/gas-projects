@@ -1,0 +1,90 @@
+
+<!-- ===== Cinematic Landing Page ===== -->
+<div id="landingPage">
+  <!-- Hell Side -->
+  <div class="lp-side" id="hellSide">
+    <canvas class="lp-canvas" id="canvasHell"></canvas>
+    <div class="lp-content">
+      <h2 class="lp-title">NERAKA</h2>
+      <p class="lp-desc">Tempat bagi mereka yang banyak menumpuk dosa. Panas, membara, dan penuh penyesalan atas hutang yang belum dibayar.</p>
+    </div>
+    <div class="lp-character" id="charHell">
+      <svg viewBox="0 0 300 450" width="100%" height="100%">
+        <defs>
+          <linearGradient id="devilBody" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#2a0505" />
+            <stop offset="100%" stop-color="#050000" />
+          </linearGradient>
+          <radialGradient id="hellGlow" cx="50%" cy="35%" r="60%">
+            <stop offset="0%" stop-color="#ff2200" stop-opacity="0.55" />
+            <stop offset="100%" stop-color="#ff2200" stop-opacity="0" />
+          </radialGradient>
+        </defs>
+        <!-- Aura -->
+        <ellipse cx="150" cy="170" rx="140" ry="150" fill="url(#hellGlow)" />
+        <!-- Tail -->
+        <path d="M195 430 Q235 400 220 350 Q212 325 230 320" stroke="#1a0000" stroke-width="10" fill="none" stroke-linecap="round" />
+        <!-- Cloak silhouette -->
+        <path d="M150 250 C90 250 55 320 45 430 C45 445 255 445 255 430 C245 320 210 250 150 250 Z" fill="url(#devilBody)" />
+        <!-- Horns -->
+        <path d="M118 95 Q95 40 132 65 Q128 85 122 108 Z" fill="#1a0000" />
+        <path d="M182 95 Q205 40 168 65 Q172 85 178 108 Z" fill="#1a0000" />
+        <!-- Head silhouette -->
+        <path d="M150 100 C112 100 95 135 100 168 C104 198 122 222 150 222 C178 222 196 198 200 168 C205 135 188 100 150 100 Z" fill="#150202" />
+        <!-- Eyes glowing -->
+        <ellipse cx="128" cy="162" rx="7" ry="4" fill="#ff5533" />
+        <ellipse cx="172" cy="162" rx="7" ry="4" fill="#ff5533" />
+        <!-- Smirk -->
+        <path d="M128 190 Q150 202 174 188" stroke="#4d0f0f" stroke-width="3" fill="none" stroke-linecap="round" />
+      </svg>
+    </div>
+  </div>
+
+  <!-- Heaven Side -->
+  <div class="lp-side" id="heavenSide">
+    <canvas class="lp-canvas" id="canvasHeaven"></canvas>
+    <div class="lp-content">
+      <h2 class="lp-title">SURGA</h2>
+      <p class="lp-desc">Tempat damai bagi mereka yang gemar beramal. Terang, sejuk, dan penuh kebahagiaan (serta saldo melimpah).</p>
+    </div>
+    <div class="lp-character" id="charHeaven">
+      <svg viewBox="0 0 300 450" width="100%" height="100%">
+        <defs>
+          <linearGradient id="angelBody" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#ffffff" />
+            <stop offset="100%" stop-color="#dff5ff" />
+          </linearGradient>
+          <radialGradient id="heavenGlow" cx="50%" cy="30%" r="60%">
+            <stop offset="0%" stop-color="#aeefff" stop-opacity="0.55" />
+            <stop offset="100%" stop-color="#aeefff" stop-opacity="0" />
+          </radialGradient>
+        </defs>
+        <!-- Aura -->
+        <ellipse cx="150" cy="170" rx="150" ry="160" fill="url(#heavenGlow)" />
+        <!-- Wings -->
+        <path d="M130 230 C70 210 30 150 35 90 C70 110 108 150 122 210 Z" fill="#ffffff" opacity="0.5" filter="blur(1px)" />
+        <path d="M170 230 C230 210 270 150 265 90 C230 110 192 150 178 210 Z" fill="#ffffff" opacity="0.5" filter="blur(1px)" />
+        <!-- Halo -->
+        <ellipse cx="150" cy="80" rx="38" ry="10" fill="none" stroke="#ffe89e" stroke-width="5" opacity="0.9" />
+        <!-- Robe silhouette -->
+        <path d="M150 250 C104 250 70 320 60 430 C60 445 240 445 240 430 C230 320 196 250 150 250 Z" fill="url(#angelBody)" />
+        <!-- Head silhouette -->
+        <path d="M150 108 C116 108 100 140 104 170 C108 198 124 220 150 220 C176 220 192 198 196 170 C200 140 184 108 150 108 Z" fill="#f7fbff" />
+        <!-- Eyes (peaceful, closed) -->
+        <path d="M126 165 Q136 173 146 165" fill="none" stroke="#356" stroke-width="3" stroke-linecap="round" />
+        <path d="M154 165 Q164 173 174 165" fill="none" stroke="#356" stroke-width="3" stroke-linecap="round" />
+        <!-- Smile -->
+        <path d="M132 192 Q150 204 168 192" stroke="#356" stroke-width="2.5" fill="none" stroke-linecap="round" />
+      </svg>
+    </div>
+  </div>
+
+  <div class="lp-center">
+    <button class="lp-enter-btn" id="lpEnterBtn">Masuk Buku Amal</button>
+    <label class="lp-skip">
+      <input type="checkbox" id="lpSkipCheck">
+      Lewati halaman ini di kemudian hari
+    </label>
+  </div>
+</div>
+

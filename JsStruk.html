@@ -1,0 +1,209 @@
+  /* ================= Upload struk (baca foto lewat Gemini) =================
+     Alur: pilih foto → server OCR jadi [{nama, nominal}] → modal review di
+     mana tiap baris dicocokkan ke nama roster (dropdown, di-pre-select pakai
+     fuzzy match sederhana) dan nominal bisa dikoreksi manual → simpan satu-
+     satu sebagai Dosa lewat submitAmalan yang sudah ada (jadi infaq otomatis
+     & lock tetap jalan seperti biasa, tidak ada jalur tulis baru). */
+
+  // Alias hasil koreksi user sebelumnya (nama OCR ternormalisasi → nama roster),
+  // dimuat dari server via getDashboardData; koreksi baru dikirim saat simpan.
+  let dataStrukAlias = {};
+  const normNama_ = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  // Match nama OCR ke roster: alias hasil koreksi dulu, baru fuzzy
+  // (exact > startsWith > contains).
+  function cariNamaCocok_(namaOcr, roster) {
+    const norm = normNama_;
+    const target = norm(namaOcr);
+    if (!target) return '';
+    const alias = dataStrukAlias[target];
+    if (alias && roster.indexOf(alias) >= 0) return alias;
+    let terbaik = '', skorTerbaik = 0;
+    roster.forEach(n => {
+      const r = norm(n);
+      if (!r) return;
+      let skor = 0;
+      if (r === target) skor = 3;
+      else if (r.indexOf(target) === 0 || target.indexOf(r) === 0) skor = 2;
+      else if (r.indexOf(target) >= 0 || target.indexOf(r) >= 0) skor = 1;
+      if (skor > skorTerbaik) { skorTerbaik = skor; terbaik = n; }
+    });
+    return terbaik;
+  }
+
+  function bacaFileSebagaiBase64_(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function bentukBarisStruk_(list) {
+    const roster = dataAnggota.filter(n => n !== KAS_NAMA);
+    $('strukList').innerHTML = list.map((it, i) => {
+      const cocok = cariNamaCocok_(it.nama, roster);
+      return `<div class="struk-row" data-i="${i}" data-ocr="${esc(it.nama)}">
+        <select class="struk-nama">${namaOptsTanpaKas}</select>
+        <input type="text" class="struk-nominal" inputmode="numeric" value="${fmt(it.nominal)}">
+        <button type="button" class="struk-remove" title="Hapus baris">✕</button>
+        <div class="struk-ocr">Terbaca: "${esc(it.nama)}"${cocok ? '' : ' — tidak ditemukan di roster, pilih manual'}</div>
+      </div>`;
+    }).join('') || '<div class="empty mini">Tidak ada baris terbaca dari foto ini.</div>';
+
+    // Pre-select hasil fuzzy match & pasang handler per baris (dibuat setelah
+    // innerHTML supaya <option> sudah ada di DOM untuk di-set value-nya).
+    [...$('strukList').querySelectorAll('.struk-row')].forEach((row, i) => {
+      const cocok = cariNamaCocok_(list[i].nama, roster);
+      if (cocok) row.querySelector('.struk-nama').value = cocok;
+      const nomInput = row.querySelector('.struk-nominal');
+      nomInput.addEventListener('input', () => {
+        const digits = nomInput.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+        nomInput.value = digits ? Number(digits).toLocaleString('id-ID') : '';
+      });
+      row.querySelector('.struk-remove').addEventListener('click', () => row.classList.add('removed'));
+    });
+  }
+
+  // Mode upload foto: 'struk' = split tagihan (simpan Dosa per orang),
+  // 'transfer' = bukti transfer bank (top-up, simpan Pahala untuk pengirim).
+  let strukMode = 'struk';
+  $('strukBtn').addEventListener('click', () => { strukMode = 'struk'; $('strukFile').click(); });
+  $('buktiBtn').addEventListener('click', () => { strukMode = 'transfer'; $('strukFile').click(); });
+  function parseStrukAsync_(base64, mimeType, mode) {
+    return new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .parseStruk(base64, mimeType, mode);
+    });
+  }
+
+  $('strukFile').addEventListener('change', async () => {
+    // multiple: struk panjang sering butuh beberapa screenshot (scroll) —
+    // tiap file dibaca Gemini terpisah lalu barisnya digabung satu review list.
+    const files = [...$('strukFile').files];
+    $('strukFile').value = ''; // biar bisa pilih file yang sama lagi
+    if (!files.length) return;
+    // Loader sama seperti saat submit: logo 3D dipasang ulang ke slot loader
+    // (kalau cuma remove 'hide', class logo3d sisa dari load awal menyembunyikan
+    // spinner fallback → yang tampil hanya blur kosong).
+    const loader = $('loader');
+    if (window.KodomoLogo3D) {
+      loader.classList.add('logo3d');
+      window.KodomoLogo3D.pasang($('loaderLogo'));
+    }
+    loader.classList.add('overlay');
+    loader.classList.remove('hide');
+    const tutupLoader = () => {
+      loader.classList.add('hide');
+      if (window.KodomoLogo3D) window.KodomoLogo3D.keHeader();
+    };
+    try {
+      let rows = [];
+      for (const file of files) {
+        const base64 = await bacaFileSebagaiBase64_(file);
+        rows = rows.concat(await parseStrukAsync_(base64, file.type, strukMode));
+      }
+      tutupLoader();
+      bentukBarisStruk_(rows);
+      const isTopup = strukMode === 'transfer';
+      $('strukTitle').textContent = isTopup ? '🏦 Konfirmasi Top-up' : '📷 Konfirmasi Struk';
+      $('strukDesc').textContent = isTopup
+        ? 'Cocokkan nama pengirim & nominal, lalu simpan sebagai Pahala (top-up).'
+        : 'Cocokkan nama & nominal tiap orang, lalu simpan sebagai Dosa. Baris yang namanya kosong tidak akan disimpan.';
+      $('strukKeterangan').value = isTopup && rows[0] && rows[0].bank
+        ? 'Melalui ' + rows[0].bank : '';
+      // Dropdown "yang traktir" cuma masuk akal untuk split tagihan (bukan top-up).
+      $('strukTraktirField').style.display = isTopup ? 'none' : '';
+      const rosterTraktir = dataAnggota.filter(n => n !== KAS_NAMA);
+      $('strukTraktir').innerHTML = '<option value="">Tidak ada, bagi rata biasa</option>' +
+        rosterTraktir.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+      $('strukStatus').textContent = '';
+      $('strukModal').classList.add('show');
+    } catch (e) {
+      tutupLoader();
+      toast(e.message || 'Gagal membaca struk.', 'err');
+    }
+  });
+
+  $('strukModalClose').addEventListener('click', () => $('strukModal').classList.remove('show'));
+  $('strukModal').addEventListener('click', e => {
+    if (e.target === $('strukModal')) $('strukModal').classList.remove('show');
+  });
+
+  $('strukConfirmBtn').addEventListener('click', () => {
+    const tipeDasar = strukMode === 'transfer' ? 'Pahala' : 'Dosa';
+    const antrian = [...$('strukList').querySelectorAll('.struk-row:not(.removed)')]
+      .map(row => ({
+        nama: row.querySelector('.struk-nama').value,
+        nominal: Number(row.querySelector('.struk-nominal').value.replace(/\./g, '')) || 0,
+        asli: row.dataset.ocr,
+        tipe: tipeDasar
+      }))
+      .filter(it => it.nama && it.nominal > 0);
+
+    if (!antrian.length) { toast('Tidak ada baris valid untuk disimpan.', 'err'); return; }
+
+    // Opsional: yang traktir otomatis dapat Pahala sebesar total yang dibagi
+    // ke orang lain (pasangan Dosa/Pahala, sama seperti pola fitur Transfer).
+    const traktirNama = strukMode === 'struk' ? $('strukTraktir').value : '';
+    if (traktirNama) {
+      const totalTraktir = antrian.reduce((s, it) => s + it.nominal, 0);
+      antrian.push({ nama: traktirNama, nominal: totalTraktir, asli: null, tipe: 'Pahala', traktir: true });
+    }
+
+    // Pelajari koreksi nama: kalau nama OCR ≠ nama yang dipilih (setelah
+    // dinormalisasi), simpan sebagai alias supaya jadi tebakan pertama
+    // di upload berikutnya. Fire-and-forget — gagal pun tidak mengganggu simpan.
+    const aliasBaru = {};
+    antrian.forEach(it => {
+      const key = normNama_(it.asli);
+      if (key && key !== normNama_(it.nama)) aliasBaru[key] = it.nama;
+    });
+    if (Object.keys(aliasBaru).length) {
+      Object.assign(dataStrukAlias, aliasBaru); // langsung berlaku di sesi ini
+      google.script.run.saveStrukAlias(aliasBaru);
+    }
+
+    // Keterangan bersama, dipakai apa adanya untuk semua baris.
+    const ketBersama = $('strukKeterangan').value.trim();
+    const payload = antrian.map(it => ({
+      nama: it.nama,
+      tipe: it.tipe,
+      nominal: it.nominal,
+      keterangan: it.traktir
+        ? ('Traktir struk' + (ketBersama ? ': ' + ketBersama : ''))
+        : ketBersama
+    }));
+
+    const btn = $('strukConfirmBtn');
+    btn.disabled = true;
+    // ponytail: saldo-sebelum untuk pengumuman diambil dari baris pertama saja —
+    // top-up bukti transfer praktis selalu satu baris; kalau nanti multi-baris
+    // jadi lazim, hitung per orang.
+    const saldoSebelum = saldoSaatIni(antrian[0].nama);
+    const totalNominal = antrian.reduce((s, it) => s + it.nominal, 0);
+    $('strukStatus').textContent = `Menyimpan ${payload.length} transaksi…`;
+
+    // Satu request untuk semua baris (termasuk baris traktir) — server menulis
+    // semuanya dalam satu batch write, bukan appendRow bergantian per baris.
+    google.script.run
+      .withSuccessHandler(data => {
+        btn.disabled = false;
+        $('strukModal').classList.remove('show');
+        render(data);
+        toast(`${payload.length} transaksi dari struk tersimpan ✓`, 'ok');
+        // Top-up: ka-ching kasir dulu, baru pengumuman suara.
+        if (strukMode === 'transfer') playSfxUrut(['kaching'].concat(daftarUmumanPahala_(saldoSebelum, totalNominal)));
+        else playSfx('mantul');
+      })
+      .withFailureHandler(err => {
+        btn.disabled = false;
+        $('strukStatus').textContent = 'Gagal simpan: ' + (err.message || 'error');
+        toast(err.message || 'Gagal menyimpan transaksi.', 'err');
+      })
+      .submitAmalanBatch(payload);
+  });
+

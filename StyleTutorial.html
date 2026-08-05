@@ -1,0 +1,175 @@
+  /* ===== Tutorial Walkthrough Style ===== */
+  #tutorialOverlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(7, 7, 20, 0.7);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    z-index: 10000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  #tutorialOverlay.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  #tutorialTooltip {
+    position: fixed;
+    z-index: 10002;
+    width: 320px;
+    /* Latar nyaris pekat, BUKAN var(--glass-strong) (putih 9% di tema gelap).
+       Kaca setipis itu hanya terbaca kalau backdrop-filter hidup, padahal di
+       layar sentuh blur dimatikan permanen (lihat aturan di awal berkas) —
+       akibatnya tulisan latar tembus dan tooltip sulit dibaca di HP. Ikut pola
+       .modal-card, tapi lebih pekat: blur #tutorialOverlay di belakangnya juga
+       ikut mati di mobile, jadi bantuannya lebih sedikit daripada modal. */
+    background: rgba(19, 19, 40, .97);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.05);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    opacity: 0;
+    transform: scale(0.95);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    color: var(--text);
+    pointer-events: none;
+  }
+  #tutorialTooltip.show {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
+  }
+  /* Sejak latar tooltip jadi pekat, kontras teksnya bisa diukur pasti — dan
+     dua di antaranya ternyata di bawah ambang AA 4.5:1 untuk teks kecil:
+     indikator langkah di tema gelap (4.31) dan teks isi di tema terang
+     (4.26). Diperbaiki dalam lingkup tooltip saja supaya palet global,
+     yang dipakai di angka besar/tebal dengan ambang 3:1, tidak ikut berubah. */
+  #tutorialTooltip .tutorial-step-indicator { color: #a78bfa; }
+  #tutorialTooltip .tutorial-desc { color: rgba(226, 224, 255, .85); }
+  body.light #tutorialTooltip .tutorial-step-indicator { color: #6d28d9; }
+  body.light #tutorialTooltip .tutorial-desc { color: rgba(26, 22, 51, .8); }
+  .tutorial-step-indicator {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--violet);
+    margin-bottom: 6px;
+  }
+  .tutorial-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: var(--text);
+  }
+  .tutorial-desc {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+  .tutorial-nav {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .tutorial-btn {
+    flex: 1;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s, transform 0.1s;
+    text-align: center;
+  }
+  .tutorial-btn.primary {
+    background: linear-gradient(135deg, var(--violet), var(--cyan));
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+  }
+  .tutorial-btn.primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
+  }
+  .tutorial-btn.secondary {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .tutorial-btn.secondary:hover {
+    background: var(--glass-strong);
+  }
+  .tutorial-close-btn {
+    position: absolute;
+    top: 14px; right: 14px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 14px;
+    cursor: pointer;
+    transition: color 0.2s;
+    line-height: 1;
+  }
+  .tutorial-close-btn:hover {
+    color: var(--text);
+  }
+  .tutorial-highlight {
+    position: relative !important;
+    z-index: 10001 !important;
+    box-shadow: 0 0 0 4px var(--violet), 0 4px 30px rgba(139, 92, 246, 0.4) !important;
+    pointer-events: none !important;
+    scroll-margin-top: 80px;
+  }
+
+  @media (max-width: 680px) {
+    #tutorialTooltip {
+      /* absolute = koordinat DOKUMEN, bukan viewport. Di embed Google Sites
+         halaman ini hidup dalam iframe, dan "viewport" bagi position:fixed
+         adalah tinggi IFRAME (bisa ribuan px), bukan layar HP — tooltip yang
+         dipatok ke dasar viewport mendarat jauh di bawah area yang terlihat
+         sehingga tombolnya hilang. Posisi `top` diisi positionTooltip(). */
+      position: absolute;
+      width: calc(100% - 32px) !important;
+      left: 16px !important;
+      right: auto !important;
+      bottom: auto !important;
+      transform: translateY(20px);
+      /* Jangan sampai keluar frame: batasi tinggi & scroll di dalam */
+      display: flex;
+      flex-direction: column;
+      /* Batas px mutlak wajib ada: di dalam embed 100dvh juga mengukur tinggi
+         IFRAME, jadi dvh sendirian tidak membatasi apa pun dan tombol kembali
+         terdorong keluar layar. Kalau dibuka langsung, dvh yang lebih kecil
+         tetap menang lewat min().
+         ponytail: 340px itu tebakan konservatif — dari dalam iframe lintas
+         domain tinggi layar HP yang sebenarnya memang tidak bisa dibaca.
+         Cukup untuk layar >= ~620px terlihat; kalau nanti ada laporan
+         terpotong di HP mungil, ukur pakai IntersectionObserver
+         (intersectionRect tetap terpotong oleh frame induk) lalu pakai
+         tinggi hasil ukurnya sebagai ganti angka ini. */
+      max-height: 340px;
+      max-height: min(340px, calc(100dvh - 32px - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px)));
+    }
+    #tutorialTooltip.show {
+      transform: translateY(0);
+    }
+    #tutorialTooltip .tutorial-step-indicator,
+    #tutorialTooltip .tutorial-title,
+    #tutorialTooltip .tutorial-nav {
+      flex: 0 0 auto;
+    }
+    #tutorialTooltip .tutorial-desc {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+

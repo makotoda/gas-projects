@@ -1,0 +1,51 @@
+  /* ---- Tema: Merah Putih / gelap / terang, berputar saat tombol diklik ----
+     Label tombol menunjukkan tema TUJUAN (berikutnya), bukan tema aktif.
+     'mp' dibangun di atas tema terang, jadi ia memasang kelas .light juga.
+     Kunci localStorage sengaja baru ('kodomoTema') supaya pemakai lama ikut
+     mendapat Merah Putih sebagai default menjelang 17-an, bukan tersangkut
+     pilihan lamanya. */
+  /* Isi wadah hujan bendera sekali di awal. Elemennya tetap ada di DOM pada
+     tema lain, cuma disembunyikan lewat CSS — jauh lebih murah daripada
+     membangun ulang tiap kali tema berganti, dan animasi CSS pada elemen
+     display:none memang tidak berjalan. */
+  function siapkanHujanBendera_() {
+    const wadah = $('benderaHujan');
+    if (!wadah) return;
+    const sempit = window.innerWidth < 700;
+    const jumlah = sempit ? 10 : 18;
+    const acak = (a, b) => a + Math.random() * (b - a);
+    let html = '';
+    for (let i = 0; i < jumlah; i++) {
+      const w = Math.round(acak(16, 30));
+      html += `<span class="bendera" style="` +
+        `--x:${acak(0, 98).toFixed(1)}vw;` +
+        `--w:${w}px;` +
+        `--d:${acak(9, 18).toFixed(1)}s;` +
+        `--del:-${acak(0, 18).toFixed(1)}s;` +   // negatif = mulai di tengah jalan
+        `--r0:${Math.round(acak(-25, 25))}deg;` +
+        `--r1:${Math.round(acak(-200, 200))}deg;` +
+        `"><i><b></b></i></span>`;
+    }
+    wadah.innerHTML = html;
+  }
+  siapkanHujanBendera_();
+
+  const TEMA_URUT = ['mp', 'dark', 'light'];
+  const TEMA_LABEL = { mp: '🇮🇩 Merah Putih', dark: '🌙 Gelap', light: '☀️ Terang' };
+  const themeBtn = $('themeBtn');
+  let temaAktif = 'mp';
+
+  function setTheme_(nama) {
+    temaAktif = TEMA_URUT.indexOf(nama) >= 0 ? nama : 'mp';
+    document.body.classList.toggle('mp', temaAktif === 'mp');
+    document.body.classList.toggle('light', temaAktif === 'light' || temaAktif === 'mp');
+    const next = TEMA_URUT[(TEMA_URUT.indexOf(temaAktif) + 1) % TEMA_URUT.length];
+    themeBtn.textContent = TEMA_LABEL[next];
+    try { localStorage.setItem('kodomoTema', temaAktif); } catch (e) {}
+  }
+  let temaTersimpan = null;
+  try { temaTersimpan = localStorage.getItem('kodomoTema'); } catch (e) {}
+  setTheme_(temaTersimpan || 'mp');
+  themeBtn.addEventListener('click', () =>
+    setTheme_(TEMA_URUT[(TEMA_URUT.indexOf(temaAktif) + 1) % TEMA_URUT.length]));
+

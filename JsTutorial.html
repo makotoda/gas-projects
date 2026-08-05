@@ -1,0 +1,279 @@
+  /* ---- Logika Tutorial Interaktif ---- */
+  let currentTutorialStep = 0;
+  const tutorialSteps = [
+    {
+      title: "Selamat Datang di Kodomo! 🏆",
+      desc: "Kodomo (Koperasi Dosa Mako) itu aplikasi buat nyatet saldo (pahala) dan hutang (dosa) buat semeton Bimas Hindu. Kalo masih ga paham atau bingung, ikutin aja lah pokoknya. Gasss!!",
+      targetId: null
+    },
+    {
+      title: "Menu Atas ⚙️",
+      desc: "Deretan tombol di pojok kanan atas ini isinya:<br><br>• <strong>❓ Bantuan</strong> — muterin ulang tutorial ini kapan aja.<br>• <strong>☀️ Terang / 🌙 Gelap</strong> — ganti tema terang atau gelap, sesuai selera mata.<br>• <strong>🏦 Rekening</strong> — liat &amp; salin nomor rekening buat transfer beneran ke KAS/admin.<br>• <strong>📄 Laporan</strong> — unduh laporan bulanan (PDF) per orang atau KAS, gaya statement bank.<br>• <strong>🛒 Kopdos Merah Putih</strong> — katalog belanja koperasi; totalnya langsung tercatat jadi dosa (tanpa potongan infaq KAS).<br>• <strong>🔊</strong> — nyalain atau matiin efek suara.",
+      targetId: "headerControls"
+    },
+    {
+      title: "Statistik Kumulatif 📊",
+      desc: "Ini papan informasi aja, sih. Tapi kalo diklik, nanti keliatan deh daftar penghuni surga dan neraka (sementara yaa wkwk).",
+      targetId: "statsContainer"
+    },
+    {
+      title: "Catat Amalan ✍️",
+      desc: "Nah ini yang paling penting. Ini buat rekam semua transaksi. Kalo antum abis bayar makanan, atau mau top up saldo (pahala) biar ga bolak-balik transfer nantinya, pilihnya yang pahala. Pilih dosa cuma kalo antum memang niatnya abis makan dikumpulin dulu utangnya, which is gapapa but thanks udah bantu ngurangin kerjaan ana untuk nyatet utang antum.<br><br>Nah kalau transfer, itu fitur buat ngirim saldo (pahala) ke semeton lain. Misal kelen berdua ada transaksi (gelap misalnya), daripada transfer, mending input aja di mari.<br><br><strong>TAPI paling gampang:</strong> kalo antum udah TF beneran (top up saldo atau bayar utang), ga usah ngisi form ini sama sekali — pencet aja tombol hijau <strong>\"Sudah transfer? Upload buktinya\"</strong> di paling atas, foto/screenshot bukti TF-nya, beres. Nama sama nominalnya kebaca otomatis.",
+      targetId: "formCard"
+    },
+    {
+      title: "Papan Peringkat 🏆",
+      desc: "Ga perlu dijelasin ga, sih? Intinya kalo mau dilihat dunia, top up sebanyak-banyaknya wkwk. Kalo namanya diklik, nanti bisa liat transaksi terakhir manusia itu (bisa hide infaq KAS & geser slide).",
+      targetId: "boardCard",
+      action: () => activateTab("leaderboard")
+    },
+    {
+      title: "Riwayat Buku Amal 🕐",
+      desc: "Ini buku amalan besarnya. Disini ada 30 transaksi terakhir. Kalo mau ngurek-ngurek dosa lama, boleh hubungin admin pencatat amal.",
+      targetId: "boardCard",
+      action: () => activateTab("riwayat")
+    },
+    {
+      title: "Siap Memulai! 🎉",
+      desc: "Tur selesai! Sudah paham kan sejauh ini~~~ ?  Klik tombol <strong>❓ Bantuan</strong> kalo kamu segabut itu untuk ngulang tutorial unfaedah ini dari awal. Oke, sudah siap berdosa hari ini?",
+      targetId: null
+    }
+  ];
+
+  function activateTab(view) {
+    document.querySelectorAll('.tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.view === view);
+    });
+    $('viewLeaderboard').style.display = view === 'leaderboard' ? '' : 'none';
+    $('viewGold').style.display = view === 'gold' ? '' : 'none';
+    $('viewRiwayat').style.display = view === 'riwayat' ? '' : 'none';
+    $('viewKas').style.display = view === 'kas' ? '' : 'none';
+    $('viewResto').style.display = view === 'resto' ? '' : 'none';
+  }
+
+  function startTutorial() {
+    currentTutorialStep = 0;
+    showTutorialStep();
+  }
+
+  function endTutorial() {
+    document.querySelectorAll('.tutorial-highlight').forEach(el => {
+      el.classList.remove('tutorial-highlight');
+    });
+    $('tutorialOverlay').classList.remove('show');
+    $('tutorialTooltip').classList.remove('show');
+    activateTab("leaderboard");
+    try {
+      localStorage.setItem('kodomo_tutorial_seen', 'true');
+    } catch(e) {}
+  }
+
+  function showTutorialStep() {
+    const step = tutorialSteps[currentTutorialStep];
+    if (!step) {
+      endTutorial();
+      return;
+    }
+
+    document.querySelectorAll('.tutorial-highlight').forEach(el => {
+      el.classList.remove('tutorial-highlight');
+    });
+
+    if (typeof step.action === 'function') {
+      step.action();
+    }
+
+    $('tutorialStepIndicator').textContent = `Langkah ${currentTutorialStep + 1} dari ${tutorialSteps.length}`;
+    $('tutorialTitle').textContent = step.title;
+    $('tutorialDesc').innerHTML = step.desc;
+
+    $('tutorialPrevBtn').style.display = currentTutorialStep === 0 ? 'none' : '';
+    $('tutorialNextBtn').textContent = currentTutorialStep === tutorialSteps.length - 1 ? 'Selesai' : 'Lanjut';
+
+    $('tutorialOverlay').classList.add('show');
+
+    const tooltip = $('tutorialTooltip');
+    const target = step.targetId ? $(step.targetId) : null;
+
+    if (target) {
+      target.classList.add('tutorial-highlight');
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    setTimeout(() => {
+      positionTooltip(target, true);
+    }, 150);
+  }
+
+  // reveal: gulirkan tooltip ke tampak. Hanya boleh true dari showTutorialStep,
+  // tidak dari handler scroll/resize (lihat catatan di cabang mobile).
+  function positionTooltip(target, reveal) {
+    const tooltip = $('tutorialTooltip');
+    const overlay = $('tutorialOverlay');
+    
+    tooltip.style.visibility = 'hidden';
+    tooltip.classList.add('show');
+    const tw = tooltip.offsetWidth;
+    const th = tooltip.offsetHeight;
+    tooltip.classList.remove('show');
+    tooltip.style.visibility = 'visible';
+
+    // Update Overlay Clip Path (cutout) to prevent blurring and dimming the target element
+    if (target) {
+      const rect = target.getBoundingClientRect();
+      const pad = 6;
+      const x0 = Math.max(0, rect.left - pad);
+      const y0 = Math.max(0, rect.top - pad);
+      const x1 = Math.min(window.innerWidth, rect.right + pad);
+      const y1 = Math.min(window.innerHeight, rect.bottom + pad);
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      
+      overlay.style.clipPath = `polygon(
+        0px 0px, 
+        0px ${h}px, 
+        ${x0}px ${h}px, 
+        ${x0}px ${y0}px, 
+        ${x1}px ${y0}px, 
+        ${x1}px ${y1}px, 
+        ${x0}px ${y1}px, 
+        ${x0}px ${h}px, 
+        ${w}px ${h}px, 
+        ${w}px 0px
+      )`;
+    } else {
+      overlay.style.clipPath = 'none';
+    }
+
+    if (window.innerWidth < 680) {
+      // Koordinat DOKUMEN, bukan viewport — alasannya di catatan CSS
+      // #tutorialTooltip (media query mobile): di embed Sites, viewport bagi
+      // position:fixed adalah tinggi iframe, bukan layar HP.
+      const y = window.scrollY || document.documentElement.scrollTop || 0;
+      let atas;
+      if (target) {
+        const r = target.getBoundingClientRect();
+        // Di bawah elemen yang disorot — tapi jangan terlalu jauh dari
+        // puncaknya: kartu form/leaderboard tingginya bisa ratusan piksel,
+        // dan showTutorialStep sudah menggulir puncak target ke atas layar.
+        // Tanpa batas ini tooltip mendarat jauh di bawah lipatan lagi.
+        atas = Math.min(y + r.bottom + 12, y + r.top + 200);
+      } else {
+        atas = y + 24;
+      }
+      // Jangan sampai jatuh di bawah layar. Saat dibuka LANGSUNG, innerHeight
+      // memang tinggi layar, dan pembatas ini menyelamatkan kasus target yang
+      // tidak bisa digulir ke puncak karena dokumennya sudah mentok (mis.
+      // kartu leaderboard yang paling bawah). Saat di-EMBED, innerHeight =
+      // tinggi iframe sehingga pembatas ini tidak berpengaruh — di sana yang
+      // bekerja pembatas jarak ke puncak target di atas.
+      const maksAtas = y + window.innerHeight - th - 16;
+      tooltip.style.top = Math.max(y + 12, Math.min(atas, maksAtas)) + 'px';
+      tooltip.style.bottom = 'auto';
+      // Biarkan CSS yang menganimasikan masuknya; inline transform sisa dari
+      // render versi desktop akan mematikan animasi itu.
+      tooltip.style.transform = '';
+      tooltip.classList.add('show');
+      // Gulirkan ke tampak hanya untuk langkah TANPA target (langkah 1 & 7);
+      // langkah bertarget sudah digulirkan lewat target.scrollIntoView di
+      // showTutorialStep, dan menggulir dua kali malah saling rebutan.
+      // block:'center', BUKAN 'nearest': di dalam iframe setinggi ribuan
+      // piksel hampir semua elemen dianggap "sudah terlihat", sehingga
+      // 'nearest' memutuskan tidak menggulir apa pun dan tooltip tetap di
+      // luar layar HP. 'center' selalu menggulir, dan gulirannya merambat
+      // ke frame induk saat halaman di-embed.
+      if (reveal && !target) {
+        tooltip.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+
+    if (!target) {
+      tooltip.style.left = '50%';
+      tooltip.style.top = '50%';
+      tooltip.style.bottom = 'auto';
+      tooltip.style.transform = 'translate(-50%, -50%) scale(1)';
+      tooltip.classList.add('show');
+      return;
+    }
+
+    const rect = target.getBoundingClientRect();
+    const pad = 20;
+    
+    // Position using viewport-relative coordinates (since it's position: fixed)
+    let top = rect.top;
+    let left = rect.left;
+
+    const spaceRight = window.innerWidth - rect.right;
+    const spaceLeft = rect.left;
+    const spaceBottom = window.innerHeight - rect.bottom;
+
+    if (spaceRight > 360) {
+      left = rect.right + pad;
+      top = rect.top + (rect.height - th) / 2;
+    } else if (spaceLeft > 360) {
+      left = rect.left - tw - pad;
+      top = rect.top + (rect.height - th) / 2;
+    } else if (spaceBottom > 240) {
+      left = rect.left + (rect.width - tw) / 2;
+      top = rect.bottom + pad;
+    } else {
+      left = rect.left + (rect.width - tw) / 2;
+      top = rect.top - th - pad;
+    }
+
+    // Constrain tooltip bounds inside viewport
+    left = Math.max(10, Math.min(window.innerWidth - tw - 10, left));
+    top = Math.max(10, Math.min(window.innerHeight - th - 10, top));
+
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+    tooltip.style.bottom = 'auto';
+    tooltip.style.transform = 'scale(1)';
+    tooltip.classList.add('show');
+  }
+
+  $('tutorialNextBtn').addEventListener('click', () => {
+    currentTutorialStep++;
+    if (currentTutorialStep >= tutorialSteps.length) {
+      endTutorial();
+    } else {
+      showTutorialStep();
+    }
+  });
+
+  $('tutorialPrevBtn').addEventListener('click', () => {
+    if (currentTutorialStep > 0) {
+      currentTutorialStep--;
+      showTutorialStep();
+    }
+  });
+
+  $('tutorialSkipBtn').addEventListener('click', endTutorial);
+  $('tutorialOverlay').addEventListener('click', endTutorial);
+  $('tutorialBtn').addEventListener('click', startTutorial);
+
+  function checkAutoStartTutorial() {
+    try {
+      const seen = localStorage.getItem('kodomo_tutorial_seen');
+      if (!seen) {
+        setTimeout(startTutorial, 800);
+      }
+    } catch(e) {}
+  }
+
+  window.addEventListener('resize', () => {
+    if ($('tutorialTooltip').classList.contains('show')) {
+      const step = tutorialSteps[currentTutorialStep];
+      const target = step && step.targetId ? $(step.targetId) : null;
+      positionTooltip(target);
+    }
+  });
+
+  window.addEventListener('scroll', () => {
+    if ($('tutorialTooltip').classList.contains('show')) {
+      const step = tutorialSteps[currentTutorialStep];
+      const target = step && step.targetId ? $(step.targetId) : null;
+      positionTooltip(target);
+    }
+  });

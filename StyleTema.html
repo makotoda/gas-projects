@@ -1,0 +1,276 @@
+  /* ===== Tema terang (toggle di header; default gelap) ===== */
+  body.light {
+    --bg: #eef0f8;
+    --glass: rgba(255, 255, 255, 0.6);
+    --glass-strong: rgba(255, 255, 255, 0.85);
+    --border: rgba(15, 23, 42, 0.16);
+    --border-soft: rgba(15, 23, 42, 0.09);
+    --text: #1a1633;
+    --muted: rgba(26, 22, 51, 0.58);
+    --violet: #7c3aed;
+    --cyan: #0891b2;
+    --pink: #db2777;
+    --mint: #0d9f6e;
+    --rose: #e11d48;
+    /* Versi gelap: aksen terang di atas kartu terang tidak terbaca. */
+    --ay-islam: #047857;
+    --ay-protestan: #0e7490;
+    --ay-katolik: #6d28d9;
+    --ay-hindu: #c2410c;
+    --ay-buddha: #a16207;
+    --ay-khonghucu: #be123c;
+  }
+
+  /* ===== Tema Merah Putih (17 Agustus) =====
+     Dibangun DI ATAS tema terang — elemen bertema memakai kelas .light juga
+     (lihat setTheme_), jadi di sini cukup menimpa paletnya saja. Urutannya
+     harus setelah body.light karena spesifisitasnya sama. */
+  body.mp {
+    --bg: #fff5f6;
+    --glass: rgba(255, 255, 255, 0.72);
+    --glass-strong: rgba(255, 255, 255, 0.93);
+    --border: rgba(206, 17, 38, 0.30);
+    --border-soft: rgba(206, 17, 38, 0.15);
+    --text: #24070c;
+    --muted: rgba(36, 7, 12, 0.60);
+    --violet: #ce1126;   /* merah bendera — aksen utama */
+    --cyan: #9f1239;
+    --pink: #e11d48;
+    /* Pahala vs dosa tetap harus bisa dibedakan sekilas, dan bendera cuma
+       punya dua warna. Dosa memakai merah bendera; pahala memakai tinta
+       gelap supaya kontras di atas putih tanpa menambah warna ketiga. */
+    --mint: #1f2937;
+    --rose: #ce1126;
+    --ay-islam: #9f1239;
+    --ay-protestan: #7f1d1d;
+    --ay-katolik: #a21caf;
+    --ay-hindu: #b45309;
+    --ay-buddha: #a16207;
+    --ay-khonghucu: #be123c;
+  }
+  /* Pita merah-putih tipis di tepi atas header, sebagai penanda tema. */
+  body.mp header {
+    border-top: 4px solid #ce1126;
+    background-image: linear-gradient(180deg, rgba(206,17,38,.08), transparent 120px);
+  }
+  body.mp .orb { opacity: .28; }
+
+  /* Tombol header selang-seling merah-putih. Dihitung dengan :nth-of-type
+     atas elemen <button> di dalam #headerControls, jadi menambah/menghapus
+     satu tombol otomatis menggeser pola tanpa perlu menyentuh CSS ini.
+     Tombol suara tinggal di pembungkus .header-right sehingga tidak ikut
+     terhitung — warnanya dipatok manual sebagai lanjutan pola. */
+  body.mp #headerControls .music-btn:nth-of-type(odd) {
+    color: #fff;
+    background: #ce1126;
+    border-color: #a30d1e;
+  }
+  body.mp #headerControls .music-btn:nth-of-type(odd):hover {
+    color: #fff;
+    background: #b30f21;
+    border-color: #8a0b19;
+  }
+  body.mp #headerControls .music-btn:nth-of-type(even) {
+    color: #ce1126;
+    background: #fff;
+    border-color: rgba(206,17,38,.45);
+  }
+  body.mp #headerControls .music-btn:nth-of-type(even):hover {
+    color: #ce1126;
+    background: #fff5f6;
+    border-color: #ce1126;
+  }
+  body.mp #headerControls .sound-btn {
+    background: #fff;
+    border-color: rgba(206,17,38,.45);
+  }
+  body.mp #headerControls .sound-btn:hover { border-color: #ce1126; }
+
+  /* Tab papan (Leaderboard/Gold/Riwayat/Kas/Resto) ikut selang-seling.
+     Tab aktif tetap harus menonjol padahal warnanya sudah dipakai pola, jadi
+     penandanya digeser ke cincin + bayangan, bukan ke warna latar. */
+  body.mp .tabs .tab:nth-of-type(odd) {
+    color: #fff;
+    background: #ce1126;
+    border-color: #a30d1e;
+  }
+  body.mp .tabs .tab:nth-of-type(even) {
+    color: #ce1126;
+    background: #fff;
+    border-color: rgba(206,17,38,.45);
+  }
+  body.mp .tabs .tab:nth-of-type(odd):hover { background: #b30f21; }
+  body.mp .tabs .tab:nth-of-type(even):hover { background: #fff5f6; }
+  body.mp .tabs .tab.active {
+    border-color: #7f0a17;
+    box-shadow: 0 0 0 2px rgba(206,17,38,.35), 0 4px 14px rgba(206,17,38,.35);
+    font-weight: 700;
+  }
+
+  /* ---- Hujan bendera Merah Putih ----
+     Murni CSS: tiap bendera punya animasi jatuh + goyang sendiri lewat
+     custom property, jadi tidak ada satu pun timer JavaScript yang berjalan.
+     Ditaruh di bawah lapisan modal (z-index 45) supaya tidak menutupi dialog,
+     dan pointer-events none supaya tidak pernah menghalangi klik. */
+  #benderaHujan {
+    position: fixed; inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 40;
+    display: none;
+  }
+  body.mp #benderaHujan { display: block; }
+  .bendera {
+    position: absolute;
+    top: -60px;
+    left: var(--x);
+    animation: benderaJatuh var(--d) linear var(--del) infinite;
+    will-change: transform;
+  }
+  .bendera > i {                     /* lapisan goyang kiri-kanan */
+    display: block;
+    position: relative;              /* jangkar tiang — lihat ::before di bawah */
+    animation: benderaGoyang calc(var(--d) / 5) ease-in-out var(--del) infinite alternate;
+  }
+  /* Tiang HARUS berada di dalam lapisan yang bergoyang. Waktu ia dipasang di
+     .bendera (lapisan luar), kain ikut bergeser ±16px oleh animasi goyang
+     sementara tiangnya diam — hasilnya bendera tampak lepas dari tiangnya. */
+  .bendera > i::before {
+    content: '';
+    position: absolute; left: 0; top: 0;
+    width: 2px; height: calc(var(--w) * 1.15);
+    border-radius: 0 0 2px 2px;
+    background: linear-gradient(180deg, #a8a29e, #78716c);
+  }
+  .bendera b {                       /* kain bendera */
+    display: block;
+    width: var(--w);
+    height: calc(var(--w) * .66);
+    margin-left: 2px;                /* tepat di sisi kanan tiang, tanpa celah */
+    background: linear-gradient(180deg, #ce1126 0 50%, #fff 50% 100%);
+    border-radius: 1px 3px 3px 1px;
+    box-shadow: 0 2px 7px rgba(0,0,0,.18);
+    transform-origin: left center;
+    /* Berkibar: perspektif + rotasi sumbu Y bolak-balik, ditambah sedikit
+       skew supaya tepi kanannya ikut melambai, bukan sekadar berputar. */
+    animation: benderaKibar 1.15s ease-in-out infinite;
+  }
+  @keyframes benderaJatuh {
+    from { transform: translateY(-10vh) rotate(var(--r0)); }
+    to   { transform: translateY(112vh) rotate(var(--r1)); }
+  }
+  @keyframes benderaGoyang {
+    from { transform: translateX(-16px); }
+    to   { transform: translateX(16px); }
+  }
+  @keyframes benderaKibar {
+    0%   { transform: perspective(140px) rotateY(0deg) skewY(0deg); }
+    35%  { transform: perspective(140px) rotateY(38deg) skewY(-4deg); }
+    70%  { transform: perspective(140px) rotateY(-22deg) skewY(3deg); }
+    100% { transform: perspective(140px) rotateY(0deg) skewY(0deg); }
+  }
+  /* Hormati preferensi sistem: animasi tak henti di latar itu melelahkan bagi
+     sebagian orang, dan ini murni dekorasi. */
+  @media (prefers-reduced-motion: reduce) {
+    body.mp #benderaHujan { display: none; }
+  }
+
+  /* CTA "Bukti Transfer": di tema ini --mint/--cyan keduanya warna gelap,
+     sehingga teks gelap bawaannya jadi gelap-di-atas-gelap. Dibalik menjadi
+     merah bendera dengan teks putih. */
+  body.mp .cta-tf {
+    color: #fff;
+    background: linear-gradient(135deg, #ce1126, #9f1239);
+    box-shadow: 0 6px 24px rgba(206,17,38,.35);
+  }
+  body.mp .cta-tf:hover { box-shadow: 0 10px 32px rgba(206,17,38,.5); }
+
+  /* Baris leaderboard dwiwarna: saldo positif = merah bendera dengan tulisan
+     putih, saldo negatif = putih dengan tulisan merah. Elemen di dalam baris
+     (peringkat, meter, sub-angka) ikut diwarnai ulang karena warna
+     bawaannya mengandaikan latar netral. */
+  body.mp .lb-item.pos .lb-row {
+    background: #ce1126;
+    border-color: #a30d1e;
+  }
+  body.mp .lb-item.pos.open .lb-row { background: #b30f21; border-color: #8a0b19; }
+  body.mp .lb-item.pos .lb-name,
+  body.mp .lb-item.pos .lb-saldo,
+  body.mp .lb-item.pos .lb-saldo.pos { color: #fff; }
+  body.mp .lb-item.pos .lb-sub,
+  body.mp .lb-item.pos .lb-sub span,
+  body.mp .lb-item.pos .lb-name .chev { color: rgba(255,255,255,.82); }
+  body.mp .lb-item.pos .rank {
+    background: rgba(255,255,255,.18);
+    border-color: rgba(255,255,255,.4);
+    color: #fff;
+  }
+  body.mp .lb-item.pos .lb-ava { border-color: rgba(255,255,255,.55); }
+  body.mp .lb-item.pos .lb-meter { background: rgba(255,255,255,.28); }
+  body.mp .lb-item.pos .lb-meter i {
+    background: #fff;
+    box-shadow: 0 0 8px rgba(255,255,255,.7);
+  }
+
+  body.mp .lb-item.neg .lb-row {
+    background: #fff;
+    border-color: rgba(206,17,38,.35);
+  }
+  body.mp .lb-item.neg.open .lb-row { background: #fff5f6; border-color: #ce1126; }
+  body.mp .lb-item.neg .lb-name,
+  body.mp .lb-item.neg .lb-saldo,
+  body.mp .lb-item.neg .lb-saldo.neg { color: #ce1126; }
+  body.mp .lb-item.neg .lb-sub,
+  body.mp .lb-item.neg .lb-sub span,
+  body.mp .lb-item.neg .lb-name .chev { color: rgba(206,17,38,.75); }
+  body.mp .lb-item.neg .rank {
+    background: rgba(206,17,38,.10);
+    border-color: rgba(206,17,38,.30);
+    color: #ce1126;
+  }
+  body.mp .lb-item.neg .lb-ava { border-color: rgba(206,17,38,.35); }
+  body.mp .lb-item.neg .lb-meter { background: rgba(206,17,38,.15); }
+  body.mp .lb-item.neg .lb-meter i {
+    background: #ce1126;
+    box-shadow: 0 0 8px rgba(206,17,38,.45);
+  }
+  body.light .orb { opacity: .28; }
+  body.light .orb-3 { opacity: .18; }
+  body.light select option { background: #fff; }
+  body.light select, body.light input[type="text"],
+  body.light .toggle { background: rgba(15, 23, 42, 0.05); }
+  body.light .tab { background: rgba(15, 23, 42, 0.04); }
+  body.light .rank { background: rgba(15, 23, 42, 0.07); }
+  body.light .lb-row:hover { background: rgba(15, 23, 42, 0.05); }
+  body.light .lb-item.open .lb-row { background: rgba(15, 23, 42, 0.06); }
+  body.light .hx-row:hover { background: rgba(15, 23, 42, 0.05); }
+  body.light .hx-row.mini:hover { background: none; }
+  body.light .lb-meter { background: rgba(15, 23, 42, 0.09); }
+  body.light .modal-close, body.light .modal-foot button { background: rgba(15, 23, 42, 0.05); }
+  body.light .stat:hover { border-color: rgba(15, 23, 42, 0.32); }
+  body.light #statModal, body.light #rekModal, body.light #laporanModal,
+  body.light #kopdosModal { background: rgba(238, 240, 248, 0.72); }
+  body.light .modal-card {
+    background: rgba(252, 252, 255, 0.97);
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
+  }
+  /* Tanpa ini, latar pekat gelap tooltip terbawa ke tema terang dan
+     bertabrakan dengan warna teksnya yang ikut var(--text) jadi gelap. */
+  body.light #tutorialTooltip {
+    background: rgba(252, 252, 255, 0.98);
+    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(15, 23, 42, 0.05);
+  }
+  /* Aksen light lebih gelap, jadi teks putih terbaca di ketiga slider */
+  body.light .toggle button.active { color: #fff; }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    min-height: 100vh;
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+    position: relative;
+  }
+

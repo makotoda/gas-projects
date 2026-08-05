@@ -1,0 +1,95 @@
+  /* ================= Kopdos Merah Putih (katalog belanja) =================
+     Belanja masuk sebagai transaksi Dosa lewat submitBelanja() — jalur
+     terpisah dari submitAmalan karena pembelian barang koperasi sengaja
+     TIDAK memicu baris infaq KAS. Harga tidak dikirim dari sini; server
+     mengambilnya sendiri dari KATALOG_KOPDOS berdasarkan id barang. */
+  const kopQty = {};   // id barang → jumlah unit di keranjang
+
+  function kopTotal_() {
+    return dataKatalog.reduce((t, b) => t + b.harga * (kopQty[b.id] || 0), 0);
+  }
+
+  function renderKopdos() {
+    const el = $('kopdosList');
+    if (!dataKatalog.length) {
+      el.innerHTML = '<div class="empty">Katalog masih kosong.</div>';
+      return;
+    }
+    el.innerHTML = dataKatalog.map(b => `
+      <div class="kop-row" data-id="${esc(b.id)}">
+        <div class="kop-emoji">${esc(b.emoji || '📦')}</div>
+        <div>
+          <div class="kop-nama">${esc(b.nama)}</div>
+          <div class="kop-harga">${fmt(b.harga)} / unit</div>
+        </div>
+        <div class="kop-qty">
+          <button type="button" data-aksi="kurang" aria-label="Kurangi">−</button>
+          <input type="number" inputmode="numeric" min="0" max="99" value="${kopQty[b.id] || 0}">
+          <button type="button" data-aksi="tambah" aria-label="Tambah">+</button>
+        </div>
+      </div>`).join('');
+
+    el.querySelectorAll('.kop-row').forEach(row => {
+      const id = row.dataset.id;
+      const input = row.querySelector('input');
+      const setQty = n => {
+        kopQty[id] = Math.max(0, Math.min(99, Math.floor(n) || 0));
+        input.value = kopQty[id];
+        $('kopdosTotal').textContent = fmt(kopTotal_());
+      };
+      row.querySelector('[data-aksi="kurang"]').addEventListener('click', () => setQty((kopQty[id] || 0) - 1));
+      row.querySelector('[data-aksi="tambah"]').addEventListener('click', () => setQty((kopQty[id] || 0) + 1));
+      input.addEventListener('input', () => setQty(input.value));
+    });
+    $('kopdosTotal').textContent = fmt(kopTotal_());
+  }
+
+  $('kopdosBtn').addEventListener('click', () => {
+    // Roster tanpa KAS — KAS bukan pembeli.
+    $('kopdosNama').innerHTML = '<option value="">— pilih nama —</option>' +
+      dataAnggota.filter(n => n !== KAS_NAMA)
+        .map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    renderKopdos();
+    $('kopdosModal').classList.add('show');
+  });
+  $('kopdosClose').addEventListener('click', () => $('kopdosModal').classList.remove('show'));
+  $('kopdosModal').addEventListener('click', e => {
+    if (e.target === $('kopdosModal')) $('kopdosModal').classList.remove('show');
+  });
+
+  $('kopdosCheckout').addEventListener('click', () => {
+    const nama = $('kopdosNama').value;
+    if (!nama) { toast('Pilih nama dulu.', 'err'); return; }
+    const items = dataKatalog
+      .filter(b => (kopQty[b.id] || 0) > 0)
+      .map(b => ({ id: b.id, qty: kopQty[b.id] }));
+    if (!items.length) { toast('Keranjang masih kosong.', 'err'); return; }
+
+    const btn = $('kopdosCheckout');
+    const total = kopTotal_();
+    btn.disabled = true;
+    btn.textContent = 'Menyimpan…';
+    google.script.run
+      .withSuccessHandler(data => {
+        btn.disabled = false;
+        btn.textContent = 'Checkout';
+        dataKatalog.forEach(b => { kopQty[b.id] = 0; });
+        $('kopdosModal').classList.remove('show');
+        render(data);
+        toast(`Belanja ${fmt(total)} tercatat sebagai dosa ${nama} ✓`, 'ok');
+        playSfx('kaching');
+      })
+      .withFailureHandler(err => {
+        btn.disabled = false;
+        btn.textContent = 'Checkout';
+        toast(err.message, 'err');
+      })
+      .submitBelanja({ nama: nama, items: items });
+  });
+
+  $('rekeningBtn').addEventListener('click', () => $('rekModal').classList.add('show'));
+  $('rekModalClose').addEventListener('click', () => $('rekModal').classList.remove('show'));
+  $('rekModal').addEventListener('click', e => {
+    if (e.target === $('rekModal')) $('rekModal').classList.remove('show');
+  });
+

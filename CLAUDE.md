@@ -23,9 +23,10 @@ Alur wajib untuk SEMUA sesi (lokal maupun remote):
 - File .js di sini adalah file .gs di editor Apps Script.
 
 ## What this project is
-A tiny (5-file) Google Apps Script web app: friends log "Pahala"/"Dosa" (merit/demerit)
-points and transfers against each other; a Google Sheet is the database; one `Index.html`
-is the entire frontend. No build step, no framework, no package.json. Full narrative
+A small Google Apps Script web app: friends log "Pahala"/"Dosa" (merit/demerit)
+points and transfers against each other; a Google Sheet is the database; the frontend is
+`Index.html` (kerangka) + berkas-berkas potongan Style*/Body*/Js* yang dijahit lewat
+`include()` — lihat "Peta berkas frontend". No build step, no framework, no package.json. Full narrative
 context lives in **[PROJECT.md](PROJECT.md)** — read it before making non-trivial changes.
 Known weaknesses/security issues live in **[GAPS.md](GAPS.md)** — check it before touching
 `submitAmalan`, `harga.gs.js`, or anything roster-related.
@@ -99,12 +100,46 @@ Do this deliberately, not casually — it's user-visible and affects everyone wi
   `submitAmalan`. Any new function that reads-then-writes the `Transaksi` sheet must
   acquire this same lock pattern (`lock.waitLock(10000)` / `try { ... } finally {
   lock.releaseLock(); }`) or you reintroduce a race condition.
-- **No CSS/JS framework, no separate files for style/script** — `Index.html` intentionally
-  keeps `<style>` and `<script>` inline in the single served file, because GAS's
-  `HtmlService.createHtmlOutputFromFile` serves exactly one file per `doGet`. If you want to
-  split files, you'd need `HtmlService.createTemplateFromFile` + `<?!= include('file') ?>`
-  patterns — that's a real architecture change, not a drop-in refactor. Don't split files
-  without doing that properly.
+- **No CSS/JS framework, no build step** — tetap begitu. Yang berubah: sejak Agt 2026
+  frontend TIDAK lagi satu berkas raksasa. `Index.html` kini hanya kerangka ~48 baris
+  berisi `<?!= include('...') ?>`, dan `doGet` memakai `createTemplateFromFile` +
+  helper `include()` di `Code.js`. **Buka berkas potongan yang relevan saja — jangan
+  membaca semuanya.** Peta berkasnya ada di bagian "Peta berkas frontend" di bawah.
+- **Semua potongan CSS dijahit dalam SATU `<style>`, semua potongan JS dalam SATU
+  `<script>`.** Jangan memecahnya menjadi banyak tag `<script>`: JS di sini tidak
+  dibungkus IIFE dan saling berbagi variabel tingkat atas, jadi memecah tag akan
+  mengubah aturan cakupannya. Menambah berkas = tambah satu baris `include` di
+  `Index.html` pada urutan yang benar (urutan = urutan eksekusi).
+
+## Peta berkas frontend (buka yang relevan saja)
+
+`Index.html` cuma kerangka. Isinya:
+
+| Berkas | Isi |
+|---|---|
+| `StyleBase.html` | reset + variabel `:root` (palet tema gelap) |
+| `StyleTema.html` | tema terang, tema Merah Putih, animasi hujan bendera |
+| `StyleUi.html` | orbs, header, tombol, modal Rekening & Kopdos, kartu statistik, grid, form, tabs |
+| `StyleBoard.html` | leaderboard, riwayat, modal statistik/grafik |
+| `StyleEfek.html` | trail kursor, hujan uang, loader, toast, pita ayat, responsif |
+| `StyleTutorial.html` | tur/walkthrough |
+| `StyleLanding.html` | landing page sinematik |
+| `StyleLaporan.html` | review struk + halaman A4 laporan PDF |
+| `BodyLanding.html` | markup landing page |
+| `BodyUtama.html` | markup aplikasi: header, statistik, form, papan, semua modal |
+| `JsInti.html` | state global, `fmt`/`esc`, animasi angka, input nominal, toggle tipe, modal Rekening |
+| `JsKopdos.html` | katalog belanja + checkout (`submitBelanja`) |
+| `JsStruk.html` | upload & review struk (Gemini) |
+| `JsLaporan.html` | penyusunan PDF laporan bulanan |
+| `JsTema.html` | siklus tema + hujan bendera |
+| `JsPapan.html` | tabs, toast, baris riwayat, avatar, panel expand, papan Leaderboard/Gold/Kas/Resto, modal statistik |
+| `JsGrafik.html` | grafik garis saldo harian (SVG) |
+| `JsAplikasi.html` | `render(data)` + submit form |
+| `JsEfek.html` | trail kursor, hujan uang, pemutar suara (`playSfx`, `SFX_ALIAS`) |
+| `JsAyat.html` | pita ayat 6 agama |
+| `JsMuatAwal.html` | panggilan `getDashboardData` pertama |
+| `JsTutorial.html` | logika tur interaktif |
+| `JsLogo3D.html` | logo 3D Three.js (tag `<script>` terpisah, sengaja) |
 
 ## Gotchas — things that look like they should work one way but don't
 

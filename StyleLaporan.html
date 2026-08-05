@@ -1,0 +1,106 @@
+  /* ===== Review struk: baris nama+nominal hasil OCR ===== */
+  .struk-row {
+    display: grid;
+    grid-template-columns: 1fr 90px auto;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .struk-row:last-child { border-bottom: none; }
+  .struk-row select, .struk-row input {
+    width: 100%;
+    font: inherit; font-size: 13.5px;
+    padding: 8px 9px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--border-soft);
+    border-radius: 9px;
+    color: var(--text);
+  }
+  .struk-ocr {
+    grid-column: 1 / -1;
+    font-size: 11px; color: var(--muted);
+    margin-top: -4px;
+  }
+  .struk-remove {
+    width: 32px; height: 32px;
+    display: grid; place-items: center;
+    color: var(--muted);
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border-soft);
+    border-radius: 9px;
+    cursor: pointer;
+  }
+  .struk-remove:hover { color: var(--rose); border-color: var(--rose); }
+  .struk-row.removed { display: none; }
+
+  /* ===== Laporan bulanan: pemilih di modal ===== */
+  .lap-field { margin-bottom: 12px; }
+  .lap-field label {
+    display: block; font-size: 12.5px; color: var(--muted);
+    margin-bottom: 6px; font-weight: 500;
+  }
+  .lap-status { font-size: 12.5px; color: var(--muted); min-height: 18px; margin-top: 4px; }
+
+  /* ===== Laporan bulanan: halaman A4 (dirender off-screen jadi PDF) =====
+     Selalu tema terang/putih — ini dokumen cetak, bukan bagian UI. */
+  #lapHolder { position: fixed; left: -99999px; top: 0; }
+  .lap-page {
+    width: 794px; height: 1123px;               /* A4 @96dpi */
+    box-sizing: border-box; padding: 52px 56px 64px;
+    position: relative; background: #ffffff; color: #1f2937;
+    font-family: Helvetica, Arial, sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .lap-masthead {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 20px; border-bottom: 2px solid #1b2a4a; padding-bottom: 16px;
+  }
+  .lap-kicker { font-size: 10.5px; letter-spacing: 2.5px; text-transform: uppercase; color: #8a94a6; }
+  .lap-title { font-family: Georgia, 'Times New Roman', serif; font-size: 30px; color: #1b2a4a; font-weight: 600; margin: 4px 0 2px; }
+  .lap-entity { font-size: 15px; font-weight: 600; color: #1f2937; }
+  .lap-sub { font-size: 11.5px; color: #8a94a6; margin-top: 2px; }
+  .lap-ava {
+    flex: none; width: 72px; height: 72px; border-radius: 50%;
+    background: #1b2a4a; color: #fff; overflow: hidden;
+    display: grid; place-items: center; font-family: Georgia, serif; font-size: 30px;
+  }
+  .lap-ava img { width: 100%; height: 100%; object-fit: cover; }
+  .lap-narr {
+    background: #f8fafc; border-left: 3px solid #1b2a4a;
+    padding: 12px 16px; margin: 18px 0 22px;
+    font-size: 12.5px; line-height: 1.65; color: #374151;
+  }
+  .lap-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+  .lap-kpi { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 14px; }
+  .lap-kpi .k-label { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #8a94a6; }
+  .lap-kpi .k-val { font-size: 20px; font-weight: 700; color: #1b2a4a; margin-top: 5px; }
+  .lap-kpi .k-val.pos { color: #15803d; }
+  .lap-kpi .k-val.neg { color: #b91c1c; }
+  .lap-kpi .k-delta { font-size: 10.5px; margin-top: 3px; color: #8a94a6; }
+  .lap-kpi .k-delta .up { color: #15803d; }
+  .lap-kpi .k-delta .down { color: #b91c1c; }
+  .lap-section-title {
+    font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase;
+    color: #1b2a4a; font-weight: 700; margin: 6px 0 12px;
+    padding-bottom: 6px; border-bottom: 1px solid #e5e7eb;
+  }
+  .lap-table { width: 100%; border-collapse: collapse; }
+  .lap-table th {
+    text-align: left; font-size: 10px; letter-spacing: .6px; text-transform: uppercase;
+    color: #6b7280; font-weight: 600; padding: 0 8px 8px; border-bottom: 1.5px solid #1b2a4a;
+  }
+  .lap-table td { font-size: 12px; padding: 7px 8px; border-bottom: 1px solid #eef1f5; color: #374151; }
+  .lap-table tbody tr:nth-child(even) td { background: #fbfcfe; }
+  .lap-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .lap-table .pos { color: #15803d; }
+  .lap-table .neg { color: #b91c1c; }
+  .lap-table .muted { color: #9aa2b1; }
+  .lap-chart { margin: 4px 0 24px; }
+  .lap-foot {
+    position: absolute; left: 56px; right: 56px; bottom: 26px;
+    display: flex; justify-content: space-between; align-items: flex-end;
+    border-top: 1px solid #e5e7eb; padding-top: 8px;
+    font-size: 9.5px; color: #9aa2b1;
+  }
+  .lap-foot .note { max-width: 62%; line-height: 1.4; }

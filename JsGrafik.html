@@ -1,0 +1,244 @@
+  /* ---- Grafik garis saldo harian (modal Total Pahala/Dosa, desktop) ----
+     Satu garis per orang, satu titik per hari, foto profil di ujung garis.
+     Nilai yang digambar = saldo kumulatif; untuk metrik 'dosa' dipakai
+     besarnya (−saldo) supaya semua garis positif dan bisa dibandingkan. */
+  const GRAFIK_MIN_LEBAR = 900;   // di bawah ini modal tetap memakai daftar peringkat
+  const GRAFIK_W = 1180, GRAFIK_H_MIN = 560;
+  const GR_KIRI = 76, GR_KANAN = 168, GR_ATAS = 18, GR_BAWAH = 38;
+  const GR_JARAK = 34;   // jarak vertikal minimal antar label ujung garis
+
+  /** Titik-titik → jalur SVG mulus (Catmull-Rom diubah ke kurva bézier kubik),
+   *  supaya garis tidak patah-patah di tiap hari. */
+  function jalurMulus_(t) {
+    if (t.length < 2) return '';
+    let d = 'M' + t[0][0].toFixed(1) + ' ' + t[0][1].toFixed(1);
+    for (let i = 0; i < t.length - 1; i++) {
+      const p0 = t[i - 1] || t[i], p1 = t[i], p2 = t[i + 1], p3 = t[i + 2] || p2;
+      const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+      const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+      d += ' C' + c1x.toFixed(1) + ' ' + c1y.toFixed(1) + ',' +
+        c2x.toFixed(1) + ' ' + c2y.toFixed(1) + ',' +
+        p2[0].toFixed(1) + ' ' + p2[1].toFixed(1);
+    }
+    return d;
+  }
+
+  function warnaGaris_(i) {
+    return 'hsl(' + Math.round((i * 137.508) % 360) + ' 72% 62%)';
+  }
+
+  /** Geser label ujung garis yang bertumpuk agar tetap terbaca. */
+  function rapikanUjung_(titik, jarakMin, atas, bawah) {
+    const urut = titik.slice().sort((a, b) => a.y - b.y);
+    for (let i = 1; i < urut.length; i++) {
+      if (urut[i].y - urut[i - 1].y < jarakMin) urut[i].y = urut[i - 1].y + jarakMin;
+    }
+    const lebih = urut.length ? urut[urut.length - 1].y - bawah : 0;
+    if (lebih > 0) {
+      for (let i = urut.length - 1; i >= 0; i--) {
+        urut[i].y = Math.min(urut[i].y, bawah - (urut.length - 1 - i) * jarakMin);
+      }
+      for (let i = 1; i < urut.length; i++) {
+        if (urut[i].y - urut[i - 1].y < jarakMin) urut[i].y = urut[i - 1].y + jarakMin;
+      }
+    }
+    if (urut.length && urut[0].y < atas) {
+      for (let i = 0; i < urut.length; i++) urut[i].y = Math.max(urut[i].y, atas + i * jarakMin);
+    }
+    return titik;
+  }
+
+  function grafikSaldoHtml_(metric) {
+    const hari = dataDeret.hari || [];
+    const n = hari.length;
+    if (n < 2) return '<div class="empty">Belum cukup data untuk grafik.</div>';
+
+    // Saldo TERAKHIR menentukan orang ini masuk grafik Pahala (saldo > 0) atau
+    // Dosa (saldo < 0). Yang digambar tetap saldo apa adanya — termasuk saat
+    // saldonya sempat menyeberang nol di tengah periode.
+    const arah = metric === 'pahala' ? 1 : -1;
+    const orang = (dataDeret.orang || [])
+      .filter(o => !isGold_(o) && o.nilai[n - 1] * arah > 0)
+      .map(o => ({ nama: o.nama, foto: o.foto, nilai: o.nilai.slice() }))
+      .sort((a, b) => (b.nilai[n - 1] - a.nilai[n - 1]) * arah);
+    if (!orang.length) return '<div class="empty">Belum ada data.</div>';
+
+    let vMax = 0, vMin = 0;
+    orang.forEach(o => o.nilai.forEach(v => { if (v > vMax) vMax = v; if (v < vMin) vMin = v; }));
+    if (vMax === vMin) vMax = vMin + 1;
+    const pad = (vMax - vMin) * 0.06;
+    vMax += pad; vMin -= pad;
+
+    // Tinggi menyesuaikan jumlah orang: dengan tinggi tetap, label ujung yang
+    // sudah dirapikan bisa terdorong ke luar kanvas sehingga sebagian orang
+    // seolah hilang padahal garisnya tergambar.
+    const GRAFIK_H = Math.max(GRAFIK_H_MIN,
+      GR_ATAS + GR_BAWAH + 40 + (orang.length - 1) * GR_JARAK);
+
+    // Grafik Dosa memakai sumbu Y terbalik: dosa TERBANYAK (saldo paling
+    // negatif) di atas, sesuai urutan peringkat. Nilai yang ditulis tetap
+    // saldo apa adanya — yang dibalik arah sumbunya, bukan angkanya.
+    const terbalik = arah < 0;
+    const x = i => GR_KIRI + i * (GRAFIK_W - GR_KIRI - GR_KANAN) / (n - 1);
+    const y = v => {
+      const r = (vMax - v) / (vMax - vMin);
+      return GR_ATAS + (terbalik ? 1 - r : r) * (GRAFIK_H - GR_ATAS - GR_BAWAH);
+    };
+
+    // Garis bantu horizontal + label nilai
+    let grid = '';
+    for (let g = 0; g <= 4; g++) {
+      const v = vMin + (vMax - vMin) * g / 4;
+      const gy = y(v);
+      grid += `<line class="grafik-grid" x1="${GR_KIRI}" y1="${gy.toFixed(1)}" x2="${GRAFIK_W - GR_KANAN}" y2="${gy.toFixed(1)}"/>` +
+        `<text class="grafik-sumbu" x="${GR_KIRI - 10}" y="${(gy + 4).toFixed(1)}" text-anchor="end">${fmt(Math.round(v))}</text>`;
+    }
+    // Garis nol: penanda batas pahala/dosa kalau saldo sempat menyeberang.
+    if (vMin < 0 && vMax > 0) {
+      const y0 = y(0);
+      grid += `<line x1="${GR_KIRI}" y1="${y0.toFixed(1)}" x2="${GRAFIK_W - GR_KANAN}" y2="${y0.toFixed(1)}" ` +
+        `stroke="var(--muted)" stroke-width="1.4" stroke-dasharray="5 4" opacity=".7"/>`;
+    }
+    // Label tanggal — tiap ~5 hari supaya tidak berdesakan
+    const langkah = Math.max(1, Math.round(n / 6));
+    for (let i = 0; i < n; i += langkah) {
+      grid += `<text class="grafik-sumbu" x="${x(i).toFixed(1)}" y="${GRAFIK_H - 14}" text-anchor="middle">${esc(hari[i])}</text>`;
+    }
+
+    const ujung = orang.map((o, i) => ({ i: i, y: y(o.nilai[n - 1]) }));
+    rapikanUjung_(ujung, GR_JARAK, GR_ATAS + 16, GRAFIK_H - GR_BAWAH - 4);
+
+    const garis = orang.map((o, i) => {
+      const jalur = jalurMulus_(o.nilai.map((v, j) => [x(j), y(v)]));
+      return `<path class="grafik-garis" data-garis="${i}" d="${jalur}" stroke="${warnaGaris_(i)}"/>`;
+    }).join('');
+
+    const xAkhir = x(n - 1);
+    const xFoto = GRAFIK_W - GR_KANAN + 34;
+    const label = orang.map((o, i) => {
+      const c = warnaGaris_(i);
+      const yGaris = y(o.nilai[n - 1]);
+      const yFoto = ujung[i].y;
+      const gbr = o.foto
+        ? `<image href="${esc(o.foto)}" x="${xFoto - 15}" y="${(yFoto - 15).toFixed(1)}" width="30" height="30" ` +
+          `preserveAspectRatio="xMidYMid slice" clip-path="url(#bulat${i})"/>`
+        : `<text class="grafik-inisial" x="${xFoto}" y="${(yFoto + 5).toFixed(1)}">${esc(o.nama.charAt(0).toUpperCase())}</text>`;
+      return `<clipPath id="bulat${i}"><circle cx="${xFoto}" cy="${yFoto.toFixed(1)}" r="15"/></clipPath>` +
+        `<g class="grafik-ujung" data-ujung="${i}">` +
+        `<path d="M${xAkhir.toFixed(1)} ${yGaris.toFixed(1)} L${(xFoto - 20).toFixed(1)} ${yFoto.toFixed(1)}" ` +
+          `fill="none" stroke="${c}" stroke-width="1.2" stroke-dasharray="3 3" opacity=".65"/>` +
+        `<circle cx="${xFoto}" cy="${yFoto.toFixed(1)}" r="15" fill="rgba(255,255,255,.06)" stroke="${c}" stroke-width="2"/>` +
+        gbr +
+        `<text class="grafik-nama" x="${xFoto + 22}" y="${(yFoto - 1).toFixed(1)}" fill="${c}">${esc(o.nama)}</text>` +
+        `<text class="grafik-sumbu" x="${xFoto + 22}" y="${(yFoto + 12).toFixed(1)}">${fmt(o.nilai[n - 1])}</text>` +
+        `<rect x="${xFoto - 20}" y="${(yFoto - 16).toFixed(1)}" width="${GR_KANAN - 14}" height="32" fill="transparent"/>` +
+        '</g>';
+    }).join('');
+
+    return '<div class="grafik-wrap">' +
+      `<div class="grafik-sub">Saldo akhir tiap hari · ` +
+        `${esc(hari[0])} – ${esc(hari[n - 1])} · ${orang.length} orang</div>` +
+      `<svg viewBox="0 0 ${GRAFIK_W} ${GRAFIK_H}" role="img">${grid}${garis}${label}</svg></div>`;
+  }
+
+  /** Sorot garis satu orang saat kursor berada di nama/foto ujungnya. */
+  function pasangSorotGrafik_() {
+    const svg = $('modalList').querySelector('svg');
+    if (!svg) return;
+    const garis = svg.querySelectorAll('.grafik-garis');
+    const ujung = svg.querySelectorAll('.grafik-ujung');
+    const pasang = (i, aktif) => {
+      svg.classList.toggle('sorot', aktif);
+      garis.forEach(g => g.classList.toggle('aktif', aktif && g.dataset.garis === i));
+      ujung.forEach(g => g.classList.toggle('aktif', aktif && g.dataset.ujung === i));
+    };
+    ujung.forEach(g => {
+      g.addEventListener('mouseenter', () => pasang(g.dataset.ujung, true));
+      g.addEventListener('mouseleave', () => pasang(null, false));
+    });
+  }
+
+  function renderStatModal() {
+    if (!modalMetric) return;
+    const isRiwayat = modalMetric === 'kas';
+
+    // Desktop: leaderboard Pahala/Dosa tampil sebagai grafik garis harian,
+    // bukan daftar peringkat berhalaman. Mobile tetap memakai daftar.
+    const pakaiGrafik = !isRiwayat && window.innerWidth >= GRAFIK_MIN_LEBAR &&
+      (dataDeret.orang || []).length > 0;
+    $('statModalCard').classList.toggle('lebar', pakaiGrafik);
+    $('modalFoot').style.display = pakaiGrafik ? 'none' : '';
+    if (pakaiGrafik) {
+      $('modalTitle').textContent = statMeta[modalMetric].title;
+      $('modalList').innerHTML = grafikSaldoHtml_(modalMetric);
+      pasangSorotGrafik_();
+      return;
+    }
+
+    const list = isRiwayat
+      ? dataKas.history // riwayat transaksi KAS, terbaru dulu dari server
+      : dataLeaderboard
+          .filter(o => !isGold_(o) && nilaiMetric_(o) > 0)
+          .sort((a, b) => nilaiMetric_(b) - nilaiMetric_(a));
+    const pages = Math.max(1, Math.ceil(list.length / PER_SLIDE));
+    if (modalPage > pages - 1) modalPage = pages - 1;
+    const slice = list.slice(modalPage * PER_SLIDE, modalPage * PER_SLIDE + PER_SLIDE);
+
+    const ranksModal = isRiwayat ? [] : computeRanks(list, nilaiMetric_);
+    $('modalTitle').textContent = statMeta[modalMetric].title;
+    $('modalList').innerHTML = !slice.length
+      ? '<div class="empty">Belum ada data.</div>'
+      : isRiwayat
+        ? slice.map(h => hxRowHtml(h, false)).join('')
+        : slice.map((o, i) => {
+            const rank = ranksModal[modalPage * PER_SLIDE + i];
+            return `
+            <div class="sm-row">
+              <div class="rank${rank <= 3 ? ' r' + rank : ''}">${rank}</div>
+              ${avaHtml(o)}
+              <div class="sm-name">${esc(o.nama)}</div>
+              <div class="sm-val ${modalMetric}">${fmt(nilaiMetric_(o))}</div>
+            </div>`;
+          }).join('');
+    if (!isRiwayat && slice.length) {
+      const els = $('modalList').querySelectorAll('.sm-val');
+      slice.forEach((o, i) =>
+        animasiAngka(els[i], nilaiMetric_(o), 'modal:' + modalMetric + ':' + o.nama));
+    }
+    $('modalPage').textContent = (modalPage + 1) + ' / ' + pages;
+    $('modalPrev').disabled = modalPage === 0;
+    $('modalNext').disabled = modalPage >= pages - 1;
+  }
+
+  $('modalPrev').addEventListener('click', () => {
+    if (modalPage > 0) { modalPage--; renderStatModal(); }
+  });
+  $('modalNext').addEventListener('click', () => {
+    modalPage++; renderStatModal();
+  });
+  // Lintas ambang desktop/mobile saat jendela diubah ukurannya: modal yang
+  // sedang terbuka harus berganti bentuk, bukan menyisakan grafik yang gepeng.
+  let ukuranTerakhir = window.innerWidth >= GRAFIK_MIN_LEBAR;
+  window.addEventListener('resize', () => {
+    const kini = window.innerWidth >= GRAFIK_MIN_LEBAR;
+    if (kini === ukuranTerakhir) return;
+    ukuranTerakhir = kini;
+    if ($('statModal').classList.contains('show')) { modalPage = 0; renderStatModal(); }
+  });
+
+  $('modalClose').addEventListener('click', () => $('statModal').classList.remove('show'));
+  $('statModal').addEventListener('click', e => {
+    if (e.target === $('statModal')) $('statModal').classList.remove('show');
+  });
+
+  // Geser kiri/kanan di HP untuk pindah slide
+  let touchX = null;
+  $('statModal').addEventListener('touchstart', e => { touchX = e.touches[0].clientX; }, { passive: true });
+  $('statModal').addEventListener('touchend', e => {
+    if (touchX == null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    touchX = null;
+    if (dx < -40 && !$('modalNext').disabled) { modalPage++; renderStatModal(); }
+    else if (dx > 40 && modalPage > 0) { modalPage--; renderStatModal(); }
+  }, { passive: true });
+

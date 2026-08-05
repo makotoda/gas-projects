@@ -1,0 +1,17 @@
+  /* ---- Muat awal ---- */
+  google.script.run
+    .withSuccessHandler(data => {
+      render(data);
+      $('loader').classList.add('hide');
+      // Setelah loader ditutup, logo 3D (kalau sudah siap) pindah ke header
+      if (window.KodomoLogo3D) window.KodomoLogo3D.keHeader();
+      // Jalankan tutorial otomatis jika kunjungan pertama
+      checkAutoStartTutorial();
+    })
+    .withFailureHandler(err => {
+      $('loader').classList.add('hide');
+      if (window.KodomoLogo3D) window.KodomoLogo3D.keHeader();
+      toast('Gagal memuat data: ' + (err.message || ''), 'err');
+    })
+    .getDashboardData();
+

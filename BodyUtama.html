@@ -1,0 +1,243 @@
+<!-- Hujan bendera 17-an. Isinya diisi dari script (lihat siapkanHujanBendera_)
+     dan hanya tampil pada tema Merah Putih. -->
+<div id="benderaHujan" aria-hidden="true"></div>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div id="loader">
+  <div class="loader-box">
+    <div id="loaderLogo"></div>
+    <div class="logo loader-logo">K</div>
+    <div class="spinner"></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo" id="logoSlot">K</div>
+      <div>
+        <h1>Kodomo</h1>
+        <p>Koperasi Dosa Mako</p>
+      </div>
+    </div>
+    <div id="headerControls" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+      <button class="music-btn" id="tutorialBtn" type="button">❓ Bantuan</button>
+      <button class="music-btn" id="themeBtn" type="button">☀️ Terang</button>
+      <button class="music-btn" id="rekeningBtn" type="button">🏦 Rekening</button>
+      <button class="music-btn" id="laporanBtn" type="button">📄 Laporan</button>
+      <button class="music-btn" id="kopdosBtn" type="button">🛒 Kopdos Merah Putih</button>
+      <div class="header-right">
+        <button type="button" class="sound-btn" id="soundBtn" title="Suara efek">🔊</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Pita ayat 6 agama; isinya dirender dari array di script (dua kali,
+       demi loop mulus) — lihat komentar di .ayat-track. -->
+  <section class="ayat-sec">
+    <div class="ayat-head">
+      <span class="bar"></span>
+      <h2>Kata Kitab Soal Utang</h2>
+      <span>Enam agama, satu pesan: catat &amp; lunasi</span>
+    </div>
+    <div class="ayat-wrap">
+      <div class="ayat-track" id="ayatTrack"></div>
+    </div>
+  </section>
+
+  <section class="stats" id="statsContainer">
+    <div class="stat pahala" data-metric="pahala" role="button">
+      <div class="label">Total Pahala</div>
+      <div class="value" id="statPahala">0</div>
+    </div>
+    <div class="stat dosa" data-metric="dosa" role="button">
+      <div class="label">Total Dosa</div>
+      <div class="value" id="statDosa">0</div>
+    </div>
+    <div class="stat trx" data-metric="kas" role="button">
+      <div class="label">Saldo KAS</div>
+      <div class="value" id="statKas">0</div>
+    </div>
+  </section>
+
+  <div class="main">
+    <!-- ===== Form input ===== -->
+    <div class="card" id="formCard">
+      <button class="cta-tf" id="buktiBtn" type="button">
+        <span class="ic">🏦</span>
+        <span class="tx">
+          <strong>Sudah transfer? Upload buktinya</strong>
+          <small>Saldo otomatis nambah — nggak perlu isi form manual di bawah</small>
+        </span>
+        <span class="ar">›</span>
+      </button>
+
+      <h2><span class="bar"></span>Catat Amalan</h2>
+
+      <div id="namaField">
+        <label for="nama">Nama</label>
+        <select id="nama">
+          <option value="">Pilih nama…</option>
+        </select>
+      </div>
+
+      <div class="kas-field" id="kasField">
+        <label>Nominal infaq otomatis tiap catat dosa (kosong / 0 = tidak ikut)</label>
+        <div class="kas-list" id="kasList"></div>
+      </div>
+
+      <label>Tipe amalan</label>
+      <div class="toggle" id="toggle">
+        <div class="slider"></div>
+        <button type="button" class="active" data-tipe="Pahala">✨ Pahala</button>
+        <button type="button" data-tipe="Dosa">🔥 Dosa</button>
+        <button type="button" data-tipe="Transfer">💸 Transfer</button>
+        <button type="button" data-tipe="Kas">💰 Kas</button>
+      </div>
+
+      <div class="tujuan-field" id="tujuanField">
+        <label for="tujuan">Transfer pahala ke</label>
+        <select id="tujuan">
+          <option value="">Pilih nama tujuan…</option>
+        </select>
+      </div>
+
+      <div id="umumField">
+        <label for="nominal">Nominal</label>
+        <input type="text" id="nominal" inputmode="numeric" autocomplete="off" placeholder="Contoh: 5.000">
+
+        <label for="keterangan">Keterangan <span style="font-weight:400">(opsional)</span></label>
+        <input type="text" id="keterangan" maxlength="120" placeholder="Contoh: traktir kopi tim">
+      </div>
+
+      <button class="submit-btn" id="submitBtn">Simpan catatan</button>
+      <div style="display:flex; gap:8px; margin-top:8px">
+        <button class="music-btn" id="strukBtn" type="button" style="flex:1; justify-content:center">📷 Upload Struk (split tagihan)</button>
+      </div>
+      <input type="file" id="strukFile" accept="image/*" multiple style="display:none">
+    </div>
+
+    <!-- ===== Leaderboard & riwayat ===== -->
+    <div class="card" id="boardCard">
+      <div class="tabs">
+        <button class="tab active" data-view="leaderboard">🏆 Leaderboard</button>
+        <button class="tab" data-view="gold">🥇 Gold</button>
+        <button class="tab" data-view="riwayat">🕐 Riwayat</button>
+        <button class="tab" data-view="kas">💰 Kas</button>
+        <button class="tab" data-view="resto">🍜 Resto</button>
+      </div>
+      <div id="viewLeaderboard"></div>
+      <div id="viewGold" style="display:none"></div>
+      <div id="viewRiwayat" style="display:none"></div>
+      <div id="viewKas" style="display:none"></div>
+      <div id="viewResto" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<div id="statModal">
+  <div class="modal-card" id="statModalCard">
+    <div class="modal-head">
+      <h3 id="modalTitle"></h3>
+      <button class="modal-close" id="modalClose" type="button">✕</button>
+    </div>
+    <div id="modalList"></div>
+    <div class="modal-foot" id="modalFoot">
+      <button id="modalPrev" type="button">‹</button>
+      <span id="modalPage"></span>
+      <button id="modalNext" type="button">›</button>
+    </div>
+  </div>
+</div>
+
+<div id="kopdosModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>🛒 Kopdos Merah Putih</h3>
+      <button class="modal-close" id="kopdosClose" type="button">✕</button>
+    </div>
+    <div class="kop-intro">Belanja barang koperasi. Total belanja otomatis
+      tercatat sebagai <strong>Dosa</strong> atas nama yang dipilih.</div>
+    <div class="kop-list" id="kopdosList"></div>
+    <label class="kop-label" for="kopdosNama">Atas nama</label>
+    <select id="kopdosNama"></select>
+    <div class="kop-total">
+      <span>Total</span>
+      <b id="kopdosTotal">0</b>
+    </div>
+    <button class="submit-btn" id="kopdosCheckout" type="button">Checkout</button>
+  </div>
+</div>
+
+<div id="rekModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>🏦 Rekening</h3>
+      <button class="modal-close" id="rekModalClose" type="button">✕</button>
+    </div>
+    <div class="rek-list" id="rekList"></div>
+  </div>
+</div>
+
+<div id="laporanModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>📄 Laporan Bulanan</h3>
+      <button class="modal-close" id="laporanClose" type="button">✕</button>
+    </div>
+    <div class="lap-field">
+      <label for="lapNama">Nama</label>
+      <select id="lapNama"><option value="">Pilih nama…</option></select>
+    </div>
+    <div class="lap-field">
+      <label for="lapBulan">Bulan</label>
+      <select id="lapBulan"><option value="">Pilih bulan…</option></select>
+    </div>
+    <button class="submit-btn" id="lapDownloadBtn" type="button">⬇️ Download PDF</button>
+    <div class="lap-status" id="lapStatus"></div>
+  </div>
+</div>
+
+<div id="strukModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3 id="strukTitle">📷 Konfirmasi Struk</h3>
+      <button class="modal-close" id="strukModalClose" type="button">✕</button>
+    </div>
+    <div class="lap-field" style="margin-bottom:6px">
+      <label id="strukDesc">Cocokkan nama & nominal tiap orang, lalu simpan sebagai Dosa. Baris yang namanya kosong tidak akan disimpan.</label>
+    </div>
+    <div id="strukList"></div>
+    <div class="lap-field" style="margin-top:10px">
+      <label for="strukKeterangan">Keterangan <span style="font-weight:400">(opsional, berlaku untuk semua baris)</span></label>
+      <input type="text" id="strukKeterangan" maxlength="120" placeholder="Contoh: patungan makan siang">
+    </div>
+    <div class="lap-field" id="strukTraktirField" style="margin-top:10px">
+      <label for="strukTraktir">Yang traktir <span style="font-weight:400">(opsional — otomatis dapat Pahala sebesar total struk)</span></label>
+      <select id="strukTraktir"><option value="">Tidak ada, bagi rata biasa</option></select>
+    </div>
+    <button class="submit-btn" id="strukConfirmBtn" type="button" style="margin-top:10px">Simpan semua</button>
+    <div class="lap-status" id="strukStatus"></div>
+  </div>
+</div>
+
+<div id="lapHolder"></div>
+
+<div id="toast"></div>
+
+<!-- ===== Tutorial Walkthrough ===== -->
+<div id="tutorialOverlay"></div>
+<div id="tutorialTooltip">
+  <button class="tutorial-close-btn" id="tutorialSkipBtn" aria-label="Lewati tutorial">✕</button>
+  <div class="tutorial-step-indicator" id="tutorialStepIndicator"></div>
+  <h4 class="tutorial-title" id="tutorialTitle"></h4>
+  <p class="tutorial-desc" id="tutorialDesc"></p>
+  <div class="tutorial-nav">
+    <button class="tutorial-btn secondary" id="tutorialPrevBtn">Kembali</button>
+    <button class="tutorial-btn primary" id="tutorialNextBtn">Lanjut</button>
+  </div>
+</div>
+

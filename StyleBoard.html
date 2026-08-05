@@ -1,0 +1,299 @@
+  /* ===== Leaderboard ===== */
+  .lb-row {
+    display: grid;
+    grid-template-columns: 34px 34px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 15px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background .2s, border-color .2s;
+    user-select: none;
+  }
+  .lb-row:hover { background: rgba(255,255,255,.045); border-color: var(--border-soft); }
+  .lb-item.open .lb-row {
+    background: rgba(255,255,255,.055);
+    border-color: var(--border);
+  }
+  .rank {
+    width: 34px; height: 34px;
+    display: grid; place-items: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 13.5px;
+    border-radius: 10px;
+    background: rgba(255,255,255,.06);
+    border: 1px solid var(--border-soft);
+    color: var(--muted);
+  }
+  /* Avatar: foto profil dari kolom Foto sheet Anggota; kalau gambar gagal
+     dimuat (link bukan gambar / tidak publik), <img> dihapus via onerror dan
+     inisial di belakangnya yang tampil. */
+  .lb-ava {
+    position: relative;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: grid; place-items: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 14px;
+    color: #fff;
+    background: linear-gradient(135deg, var(--violet), var(--cyan));
+  }
+  .lb-ava img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+  .lb-name { font-weight: 600; font-size: 14.5px; display: flex; align-items: center; gap: 7px; }
+  .lb-name .chev {
+    font-size: 10px; color: var(--muted);
+    transition: transform .25s;
+  }
+  .lb-item.open .lb-name .chev { transform: rotate(180deg); }
+  .lb-meter {
+    height: 5px; border-radius: 5px;
+    margin-top: 7px;
+    background: rgba(255,255,255,.07);
+    overflow: hidden;
+  }
+  .lb-meter i {
+    display: block; height: 100%;
+    border-radius: 5px;
+    background: linear-gradient(90deg, var(--mint), var(--cyan));
+    box-shadow: 0 0 8px rgba(52,211,153,.6);
+  }
+  .lb-meter.neg i {
+    background: linear-gradient(90deg, var(--rose), var(--pink));
+    box-shadow: 0 0 8px rgba(251,113,133,.6);
+  }
+  .lb-saldo {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 15px;
+    text-align: right;
+  }
+  .lb-saldo.pos { color: var(--mint); }
+  .lb-saldo.neg { color: var(--rose); }
+  .lb-sub { font-size: 11px; color: var(--muted); text-align: right; margin-top: 3px; }
+
+  /* Panel expand: transaksi terakhir (toggle KAS + 2 slide) */
+  .lb-expand {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows .3s ease;
+  }
+  .lb-item.open .lb-expand { grid-template-rows: 1fr; }
+  .lb-expand > div { overflow: hidden; }
+  .lb-expand-inner {
+    margin: 4px 8px 10px 92px;
+    padding: 6px 4px;
+    border-left: 2px solid var(--border);
+    padding-left: 14px;
+  }
+  .lb-expand-title {
+    font-size: 11px; text-transform: uppercase;
+    letter-spacing: 1.2px; color: var(--muted);
+    margin: 4px 0 8px;
+  }
+  .lb-expand-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; flex-wrap: wrap; margin-bottom: 4px;
+  }
+  .lb-expand-head .lb-expand-title { margin: 4px 0; }
+  .kas-toggle {
+    font: inherit; font-size: 11.5px; cursor: pointer;
+    color: var(--muted); background: rgba(255,255,255,.05);
+    border: 1px solid var(--border); border-radius: 999px;
+    padding: 4px 10px; transition: background .2s, color .2s;
+  }
+  .kas-toggle:hover { background: rgba(255,255,255,.09); color: var(--text); }
+  .lb-pager {
+    display: flex; align-items: center; justify-content: center;
+    gap: 14px; margin-top: 6px;
+    font-size: 12px; color: var(--muted);
+  }
+  .pg-btn {
+    font: inherit; font-size: 16px; line-height: 1; cursor: pointer;
+    width: 28px; height: 28px; display: grid; place-items: center;
+    color: var(--text); background: rgba(255,255,255,.05);
+    border: 1px solid var(--border); border-radius: 9px;
+    transition: background .2s, opacity .2s;
+  }
+  .pg-btn:hover:not(:disabled) { background: rgba(255,255,255,.11); }
+  .pg-btn:disabled { opacity: .35; cursor: default; }
+
+  /* ===== Riwayat ===== */
+  .hx-row {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 13px 14px;
+    border-radius: 15px;
+    border: 1px solid transparent;
+    transition: background .2s, border-color .2s;
+  }
+  .hx-row:hover { background: rgba(255,255,255,.045); border-color: var(--border-soft); }
+  .hx-row.mini { padding: 8px 4px; }
+  .hx-row.mini:hover { background: none; border-color: transparent; }
+  .hx-icon {
+    flex: none;
+    width: 36px; height: 36px;
+    display: grid; place-items: center;
+    border-radius: 11px;
+    font-size: 16px;
+  }
+  .hx-row.mini .hx-icon { width: 28px; height: 28px; font-size: 13px; border-radius: 9px; }
+  .hx-icon.pahala { background: rgba(52,211,153,.13); border: 1px solid rgba(52,211,153,.35); }
+  .hx-icon.dosa   { background: rgba(251,113,133,.13); border: 1px solid rgba(251,113,133,.35); }
+  .hx-main { flex: 1; min-width: 0; }
+  .hx-title { font-size: 14px; font-weight: 600; }
+  .hx-row.mini .hx-title { font-size: 13px; }
+  .hx-ket { font-size: 12.5px; color: var(--muted); margin-top: 3px;
+    overflow-wrap: anywhere; } /* wrap penuh, termasuk string panjang tanpa spasi */
+  .hx-row.mini .hx-ket { font-size: 12px; }
+  .hx-time { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .hx-nom {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 14.5px;
+    white-space: nowrap;
+  }
+  .hx-row.mini .hx-nom { font-size: 13px; }
+  .hx-nom.pahala { color: var(--mint); }
+  .hx-nom.dosa { color: var(--rose); }
+
+  .empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .empty.mini { padding: 12px 4px; text-align: left; font-size: 12.5px; }
+
+  /* ===== Modal leaderboard statistik ===== */
+  #statModal, #rekModal, #laporanModal, #strukModal, #kopdosModal {
+    position: fixed; inset: 0;
+    display: grid; place-items: center;
+    padding: 20px;
+    background: rgba(7,7,20,.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 45;
+    opacity: 0; pointer-events: none;
+    transition: opacity .25s;
+  }
+  #statModal.show, #rekModal.show, #laporanModal.show, #strukModal.show,
+  #kopdosModal.show { opacity: 1; pointer-events: auto; }
+  /* Kunci scroll halaman utama selagi modal terbuka — tanpa ini, gesture
+     scroll di mobile "bocor" ke body di belakang begitu isi modal-card
+     lebih tinggi dari viewport, alih-alih men-scroll modal itu sendiri. */
+  body:has(#statModal.show, #rekModal.show, #laporanModal.show, #strukModal.show,
+           #kopdosModal.show) {
+    overflow: hidden;
+  }
+  .modal-card {
+    width: 100%; max-width: 420px;
+    max-height: min(85vh, 640px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: rgba(19,19,40,.94);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 20px 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.6);
+  }
+  .modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .modal-head h3 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px; font-weight: 600;
+  }
+  .modal-close {
+    font: inherit; font-size: 14px;
+    width: 32px; height: 32px;
+    display: grid; place-items: center;
+    color: var(--muted);
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: color .2s, border-color .2s;
+  }
+  .modal-close:hover { color: var(--text); border-color: var(--border); }
+  /* Papan resto (tab 🍜 Resto) — memakai ulang .lb-item/.lb-expand */
+  .resto-ikon {
+    width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px;
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border-soft);
+  }
+  .resto-detail {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px;
+    font-size: 12.5px;
+  }
+  .resto-detail > div { display: flex; justify-content: space-between; gap: 8px; }
+  .resto-detail span { color: var(--muted); }
+  .resto-note { font-size: 11px; color: var(--muted); margin-top: 8px; }
+
+  .sm-row {
+    display: grid;
+    grid-template-columns: 34px 34px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 6px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .sm-row:last-child { border-bottom: none; }
+  .sm-name { font-weight: 600; font-size: 14.5px; }
+  .sm-val {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 15px;
+  }
+  .sm-val.pahala  { color: var(--mint); }
+  .sm-val.dosa    { color: var(--rose); }
+  .sm-val.catatan { color: var(--cyan); }
+  .rank.r1 { background: linear-gradient(135deg,#facc15,#f59e0b); color:#1a1200; border: none; box-shadow: 0 0 14px rgba(250,204,21,.4); }
+  .rank.r2 { background: linear-gradient(135deg,#e2e8f0,#94a3b8); color:#0f172a; border: none; }
+  .rank.r3 { background: linear-gradient(135deg,#fdba74,#ea580c); color:#2a0e00; border: none; }
+  /* Modal grafik (desktop): kartu dilebarkan semaksimal mungkin supaya 30 hari
+     x semua orang muat tanpa digulir. Kelas ini hanya dipasang oleh
+     renderStatModal saat lebar layar >= GRAFIK_MIN_LEBAR. */
+  .modal-card.lebar {
+    max-width: min(1400px, 96vw);
+    max-height: 92vh;
+  }
+  .grafik-wrap { width: 100%; }
+  .grafik-wrap svg { width: 100%; height: auto; display: block; }
+  .grafik-sub {
+    font-size: 11.5px; color: var(--muted);
+    margin: -2px 0 10px;
+  }
+  .grafik-grid { stroke: var(--border-soft); stroke-width: 1; }
+  .grafik-sumbu { fill: var(--muted); font-size: 11px; font-family: inherit; }
+  .grafik-garis { fill: none; stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; transition: opacity .15s; }
+  .grafik-ujung { cursor: pointer; }
+  /* Sorot satu orang: 30 garis sekaligus itu padat, jadi arahkan kursor ke
+     nama/foto di kanan untuk meredupkan sisanya. */
+  svg.sorot .grafik-garis { opacity: .12; }
+  svg.sorot .grafik-ujung { opacity: .35; }
+  svg.sorot .grafik-garis.aktif { opacity: 1; stroke-width: 3.2; }
+  svg.sorot .grafik-ujung.aktif { opacity: 1; }
+  .grafik-nama { font-size: 11.5px; font-weight: 600; font-family: inherit; }
+  .grafik-inisial { font-size: 13px; font-weight: 700; fill: var(--text); text-anchor: middle; }
+
+  .modal-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 12px;
+  }
+  .modal-foot button {
+    font: inherit; font-size: 18px; line-height: 1;
+    width: 42px; height: 36px;
+    color: var(--text);
+    background: rgba(255,255,255,.06);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    cursor: pointer;
+  }
+  .modal-foot button:disabled { opacity: .35; cursor: default; }
+  .modal-foot span { font-size: 12.5px; color: var(--muted); }
+

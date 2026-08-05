@@ -1,0 +1,96 @@
+  /* ---- Pita ayat 6 agama ---- */
+  // Isi statis (tidak dari sheet), jadi cukup dirender sekali saat muat.
+  // Daftar ditulis DUA KALI ke DOM: salinan kedua yang membuat animasi
+  // translateX(-50%) menyambung mulus. Salinan itu aria-hidden supaya
+  // pembaca layar tidak membacakan keenam ayat dua kali.
+  const AYAT = [
+    { agama: 'Islam', ac: 'var(--ay-islam)',
+      teks: 'Wahai orang-orang yang beriman! Apabila kamu berutang untuk waktu yang ditentukan, hendaklah kamu menuliskannya.',
+      sumber: 'Al-Quran, Al-Baqarah: 282' },
+    { agama: 'Kristen Protestan', ac: 'var(--ay-protestan)',
+      teks: 'Orang fasik meminjam dan tidak membayar kembali, tetapi orang benar adalah pengasih dan pemurah.',
+      sumber: 'Alkitab, Mazmur 37:21' },
+    { agama: 'Katolik', ac: 'var(--ay-katolik)',
+      teks: 'Berilah pinjaman kepada sesamamu pada waktu ia berkekurangan, dan bayarlah kembali kepada sesamamu tepat pada waktunya.',
+      sumber: 'Deuterokanonika, Sirakh 29:2' },
+    { agama: 'Hindu', ac: 'var(--ay-hindu)',
+      teks: 'Apa yang terbukti menjadi utang hendaknya dibayarkan kepada yang berpiutang; itulah yang ditegakkan dharma.',
+      sumber: 'Manawa Dharmasastra VIII.47' },
+    { agama: 'Buddha', ac: 'var(--ay-buddha)',
+      teks: 'Inilah kebahagiaan tidak berutang: aku tidak berutang kepada siapa pun, sedikit pun tidak.',
+      sumber: 'Anguttara Nikaya IV.62' },
+    { agama: 'Khonghucu', ac: 'var(--ay-khonghucu)',
+      teks: 'Orang yang tidak dapat dipercaya, entah apa jadinya ia. Kepercayaan adalah dasar segala hubungan.',
+      sumber: 'Lunyu (Analek) II:22' }
+  ];
+  const kartuAyat_ = (a, salinan) =>
+    `<article class="ayat-card" style="--ac:${a.ac}"${salinan ? ' aria-hidden="true"' : ''}>
+      <div class="ayat-agama">${a.agama}</div>
+      <p class="ayat-teks">${a.teks}</p>
+      <div class="ayat-sumber">${a.sumber}</div>
+    </article>`;
+  $('ayatTrack').innerHTML =
+    AYAT.map(a => kartuAyat_(a, false)).join('') +
+    AYAT.map(a => kartuAyat_(a, true)).join('');
+
+  // Jalan otomatis dengan menaikkan scrollLeft tiap frame — BUKAN animasi
+  // transform, supaya menggeser manual ditangani browser sendiri (sentuh,
+  // trackpad, roda mouse) tanpa kode tambahan.
+  function jalankanPitaAyat_() {
+    const trek = $('ayatTrack');
+    const bingkai = trek.parentElement;
+    const LAJU = 26;            // px/detik, kira-kira sama dengan versi animasi 70 detik
+    const JEDA_SETELAH_SENTUH = 1200;  // beri waktu inersia geseran selesai dulu
+    let tahanHover = false;
+    let lanjutPada = 0;
+    let frameTerakhir = 0;
+    // Posisi disimpan sebagai PECAHAN di sini lalu ditulis ke scrollLeft
+    // sebagai nilai MUTLAK. Menaikkan scrollLeft dengan += tidak bisa dipakai:
+    // kenaikan per frame cuma ~0.43px sedangkan scrollLeft membulatkan nilainya
+    // ke piksel perangkat. Mesin yang membulatkan ke BAWAH membuat pita tak
+    // pernah bergerak sama sekali; yang membulatkan ke ATAS membuat lajunya
+    // melenceng jauh (terukur 40px alih-alih 26px per detik).
+    let posisi = 0;
+    let perluSinkron = true;
+
+    const tunda = () => {
+      lanjutPada = performance.now() + JEDA_SETELAH_SENTUH;
+      perluSinkron = true;   // hormati ke mana pengguna menggeser
+    };
+    // Jeda-saat-hover hanya untuk tetikus: di layar sentuh pointerenter ikut
+    // menyala waktu jari menyentuh, dan kalau pointerleave-nya tak pernah
+    // datang, pita akan diam selamanya.
+    bingkai.addEventListener('pointerenter', e => {
+      if (e.pointerType === 'mouse') tahanHover = true;
+    }, { passive: true });
+    bingkai.addEventListener('pointerleave', e => {
+      if (e.pointerType === 'mouse') tahanHover = false;
+      tunda();
+    }, { passive: true });
+    ['pointerdown', 'pointerup', 'touchstart', 'touchmove', 'touchend', 'touchcancel', 'wheel']
+      .forEach(ev => bingkai.addEventListener(ev, tunda, { passive: true }));
+
+    function langkah(t) {
+      const separuh = trek.scrollWidth / 2;
+      if (separuh > 0) {
+        const dt = frameTerakhir ? (t - frameTerakhir) / 1000 : 0;
+        frameTerakhir = t;
+        if (motionOK && !tahanHover && t >= lanjutPada) {
+          if (perluSinkron) { posisi = bingkai.scrollLeft; perluSinkron = false; }
+          // dt besar = tab sempat tidak aktif; jangan melompat jauh saat kembali.
+          if (dt > 0 && dt < 0.5) posisi += LAJU * dt;
+          // Lipat balik ke salinan pertama/kedua — tak terlihat karena identik.
+          // Berlaku dua arah, jadi digeser mundur pun tetap tak berujung.
+          if (posisi >= separuh) posisi -= separuh;
+          else if (posisi < 0) posisi += separuh;
+          bingkai.scrollLeft = posisi;
+        } else {
+          perluSinkron = true;
+        }
+      }
+      requestAnimationFrame(langkah);
+    }
+    requestAnimationFrame(langkah);
+  }
+  jalankanPitaAyat_();
+

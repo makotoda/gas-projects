@@ -1,0 +1,149 @@
+  /* ---- Render keseluruhan ---- */
+  function render(data) {
+    animasiAngka($('statPahala'), data.totalPahala, 'stat:pahala');
+    animasiAngka($('statDosa'), data.totalDosa, 'stat:dosa');
+    animasiAngka($('statKas'), data.kas.saldo, 'stat:kas');
+
+    // Dropdown nama & tujuan (pertahankan pilihan).
+    // KAS bukan orang: hanya masuk akal sebagai pelaku "Dosa" (pengeluaran
+    // operasional) atau tujuan Transfer (infaq masuk). KAS tidak boleh jadi
+    // penerima Pahala manual atau pengirim Transfer — itu akan merusak
+    // asumsi "saldo KAS hanya naik lewat transfer masuk".
+    const anggotaOrang = data.anggota.filter(n => n !== KAS_NAMA);
+    const optFor = (list, ph) => `<option value="">${ph}</option>` +
+      list.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    namaOptsDenganKas = optFor(data.anggota, 'Pilih nama…');
+    namaOptsTanpaKas = optFor(anggotaOrang, 'Pilih nama…');
+    refreshNamaOptions();
+    [['tujuan', optFor(data.anggota, 'Pilih nama tujuan…')]]
+      .forEach(([id, html]) => {
+        const sel = $(id);
+        const cur = sel.value;
+        sel.innerHTML = html;
+        if (cur) sel.value = cur;
+      });
+
+    // Nominal infaq per orang — nilai = yang tersimpan di server (kolom Infaq
+    // sheet Anggota). Kosong/0 = tidak ikut. Baris "Isi semua" mengisi cepat.
+    const infaqMap = data.infaqMap || {};
+    $('kasList').innerHTML =
+      '<label class="kas-semua"><span class="kas-nama">Isi semua dengan</span>' +
+        `<input type="number" inputmode="numeric" min="0" step="100" id="kasSemua" placeholder="mis. ${INFAQ_NOMINAL}"></label>` +
+      anggotaOrang.map(n => {
+        const v = infaqMap[n] > 0 ? infaqMap[n] : '';
+        return `<label><span class="kas-nama">${esc(n)}</span>` +
+          `<input type="number" inputmode="numeric" min="0" step="100" data-nama="${esc(n)}" value="${v}" placeholder="0"></label>`;
+      }).join('');
+    $('kasSemua').addEventListener('input', e => {
+      const val = e.target.value;
+      document.querySelectorAll('#kasList input[data-nama]').forEach(i => { i.value = val; });
+    });
+
+    dataLeaderboard = data.leaderboard;
+    dataHistory = data.history;
+    dataKas = data.kas;
+    dataResto = data.resto || [];
+    dataKatalog = data.katalog || dataKatalog;
+    dataDeret = data.deret || dataDeret;
+    dataAnggota = data.anggota || [];
+    dataBulan = data.bulanList || [];
+    dataStrukAlias = data.strukAlias || dataStrukAlias;
+    if (typeof isiPemilihLaporan === 'function') isiPemilihLaporan();
+    renderLeaderboard();
+    renderGoldBoard();
+    renderKasBoard();
+    renderRestoBoard();
+
+    // Kalau modal leaderboard sedang terbuka, segarkan isinya juga
+    if ($('statModal').classList.contains('show')) renderStatModal();
+
+    // Riwayat
+    const hx = $('viewRiwayat');
+    hx.innerHTML = data.history.length
+      ? data.history.map(h => hxRowHtml(h, false)).join('')
+      : '<div class="empty">Riwayat masih kosong.</div>';
+  }
+
+  /* ---- Submit ---- */
+  $('submitBtn').addEventListener('click', () => {
+    const nama = $('nama').value;
+    const tujuan = $('tujuan').value;
+    const nominal = nominalValue();
+    const isKas = tipeTerpilih === 'Kas';
+    const kasInfaqMap = {};
+    if (isKas) {
+      document.querySelectorAll('#kasList input[data-nama]').forEach(i => {
+        const n = Math.floor(Number(i.value) || 0);
+        if (n > 0) kasInfaqMap[i.dataset.nama] = n;
+      });
+    }
+    const kasPesertaCount = Object.keys(kasInfaqMap).length;
+
+    // Mode Kas: simpan nominal infaq — boleh kosong (semua berhenti ikut)
+    if (!isKas) {
+      if (!nama) return toast('Pilih nama dulu ya.', 'err');
+      if (tipeTerpilih === 'Transfer') {
+        if (!tujuan) return toast('Pilih nama tujuan transfer.', 'err');
+        if (tujuan === nama) return toast('Tidak bisa transfer ke diri sendiri.', 'err');
+      }
+      if (!nominal || nominal <= 0) return toast('Nominal harus lebih dari 0.', 'err');
+    }
+    // Saldo sebelum transaksi — dibaca SEKARANG karena render() di success
+    // handler menimpa dataLeaderboard dengan saldo sesudah.
+    const saldoSebelum = saldoSaatIni(nama);
+
+    const btn = $('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Menyimpan…';
+    // Loading overlay dengan logo animasi selama menyimpan; kalau Three.js
+    // siap, logo 3D dipindah ke slot loader (menggantikan K + spinner)
+    const loader = $('loader');
+    if (window.KodomoLogo3D) {
+      loader.classList.add('logo3d');
+      window.KodomoLogo3D.pasang($('loaderLogo'));
+    }
+    loader.classList.add('overlay');
+    loader.classList.remove('hide');
+
+    const runner = google.script.run
+      .withSuccessHandler(data => {
+        render(data);
+        loader.classList.add('hide');
+        if (window.KodomoLogo3D) window.KodomoLogo3D.keHeader();
+        toast(isKas
+          ? `Nominal infaq tersimpan ✓ (${kasPesertaCount} orang ikut)`
+          : tipeTerpilih === 'Transfer'
+            ? `Transfer pahala ${fmt(nominal)} dari ${nama} ke ${tujuan} tersimpan ✓`
+            : `${tipeTerpilih} ${fmt(nominal)} untuk ${nama} tersimpan ✓`, 'ok');
+        // Perayaan sukses: krincing koin beruntun + hujan uang dari tombol
+        playCoinBurst();
+        if (tipeTerpilih === 'Pahala') umumkanPahala(saldoSebelum, nominal);
+        else playSfx('mantul');
+        const r = btn.getBoundingClientRect();
+        moneyRain(r.left + r.width / 2, r.top + r.height / 2);
+        nominalInput.value = '';
+        // Keterangan sengaja TIDAK dikosongkan — biar bisa dipakai lagi
+        // untuk catatan berikutnya yang serupa.
+        btn.disabled = false;
+        btn.textContent = labelSubmit();
+      })
+      .withFailureHandler(err => {
+        loader.classList.add('hide');
+        if (window.KodomoLogo3D) window.KodomoLogo3D.keHeader();
+        toast(err.message || 'Gagal menyimpan. Coba lagi.', 'err');
+        btn.disabled = false;
+        btn.textContent = labelSubmit();
+      });
+    if (isKas) {
+      runner.saveInfaqMap(kasInfaqMap);
+    } else {
+      runner.submitAmalan({
+        nama: nama,
+        tipe: tipeTerpilih,
+        tujuan: tujuan,
+        nominal: nominal,
+        keterangan: $('keterangan').value
+      });
+    }
+  });
+

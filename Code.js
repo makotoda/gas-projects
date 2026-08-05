@@ -61,12 +61,30 @@ const DEFAULT_ANGGOTA = [
   'Yanti', 'Yudha'
 ];
 
-/** Entry point web app */
+/**
+ * Entry point web app.
+ *
+ * Index.html sengaja hanya kerangka: seluruh CSS, markup, dan JS-nya tinggal
+ * di berkas-berkas terpisah yang dijahit di sini lewat `<?!= include(...) ?>`.
+ * GAS hanya menyajikan SATU berkas per doGet, jadi pemecahan berkas menuntut
+ * createTemplateFromFile (bukan createHtmlOutputFromFile) — halaman hasilnya
+ * tetap satu dokumen yang persis sama seperti sebelum dipecah.
+ *
+ * Semua potongan CSS dijahit di dalam satu <style>, dan semua potongan JS di
+ * dalam SATU <script>. Ini disengaja: memecahnya menjadi banyak tag <script>
+ * akan mengubah aturan cakupan variabel antar potongan.
+ */
 function doGet() {
-  return HtmlService.createHtmlOutputFromFile('Index')
+  return HtmlService.createTemplateFromFile('Index')
+    .evaluate()
     .setTitle('Kodomo — Pencatat Amalan')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/** Sisipkan isi sebuah berkas HTML apa adanya (dipanggil dari Index.html). */
+function include(nama) {
+  return HtmlService.createHtmlOutputFromFile(nama).getContent();
 }
 
 /** Jalankan sekali untuk menyiapkan spreadsheet */

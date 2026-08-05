@@ -1,0 +1,519 @@
+  /* ===== Latar orbs bercahaya ===== */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(90px);
+    opacity: .55;
+    z-index: 0;
+    pointer-events: none;
+    animation: drift 18s ease-in-out infinite alternate;
+  }
+  .orb-1 { width: 480px; height: 480px; top: -140px; left: -120px;
+    background: radial-gradient(circle, var(--violet), transparent 70%); }
+  .orb-2 { width: 420px; height: 420px; bottom: -160px; right: -100px;
+    background: radial-gradient(circle, var(--cyan), transparent 70%);
+    animation-delay: -6s; }
+  .orb-3 { width: 340px; height: 340px; top: 40%; left: 55%;
+    background: radial-gradient(circle, var(--pink), transparent 70%);
+    opacity: .35; animation-delay: -12s; }
+
+  @keyframes drift {
+    from { transform: translate(0, 0) scale(1); }
+    to   { transform: translate(60px, 40px) scale(1.12); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .orb { animation: none; }
+    * { transition: none !important; }
+    /* Pita ayat: jalan-otomatisnya dimatikan di script (lihat motionOK di
+       jalankanPitaAyat_). Tidak ada lagi yang perlu diatur di sini — pita
+       memang sudah berupa strip yang bisa digeser manual. */
+  }
+
+  /* Saat pinch-zoom dalam (visualViewport.scale besar), semua efek blur
+     dimatikan sementara: blur dirasterisasi ulang pada resolusi zoom, dan
+     biaya memorinya naik kuadratik — di iPhone WebKit sampai mematikan
+     halaman ("Can't open this page"), di Android frame reload berulang.
+     Class dipasang/dicabut oleh listener visualViewport di script.
+     CATATAN: hanya bekerja saat dibuka langsung — di dalam embed Google
+     Sites zoom terjadi pada halaman induk dan tak terdeteksi dari iframe,
+     karena itu ada juga aturan permanen untuk layar sentuh di bawah. */
+  body.zoom-dalam .orb { display: none; }
+  body.zoom-dalam header, body.zoom-dalam .card, body.zoom-dalam .stat,
+  body.zoom-dalam .modal-card, body.zoom-dalam #statModal, body.zoom-dalam #rekModal,
+  body.zoom-dalam #laporanModal, body.zoom-dalam #strukModal,
+  body.zoom-dalam #loader.overlay, body.zoom-dalam #toast,
+  body.zoom-dalam #tutorialOverlay, body.zoom-dalam #tutorialTooltip {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Perangkat mobile/layar sentuh: blur dimatikan PERMANEN. Di embed Google
+     Sites pinch-zoom tak terdeteksi (lihat catatan di atas), jadi baseline
+     memori GPU harus rendah sejak awal. Kartu tetap semi-transparan
+     (var(--glass)) — yang hilang hanya efek kaca buram; orb tetap tampil
+     karena radial-gradient-nya sudah lembut tanpa filter blur. */
+  @media (max-width: 900px), (pointer: coarse) {
+    .orb { filter: none; opacity: .4; }
+    header, .card, .stat, .modal-card, #statModal, #rekModal,
+    #laporanModal, #strukModal, #kopdosModal, #loader.overlay, #toast,
+    #tutorialOverlay, #tutorialTooltip {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 28px 20px 60px;
+  }
+
+  /* ===== Header ===== */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 24px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .logo {
+    width: 46px; height: 46px;
+    border-radius: 14px;
+    display: grid; place-items: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 22px;
+    background: linear-gradient(135deg, var(--violet), var(--cyan));
+    box-shadow: 0 0 24px rgba(139, 92, 246, .5);
+    overflow: hidden;
+  }
+  .logo canvas { width: 100%; height: 100%; display: block; }
+  .brand h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 22px; font-weight: 700;
+    letter-spacing: .5px;
+  }
+  .brand p { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  /* ===== Tombol musik ===== */
+  .music-btn {
+    display: flex; align-items: center; gap: 8px;
+    font: inherit; font-size: 12px; font-weight: 500;
+    color: var(--muted);
+    padding: 8px 14px;
+    background: var(--glass);
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color .2s, border-color .2s, box-shadow .2s;
+  }
+  .music-btn:hover { color: var(--text); border-color: var(--border); }
+
+  /* ===== Modal Rekening ===== */
+  /* ---- Kopdos Merah Putih (katalog belanja) ---- */
+  .kop-intro { font-size: 12.5px; color: var(--muted); margin: -2px 0 14px; line-height: 1.5; }
+  .kop-list { display: flex; flex-direction: column; gap: 10px; }
+  .kop-row {
+    display: grid;
+    grid-template-columns: 44px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--glass);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+  }
+  .kop-emoji {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border-soft);
+  }
+  .kop-nama { font-weight: 600; font-size: 14.5px; }
+  .kop-harga { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .kop-qty { display: flex; align-items: center; gap: 6px; }
+  .kop-qty button {
+    width: 30px; height: 30px;
+    font: inherit; font-size: 16px; line-height: 1;
+    color: var(--text);
+    background: rgba(255,255,255,.06);
+    border: 1px solid var(--border-soft);
+    border-radius: 9px;
+    cursor: pointer;
+  }
+  .kop-qty button:hover { border-color: var(--border); }
+  .kop-qty input {
+    width: 46px; text-align: center;
+    font: inherit; font-size: 14px; font-weight: 600;
+    color: var(--text);
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--border-soft);
+    border-radius: 9px;
+    padding: 6px 2px;
+    -moz-appearance: textfield;
+  }
+  .kop-qty input::-webkit-outer-spin-button,
+  .kop-qty input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .kop-label {
+    display: block; margin: 16px 0 6px;
+    font-size: 11.5px; text-transform: uppercase; letter-spacing: 1.1px;
+    color: var(--muted);
+  }
+  #kopdosNama {
+    width: 100%; padding: 11px 12px;
+    font: inherit; font-size: 14.5px;
+    color: var(--text);
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+  }
+  .kop-total {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 16px 0 12px; padding-top: 12px;
+    border-top: 1px solid var(--border-soft);
+    font-size: 13px; color: var(--muted);
+  }
+  .kop-total b {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 20px; color: var(--rose);
+  }
+
+  .rek-list { display: flex; flex-direction: column; gap: 10px; }
+  .rek-row {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--glass);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+  }
+  .rek-badge {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 12px;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .rek-info { min-width: 0; }
+  .rek-bank { font-size: 13px; font-weight: 600; color: var(--muted); }
+  .rek-nomor { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; word-break: break-all; }
+  .rek-copy {
+    display: flex; align-items: center; gap: 6px;
+    font: inherit; font-size: 12.5px; font-weight: 600;
+    color: var(--text);
+    padding: 8px 12px;
+    background: rgba(255,255,255,.06);
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: border-color .2s, color .2s;
+    white-space: nowrap;
+  }
+  .rek-copy:hover { border-color: var(--violet); }
+  .rek-copy.copied { color: var(--mint); border-color: var(--mint); }
+
+  /* ===== Kartu statistik ===== */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .stat {
+    padding: 20px 22px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color .2s, transform .15s;
+  }
+  .stat:hover { border-color: rgba(255,255,255,.28); transform: translateY(-2px); }
+  .stat::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.06) 50%, transparent 70%);
+    pointer-events: none;
+  }
+  .stat .label {
+    font-size: 12px; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--muted);
+  }
+  .stat .value {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 30px; font-weight: 700;
+    margin-top: 8px;
+  }
+  .stat.pahala .value { color: var(--mint); text-shadow: 0 0 18px rgba(52,211,153,.45); }
+  .stat.dosa   .value { color: var(--rose); text-shadow: 0 0 18px rgba(251,113,133,.45); }
+  .stat.trx    .value { color: var(--cyan); text-shadow: 0 0 18px rgba(34,211,238,.45); }
+
+  /* ===== Grid utama ===== */
+  .main {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 16px;
+    margin-top: 16px;
+    align-items: start;
+  }
+
+  .card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    padding: 24px;
+    /* Grid item default min-width:auto — konten nowrap (mis. keterangan
+       riwayat) bisa memaksa kolom melebar melebihi layar di mobile. */
+    min-width: 0;
+  }
+  .card h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 17px; font-weight: 600;
+    margin-bottom: 18px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .card h2 .bar {
+    width: 4px; height: 18px; border-radius: 4px;
+    background: linear-gradient(180deg, var(--violet), var(--cyan));
+    box-shadow: 0 0 10px var(--violet);
+  }
+
+  /* ===== Form ===== */
+  label {
+    display: block;
+    font-size: 12.5px; font-weight: 500;
+    color: var(--muted);
+    margin: 16px 0 7px;
+  }
+  select, input[type="text"] {
+    width: 100%;
+    padding: 13px 15px;
+    font: inherit; font-size: 14.5px;
+    color: var(--text);
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  select { cursor: pointer; }
+  select option { background: #131328; color: var(--text); }
+  select:focus, input:focus {
+    border-color: var(--violet);
+    box-shadow: 0 0 0 3px rgba(139,92,246,.22);
+  }
+
+  /* Toggle Pahala / Dosa / Transfer / Kas — elemen signature */
+  .toggle {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    padding: 4px;
+  }
+  .toggle .slider {
+    position: absolute;
+    top: 4px; bottom: 4px; left: 4px;
+    width: calc((100% - 8px) / 4);
+    border-radius: 11px;
+    background: linear-gradient(135deg, var(--mint), var(--cyan));
+    box-shadow: 0 0 18px rgba(52,211,153,.5);
+    transition: transform .3s cubic-bezier(.4,0,.2,1), background .3s, box-shadow .3s;
+  }
+  .toggle.dosa .slider {
+    transform: translateX(100%);
+    background: linear-gradient(135deg, var(--rose), var(--pink));
+    box-shadow: 0 0 18px rgba(251,113,133,.5);
+  }
+  .toggle.transfer .slider {
+    transform: translateX(200%);
+    background: linear-gradient(135deg, var(--violet), var(--cyan));
+    box-shadow: 0 0 18px rgba(139,92,246,.55);
+  }
+  .toggle.kas .slider {
+    transform: translateX(300%);
+    background: linear-gradient(135deg, #facc15, #f59e0b);
+    box-shadow: 0 0 18px rgba(250,204,21,.5);
+  }
+  .toggle button {
+    position: relative; z-index: 1;
+    padding: 11px 2px;
+    font: inherit; font-size: 13px; font-weight: 600;
+    color: var(--muted);
+    background: none; border: none; cursor: pointer;
+    transition: color .3s;
+    white-space: nowrap;
+  }
+  .toggle button.active { color: #06121a; }
+  .toggle.transfer button.active { color: #fff; }
+  .toggle.kas button.active { color: #1a1200; }
+
+  /* Field tujuan transfer */
+  .tujuan-field {
+    display: none;
+    overflow: hidden;
+  }
+  .tujuan-field.show {
+    display: block;
+    animation: slideIn .3s ease;
+  }
+
+  /* Field daftar centang infaq kas */
+  .kas-field { display: none; }
+  .kas-field.show {
+    display: block;
+    animation: slideIn .3s ease;
+  }
+  .kas-list {
+    max-height: 220px;
+    overflow-y: auto;
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    padding: 6px;
+  }
+  .kas-list label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 0;
+    padding: 9px 10px;
+    border-radius: 10px;
+    font-size: 14px;
+  }
+  .kas-list label:hover { background: rgba(255,255,255,.06); }
+  body.light .kas-list label:hover { background: rgba(15,23,42,.05); }
+  .kas-list .kas-nama {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .kas-list input[type="number"] {
+    width: 96px;
+    flex: 0 0 auto;
+    padding: 7px 9px;
+    font: inherit;
+    font-size: 13px;
+    text-align: right;
+    color: var(--text);
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border-soft);
+    border-radius: 9px;
+    -moz-appearance: textfield;
+  }
+  .kas-list input[type="number"]::-webkit-outer-spin-button,
+  .kas-list input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none; margin: 0;
+  }
+  .kas-list input[type="number"]:focus {
+    outline: none;
+    border-color: #f59e0b;
+  }
+  body.light .kas-list input[type="number"] { background: rgba(15,23,42,.04); }
+  .kas-list .kas-semua {
+    border-bottom: 1px solid var(--border-soft);
+    border-radius: 10px 10px 0 0;
+    font-weight: 600;
+  }
+  .kas-list .kas-semua .kas-nama { color: var(--muted); }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* CTA utama "Bukti Transfer" — ditaruh di ATAS kartu, bukan tombol kecil di
+     dasar seperti dulu: mayoritas orang datang justru untuk ini (top-up /
+     bayar dosa), tapi banyak yang tidak tahu fiturnya ada karena tombolnya
+     mungil dan tenggelam di bawah form. Gradient mint→cyan = warna "Pahala",
+     menegaskan bahwa alur ini menaikkan saldo. */
+  .cta-tf {
+    width: 100%;
+    display: flex; align-items: center; gap: 14px;
+    text-align: left;
+    padding: 15px 18px;
+    margin-bottom: 20px;
+    font: inherit;
+    color: #06121a;
+    background: linear-gradient(135deg, var(--mint), var(--cyan));
+    border: none; border-radius: 16px;
+    cursor: pointer;
+    box-shadow: 0 6px 24px rgba(52,211,153,.35);
+    transition: transform .15s, box-shadow .2s;
+  }
+  .cta-tf:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(52,211,153,.5); }
+  .cta-tf .ic { font-size: 25px; line-height: 1; flex: none; }
+  .cta-tf .tx { flex: 1; min-width: 0; }
+  .cta-tf .tx strong {
+    display: block;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px; font-weight: 700;
+  }
+  /* Tanpa opacity: di tema terang aksen mint/cyan lebih gelap, teks 11.5px
+     yang diredupkan jatuh ke ~3.8:1 (di bawah ambang AA 4.5:1). Hierarki
+     sudah cukup ditanggung ukuran & tebal huruf. */
+  .cta-tf .tx small {
+    display: block; margin-top: 3px;
+    font-size: 11.5px; line-height: 1.4;
+  }
+  .cta-tf .ar { font-size: 20px; font-weight: 700; flex: none; opacity: .6; }
+
+  .submit-btn {
+    width: 100%;
+    margin-top: 22px;
+    padding: 15px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px; font-weight: 600;
+    letter-spacing: .4px;
+    color: #fff;
+    background: linear-gradient(135deg, var(--violet), var(--cyan));
+    border: none; border-radius: 14px;
+    cursor: pointer;
+    box-shadow: 0 6px 26px rgba(139,92,246,.4);
+    transition: transform .15s, box-shadow .2s, opacity .2s;
+  }
+  .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(139,92,246,.55); }
+  .submit-btn:disabled { opacity: .5; cursor: wait; transform: none; }
+
+  /* ===== Tabs ===== */
+  .tabs { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+  .tab {
+    padding: 9px 18px;
+    font: inherit; font-size: 13.5px; font-weight: 500;
+    color: var(--muted);
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .tab.active {
+    color: var(--text);
+    background: var(--glass-strong);
+    border-color: var(--violet);
+    box-shadow: 0 0 14px rgba(139,92,246,.3);
+  }
+

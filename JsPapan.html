@@ -1,0 +1,268 @@
+  /* ---- Tabs ---- */
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => activateTab(tab.dataset.view));
+  });
+
+  /* ---- Toast ---- */
+  let toastTimer;
+  function toast(msg, type) {
+    const el = $('toast');
+    el.textContent = msg;
+    el.className = 'show ' + (type || 'ok');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.className = '', 3200);
+  }
+
+  /* ---- Baris riwayat (dipakai riwayat utama & expand) ---- */
+  function hxRowHtml(h, mini) {
+    const isDosa = h.tipe === 'Dosa';
+    return `
+    <div class="hx-row${mini ? ' mini' : ''}">
+      <div class="hx-icon ${isDosa ? 'dosa' : 'pahala'}">${isDosa ? '🔥' : '✨'}</div>
+      <div class="hx-main">
+        <div class="hx-title">${mini ? esc(h.tipe) : esc(h.nama)}</div>
+        ${h.keterangan ? `<div class="hx-ket">${esc(h.keterangan)}</div>` : ''}
+        <div class="hx-time">${esc(h.waktu)}</div>
+      </div>
+      <div class="hx-nom ${isDosa ? 'dosa' : 'pahala'}">${isDosa ? '−' : '+'}${fmt(h.nominal)}</div>
+    </div>`;
+  }
+
+  /* ---- Avatar (dipakai leaderboard utama & modal statistik) ---- */
+  function avaHtml(o) {
+    return `<div class="lb-ava">${o.foto
+      ? `<img src="${esc(o.foto)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`
+      : ''}<span>${esc(o.nama.trim().charAt(0).toUpperCase())}</span></div>`;
+  }
+
+  /* ---- Isi panel "transaksi terakhir" (toggle KAS + paginasi 2 slide) ---- */
+  function panelHtml(o) {
+    const semua = o.recent || [];
+    const adaKas = semua.some(adalahKas_);
+    const list = (sembunyikanKas ? semua.filter(h => !adalahKas_(h)) : semua)
+      .slice(0, PANEL_PER_SLIDE * PANEL_MAX_SLIDE);
+    const slide = Math.max(1, Math.ceil(list.length / PANEL_PER_SLIDE));
+    if (expandHalaman > slide - 1) expandHalaman = slide - 1;
+    const potongan = list.slice(expandHalaman * PANEL_PER_SLIDE, (expandHalaman + 1) * PANEL_PER_SLIDE);
+
+    const toggle = adaKas
+      ? `<button class="kas-toggle" type="button">${sembunyikanKas ? '💰 Tampilkan infaq KAS' : '🙈 Sembunyikan infaq KAS'}</button>`
+      : '';
+    const pager = slide > 1
+      ? `<div class="lb-pager">
+           <button class="pg-btn" type="button" data-dir="-1"${expandHalaman === 0 ? ' disabled' : ''}>‹</button>
+           <span>${expandHalaman + 1} / ${slide}</span>
+           <button class="pg-btn" type="button" data-dir="1"${expandHalaman === slide - 1 ? ' disabled' : ''}>›</button>
+         </div>`
+      : '';
+    const isi = potongan.length
+      ? potongan.map(h => hxRowHtml(h, true)).join('')
+      : '<div class="empty mini">Belum ada transaksi.</div>';
+    return `<div class="lb-expand-head">
+        <div class="lb-expand-title">Transaksi terakhir</div>${toggle}
+      </div>${isi}${pager}`;
+  }
+
+  // Render ulang isi panel satu orang (dipanggil saat buka / toggle KAS / ganti slide).
+  function refreshPanel(item, o) {
+    item.querySelector('.lb-expand-inner').innerHTML = panelHtml(o);
+    const tgl = item.querySelector('.kas-toggle');
+    if (tgl) tgl.addEventListener('click', () => {
+      sembunyikanKas = !sembunyikanKas;
+      localStorage.setItem('kas_hidden', sembunyikanKas ? '1' : '0');
+      expandHalaman = 0;
+      refreshPanel(item, o);
+    });
+    item.querySelectorAll('.pg-btn').forEach(b => b.addEventListener('click', () => {
+      expandHalaman += Number(b.dataset.dir);
+      refreshPanel(item, o);
+    }));
+  }
+
+  // Ranking kompetisi: nilai sama → rank sama, rank berikutnya lompat sesuai
+  // jumlah yang seri (mis. 1, 1, 3, 4). 'list' harus sudah terurut menurun.
+  function computeRanks(list, valFn) {
+    const ranks = [];
+    let prevVal = null, prevRank = 0;
+    list.forEach((o, i) => {
+      const v = valFn(o);
+      if (i > 0 && v === prevVal) ranks.push(prevRank);
+      else { prevRank = i + 1; ranks.push(prevRank); prevVal = v; }
+    });
+    return ranks;
+  }
+
+  // Nama dengan penanda "(Gold)" masuk menu leaderboard terpisah (tab 🥇 Gold).
+  const isGold_ = o => o.nama.includes('(Gold)');
+
+  /* ---- Render satu papan leaderboard (dengan expand) ke dalam container ---- */
+  function renderBoard_(container, list, kosongMsg) {
+    if (!list.length) {
+      container.innerHTML = `<div class="empty">${kosongMsg}</div>`;
+      return;
+    }
+    const maxAbs = Math.max(...list.map(o => Math.abs(o.saldo)), 1);
+    const ranks = computeRanks(list, o => o.saldo);
+    container.innerHTML = list.map((o, i) => {
+      const rank = ranks[i];
+      const pct = Math.max(4, Math.round(Math.abs(o.saldo) / maxAbs * 100));
+      const neg = o.saldo < 0;
+      const open = expandTerbuka === o.nama;
+      return `
+      <div class="lb-item ${neg ? 'neg' : 'pos'}${open ? ' open' : ''}" data-nama="${esc(o.nama)}">
+        <div class="lb-row">
+          <div class="rank${rank <= 3 ? ' r' + rank : ''}">${rank}</div>
+          ${avaHtml(o)}
+          <div>
+            <div class="lb-name">${esc(o.nama)} <span class="chev">▼</span></div>
+            <div class="lb-meter${neg ? ' neg' : ''}"><i style="width:${pct}%"></i></div>
+          </div>
+          <div>
+            <div class="lb-saldo ${neg ? 'neg' : 'pos'}" data-angka="saldo">${neg ? '−' : '+'}${fmt(Math.abs(o.saldo))}</div>
+            <div class="lb-sub">✨ <span data-angka="pahala">${fmt(o.pahala)}</span> · 🔥 <span data-angka="dosa">${fmt(o.dosa)}</span></div>
+          </div>
+        </div>
+        <div class="lb-expand"><div>
+          <div class="lb-expand-inner">${panelHtml(o)}</div>
+        </div></div>
+      </div>`;
+    }).join('');
+
+    // Klik baris → expand / tutup. Saat buka: reset ke slide 0 & render ulang
+    // panel dgn state KAS terkini (panel yg tertutup bisa berisi konten basi).
+    container.querySelectorAll('.lb-item').forEach(item => {
+      const o = list.find(x => x.nama === item.dataset.nama);
+      item.querySelector('.lb-row').addEventListener('click', () => {
+        const buka = expandTerbuka !== item.dataset.nama;
+        expandTerbuka = buka ? item.dataset.nama : null;
+        if (buka && o) { expandHalaman = 0; refreshPanel(item, o); }
+        container.querySelectorAll('.lb-item').forEach(it =>
+          it.classList.toggle('open', it.dataset.nama === expandTerbuka));
+      });
+      // Item yg sudah terbuka (mis. setelah data refresh) perlu tombol aktif.
+      if (o && expandTerbuka === item.dataset.nama) refreshPanel(item, o);
+    });
+
+    // Angka berjalan untuk saldo & rincian pahala/dosa tiap baris
+    container.querySelectorAll('.lb-item').forEach(item => {
+      const o = list.find(x => x.nama === item.dataset.nama);
+      if (!o) return;
+      animasiAngka(item.querySelector('[data-angka="saldo"]'), Math.abs(o.saldo),
+        'lb:' + o.nama + ':saldo', o.saldo < 0 ? '−' : '+');
+      animasiAngka(item.querySelector('[data-angka="pahala"]'), o.pahala, 'lb:' + o.nama + ':pahala');
+      animasiAngka(item.querySelector('[data-angka="dosa"]'), o.dosa, 'lb:' + o.nama + ':dosa');
+    });
+  }
+
+  /* ---- Render leaderboard utama (tab 🏆 Leaderboard, tanpa anggota Gold) ---- */
+  function renderLeaderboard() {
+    renderBoard_($('viewLeaderboard'), dataLeaderboard.filter(o => !isGold_(o)),
+      'Belum ada catatan. Mulai catat amalan pertama! ✨');
+  }
+
+  /* ---- Render leaderboard Gold (tab 🥇 Gold) ---- */
+  function renderGoldBoard() {
+    renderBoard_($('viewGold'), dataLeaderboard.filter(isGold_),
+      'Belum ada anggota Gold. ✨');
+  }
+
+  /* ---- Render leaderboard infaq kas (tab 💰 Kas) ---- */
+  function renderKasBoard() {
+    const el = $('viewKas');
+    if (!dataKas.leaderboard.length) {
+      el.innerHTML = '<div class="empty">Belum ada infaq ke KAS. Jadilah yang pertama! 💰</div>';
+      return;
+    }
+    const ranksKas = computeRanks(dataKas.leaderboard, o => o.total);
+    el.innerHTML = dataKas.leaderboard.map((o, i) => `
+      <div class="sm-row">
+        <div class="rank${ranksKas[i] <= 3 ? ' r' + ranksKas[i] : ''}">${ranksKas[i]}</div>
+        ${avaHtml(o)}
+        <div class="sm-name">${esc(o.nama)}</div>
+        <div class="sm-val pahala" data-kas-total>${fmt(o.total)}</div>
+      </div>`).join('');
+    el.querySelectorAll('[data-kas-total]').forEach((v, i) =>
+      animasiAngka(v, dataKas.leaderboard[i].total, 'kasboard:' + dataKas.leaderboard[i].nama));
+  }
+
+  /* ---- Papan harga rata-rata resto (tab 🍜 Resto) ----
+     Urut termurah dulu (sudah diurutkan server). Angka rata-rata sudah bersih
+     dari transaksi borongan — rinciannya muncul saat baris diklik. */
+  let restoTerbuka = null;
+  function renderRestoBoard() {
+    const el = $('viewResto');
+    if (!dataResto.length) {
+      el.innerHTML = '<div class="empty">Belum ada data resto. Butuh minimal 10 transaksi ' +
+        'dengan keterangan yang sama sebelum sebuah tempat makan dikenali. 🍜</div>';
+      return;
+    }
+    const maxRata = Math.max(...dataResto.map(o => o.rata), 1);
+    el.innerHTML = dataResto.map((o, i) => {
+      const rank = i + 1;
+      const pct = Math.max(4, Math.round(o.rata / maxRata * 100));
+      const open = restoTerbuka === o.nama;
+      return `
+      <div class="lb-item resto-item${open ? ' open' : ''}" data-nama="${esc(o.nama)}">
+        <div class="lb-row">
+          <div class="rank${rank <= 3 ? ' r' + rank : ''}">${rank}</div>
+          <div class="resto-ikon">🍜</div>
+          <div>
+            <div class="lb-name">${esc(o.nama)} <span class="chev">▼</span></div>
+            <div class="lb-meter"><i style="width:${pct}%"></i></div>
+          </div>
+          <div>
+            <div class="lb-saldo pos" data-resto-rata>${fmt(o.rata)}</div>
+            <div class="lb-sub">${o.dipakai} transaksi</div>
+          </div>
+        </div>
+        <div class="lb-expand"><div>
+          <div class="lb-expand-inner">
+            <div class="lb-expand-title">Rincian harga</div>
+            <div class="resto-detail">
+              <div><span>Termurah</span><b>${fmt(o.min)}</b></div>
+              <div><span>Termahal</span><b>${fmt(o.max)}</b></div>
+              <div><span>Dipakai</span><b>${o.dipakai} dari ${o.jumlah}</b></div>
+              <div><span>Diperbarui</span><b>${esc(o.update || '-')}</b></div>
+            </div>
+            <div class="resto-note">${o.jumlah - o.dipakai} transaksi borongan
+              (jauh dari harga wajar) tidak ikut dihitung.</div>
+          </div>
+        </div></div>
+      </div>`;
+    }).join('');
+
+    el.querySelectorAll('.resto-item').forEach(item => {
+      item.querySelector('.lb-row').addEventListener('click', () => {
+        restoTerbuka = restoTerbuka === item.dataset.nama ? null : item.dataset.nama;
+        el.querySelectorAll('.resto-item').forEach(it =>
+          it.classList.toggle('open', it.dataset.nama === restoTerbuka));
+      });
+    });
+    el.querySelectorAll('[data-resto-rata]').forEach((v, i) =>
+      animasiAngka(v, dataResto[i].rata, 'resto:' + dataResto[i].nama));
+  }
+
+  /* ---- Modal leaderboard per statistik (klik kartu Total ...) ---- */
+  const statMeta = {
+    pahala: { title: '✨ Leaderboard Pahala' },
+    dosa:   { title: '🔥 Leaderboard Dosa' },
+    kas:    { title: '💰 Riwayat KAS' }
+  };
+  const PER_SLIDE = 5;
+  let modalMetric = null;
+  let modalPage = 0;
+
+  // Leaderboard pahala/dosa dihitung dari SELISIH (saldo = pahala − dosa):
+  // saldo positif masuk leaderboard pahala, saldo negatif masuk leaderboard
+  // dosa (nilai yang tampil = besar selisihnya). Saldo 0 tidak masuk keduanya.
+  const nilaiMetric_ = o => modalMetric === 'pahala' ? o.saldo : -o.saldo;
+
+  document.querySelectorAll('.stat').forEach(card => {
+    card.addEventListener('click', () => {
+      modalMetric = card.dataset.metric;
+      modalPage = 0;
+      renderStatModal();
+      $('statModal').classList.add('show');
+    });
+  });
+

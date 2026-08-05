@@ -1,0 +1,152 @@
+  const KAS_NAMA = 'KAS';
+  const INFAQ_NOMINAL = 500; // nominal infaq default (placeholder isian menu Kas)
+  let tipeTerpilih = 'Pahala';
+  let dataLeaderboard = [];
+  let dataHistory = [];
+  let dataKas = { saldo: 0, history: [], leaderboard: [] };
+  let dataResto = [];
+  let dataKatalog = [];
+  let dataDeret = { hari: [], tanggal: [], orang: [] };
+  let dataAnggota = [];   // termasuk KAS (untuk pemilih laporan)
+  let dataBulan = [];     // [{key:'2026-07', label:'Juli 2026'}] terbaru dulu
+  let namaOptsDenganKas = '', namaOptsTanpaKas = '';
+  let expandTerbuka = null; // nama yang sedang di-expand
+  let expandHalaman = 0;    // slide panel yg sedang tampil (0..MAX_PANEL_SLIDE-1)
+  // Sembunyikan transaksi infaq KAS di panel; default sembunyi (riwayat cepat penuh).
+  let sembunyikanKas = localStorage.getItem('kas_hidden') !== '0';
+  const PANEL_PER_SLIDE = 5, PANEL_MAX_SLIDE = 2; // maks 10 transaksi, 2 slide
+  // KAS infaq = keterangan berawalan salah satu prefix ini (mirror isKetInfaq_
+  // di Code.js): format baru 'KAS — …' atau format lama transfer ke KAS.
+  const adalahKas_ = h => {
+    const k = h.keterangan || '';
+    return k.indexOf('KAS — ') === 0 || k.indexOf('Transfer pahala ke KAS') === 0;
+  };
+
+  const $ = id => document.getElementById(id);
+  const fmt = n => new Intl.NumberFormat('id-ID').format(n);
+  const esc = s => String(s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  /* ---- Efek angka berjalan (count-up) ----
+     Setiap angka dianimasikan dari nilai render sebelumnya (atau 0 saat
+     muat pertama) ke nilai baru, di-key per elemen supaya render ulang
+     tidak mengulang animasi kalau nilainya tidak berubah. */
+  const angkaSebelum = new Map();
+  function animasiAngka(el, ke, kunci, awalan) {
+    if (!el) return;
+    const dari = angkaSebelum.has(kunci) ? angkaSebelum.get(kunci) : 0;
+    angkaSebelum.set(kunci, ke);
+    const pre = awalan || '';
+    if (dari === ke) { el.textContent = pre + fmt(ke); return; }
+    const t0 = performance.now(), durasi = 900;
+    function tick(now) {
+      const p = Math.min(1, (now - t0) / durasi);
+      const e = 1 - Math.pow(1 - p, 3); // ease-out cubic
+      el.textContent = pre + fmt(Math.round(dari + (ke - dari) * e));
+      if (p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  /* ---- Nominal: separator ribuan "." saat mengetik ---- */
+  const nominalInput = $('nominal');
+  const nominalValue = () => Number(nominalInput.value.replace(/\./g, '')) || 0;
+
+  nominalInput.addEventListener('input', () => {
+    const digits = nominalInput.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+    nominalInput.value = digits ? Number(digits).toLocaleString('id-ID') : '';
+    // Kursor selalu di akhir setelah format ulang
+    nominalInput.setSelectionRange(nominalInput.value.length, nominalInput.value.length);
+  });
+
+  /* ---- Toggle Pahala / Dosa / Transfer / Kas ---- */
+  const toggle = $('toggle');
+  toggle.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      tipeTerpilih = btn.dataset.tipe;
+      toggle.classList.toggle('dosa', tipeTerpilih === 'Dosa');
+      toggle.classList.toggle('transfer', tipeTerpilih === 'Transfer');
+      toggle.classList.toggle('kas', tipeTerpilih === 'Kas');
+      toggle.querySelectorAll('button').forEach(b =>
+        b.classList.toggle('active', b === btn));
+      $('tujuanField').classList.toggle('show', tipeTerpilih === 'Transfer');
+      // Mode Kas: atur nominal infaq otomatis per orang — nama tunggal,
+      // nominal, dan keterangan form tidak relevan, diganti daftar isian nominal.
+      const isKas = tipeTerpilih === 'Kas';
+      $('namaField').style.display = isKas ? 'none' : '';
+      $('umumField').style.display = isKas ? 'none' : '';
+      $('kasField').classList.toggle('show', isKas);
+      $('submitBtn').textContent = labelSubmit();
+      refreshNamaOptions();
+    });
+  });
+
+  // Label tombol simpan mengikuti mode form
+  const labelSubmit = () => tipeTerpilih === 'Kas' ? 'Simpan daftar infaq' : 'Simpan catatan';
+
+  // KAS hanya relevan sebagai pelaku Dosa; disaring dari dropdown Nama
+  // untuk Pahala & Transfer (lihat catatan di render()).
+  function refreshNamaOptions() {
+    const sel = $('nama');
+    const cur = sel.value;
+    sel.innerHTML = tipeTerpilih === 'Dosa' ? namaOptsDenganKas : namaOptsTanpaKas;
+    if (cur && cur !== KAS_NAMA) sel.value = cur;
+  }
+
+  /* ---- Rekening: daftar rekening donasi + tombol salin ---- */
+  const REKENING = [
+    { bank: 'BRI', nomor: '124201005028507', warna: '#00529c', kode: 'BRI' },
+    { bank: 'Mandiri', nomor: '1030007970953', warna: '#003d79', kode: 'MDR' },
+    { bank: 'BNI', nomor: '0302940000', warna: '#f7941d', kode: 'BNI' },
+    { bank: 'BSI', nomor: '7339979604', warna: '#00815d', kode: 'BSI' },
+    { bank: 'Jago Syariah', nomor: '501556735269', warna: '#ff6b2c', kode: 'JGO' },
+    { bank: 'Krom', nomor: '770000600000', warna: '#6c2eb9', kode: 'KRM' },
+    { bank: 'Gopay / OVO / Dana', nomor: '082240206548', warna: '#0f8a5f', kode: 'e-W' }
+  ];
+
+  $('rekList').innerHTML = REKENING.map((r, i) => `
+    <div class="rek-row">
+      <div class="rek-badge" style="background:${r.warna}">${esc(r.kode)}</div>
+      <div class="rek-info">
+        <div class="rek-bank">${esc(r.bank)}</div>
+        <div class="rek-nomor">${esc(r.nomor)}</div>
+      </div>
+      <button class="rek-copy" type="button" data-idx="${i}">📋 Salin</button>
+    </div>`).join('');
+
+  // navigator.clipboard.writeText DITOLAK di iframe sandbox GAS (NotAllowedError),
+  // jadi selalu sedia fallback execCommand('copy') via textarea, bukan langsung error.
+  function salinTeks(teks, onOk, onFail) {
+    const fallback = () => {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = teks;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length); // iOS Safari
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        ok ? onOk() : onFail();
+      } catch (e) { onFail(); }
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(teks).then(onOk).catch(fallback);
+    } else {
+      fallback();
+    }
+  }
+
+  $('rekList').querySelectorAll('.rek-copy').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const asli = btn.textContent;
+      salinTeks(REKENING[btn.dataset.idx].nomor, () => {
+        btn.textContent = '✓ Tersalin';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = asli; btn.classList.remove('copied'); }, 1500);
+      }, () => toast('Gagal menyalin.', 'err'));
+    });
+  });
+
