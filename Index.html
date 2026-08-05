@@ -91,6 +91,37 @@
   }
   body.mp .orb { opacity: .28; }
 
+  /* Tombol header selang-seling merah-putih. Dihitung dengan :nth-of-type
+     atas elemen <button> di dalam #headerControls, jadi menambah/menghapus
+     satu tombol otomatis menggeser pola tanpa perlu menyentuh CSS ini.
+     Tombol suara tinggal di pembungkus .header-right sehingga tidak ikut
+     terhitung — warnanya dipatok manual sebagai lanjutan pola. */
+  body.mp #headerControls .music-btn:nth-of-type(odd) {
+    color: #fff;
+    background: #ce1126;
+    border-color: #a30d1e;
+  }
+  body.mp #headerControls .music-btn:nth-of-type(odd):hover {
+    color: #fff;
+    background: #b30f21;
+    border-color: #8a0b19;
+  }
+  body.mp #headerControls .music-btn:nth-of-type(even) {
+    color: #ce1126;
+    background: #fff;
+    border-color: rgba(206,17,38,.45);
+  }
+  body.mp #headerControls .music-btn:nth-of-type(even):hover {
+    color: #ce1126;
+    background: #fff5f6;
+    border-color: #ce1126;
+  }
+  body.mp #headerControls .sound-btn {
+    background: #fff;
+    border-color: rgba(206,17,38,.45);
+  }
+  body.mp #headerControls .sound-btn:hover { border-color: #ce1126; }
+
   /* ---- Hujan bendera Merah Putih ----
      Murni CSS: tiap bendera punya animasi jatuh + goyang sendiri lewat
      custom property, jadi tidak ada satu pun timer JavaScript yang berjalan.
