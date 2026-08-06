@@ -168,7 +168,27 @@
   .empty.mini { padding: 12px 4px; text-align: left; font-size: 12.5px; }
 
   /* ===== Modal leaderboard statistik ===== */
-  #statModal, #rekModal, #laporanModal, #strukModal, #kopdosModal {
+
+  /* ---- Modal peringatan "Transfer Butuh Admin" ---- */
+  .admin-warn-icon {
+    font-size: 40px; text-align: center;
+    margin: 4px 0 14px;
+  }
+  .admin-warn-text {
+    font-size: 14px; line-height: 1.6; text-align: center;
+    color: var(--text); margin: 0 0 4px;
+  }
+  .admin-warn-detail {
+    font-size: 12.5px; color: var(--muted); text-align: center;
+    margin: 10px 0 18px;
+    padding: 10px 12px;
+    background: var(--glass);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+  }
+  #transferAdminModal .submit-btn { margin-top: 0; }
+
+  #statModal, #rekModal, #laporanModal, #strukModal, #kopdosModal, #transferAdminModal {
     position: fixed; inset: 0;
     display: grid; place-items: center;
     padding: 20px;
@@ -180,12 +200,12 @@
     transition: opacity .25s;
   }
   #statModal.show, #rekModal.show, #laporanModal.show, #strukModal.show,
-  #kopdosModal.show { opacity: 1; pointer-events: auto; }
+  #kopdosModal.show, #transferAdminModal.show { opacity: 1; pointer-events: auto; }
   /* Kunci scroll halaman utama selagi modal terbuka — tanpa ini, gesture
      scroll di mobile "bocor" ke body di belakang begitu isi modal-card
      lebih tinggi dari viewport, alih-alih men-scroll modal itu sendiri. */
   body:has(#statModal.show, #rekModal.show, #laporanModal.show, #strukModal.show,
-           #kopdosModal.show) {
+           #kopdosModal.show, #transferAdminModal.show) {
     overflow: hidden;
   }
   .modal-card {

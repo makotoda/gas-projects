@@ -64,6 +64,26 @@
       : '<div class="empty">Riwayat masih kosong.</div>';
   }
 
+  /* ---- Transfer besar: harus lewat admin, bukan lewat aplikasi ----
+     Ambang murni kebijakan operasional (bukan pengaman keamanan) — server
+     TETAP menerima submitAmalan tipe Transfer berapa pun, karena admin
+     sendiri yang akan mencatatnya langsung ke sheet, bukan lewat form ini.
+     Client-side saja: seperti validasi lain di form ini, ini tidak mencegah
+     panggilan submitAmalan langsung dari devtools (lihat GAPS.md #2) — itu
+     bukan tujuannya. Tujuannya menahan pemakai biasa yang salah pencet. */
+  const BATAS_TRANSFER_ADMIN = 500000;
+
+  function tampilkanPeringatanAdmin_(nama, tujuan, nominal) {
+    $('transferAdminDetail').textContent =
+      `${nama || '—'} → ${tujuan || '—'} · ${fmt(nominal)}`;
+    $('transferAdminModal').classList.add('show');
+  }
+  $('transferAdminOk').addEventListener('click', () => $('transferAdminModal').classList.remove('show'));
+  $('transferAdminClose').addEventListener('click', () => $('transferAdminModal').classList.remove('show'));
+  $('transferAdminModal').addEventListener('click', e => {
+    if (e.target === $('transferAdminModal')) $('transferAdminModal').classList.remove('show');
+  });
+
   /* ---- Submit ---- */
   $('submitBtn').addEventListener('click', () => {
     const nama = $('nama').value;
@@ -87,6 +107,9 @@
         if (tujuan === nama) return toast('Tidak bisa transfer ke diri sendiri.', 'err');
       }
       if (!nominal || nominal <= 0) return toast('Nominal harus lebih dari 0.', 'err');
+      if (tipeTerpilih === 'Transfer' && nominal > BATAS_TRANSFER_ADMIN) {
+        return tampilkanPeringatanAdmin_(nama, tujuan, nominal);
+      }
     }
     // Saldo sebelum transaksi — dibaca SEKARANG karena render() di success
     // handler menimpa dataLeaderboard dengan saldo sesudah.

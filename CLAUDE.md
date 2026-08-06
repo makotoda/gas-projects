@@ -111,6 +111,9 @@ samakan gaya dengan kode sekitarnya secara manual.
   Drive (dikonversi `normalizeFotoUrl_`). Link halaman (mis. post Instagram) tidak akan tampil.
 - **Transfer bukan tipe baris tersendiri**: selalu ditulis sebagai Dosa (pengirim) + Pahala
   (penerima), dibedakan hanya lewat prefiks `Keterangan`.
+- **Transfer > Rp500.000 diblokir HANYA di klien** (`BATAS_TRANSFER_ADMIN` di `JsAplikasi`),
+  bukan di `submitAmalan`. Ini kebijakan operasional (admin mencatat manual ke sheet), bukan
+  pengaman keamanan — jangan bingung dengan validasi nominal yang memang server-side.
 - **Belanja Kopdos tidak lewat `submitAmalan`.** Harga hidup di server; `submitBelanja` hanya
   menerima `{id, qty}` dan menulis baris Dosa **tanpa** infaq KAS — disengaja.
 - **Tema ada tiga, berputar**: `mp` (Merah Putih, default sementara) → `dark` → `light`. `mp`
