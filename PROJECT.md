@@ -163,22 +163,17 @@ and no cache — see [GAPS.md](GAPS.md) for the scaling implication.
 - `DEFAULT_ANGGOTA` — only affects first-run seeding; editing the live roster is done
   directly in the `Anggota` sheet in Google Sheets, not in code, once deployed.
 - Toast copy, labels, emoji — cosmetic only.
-- `harga.gs.js` — currently dead code with no callers; safe to delete or ignore (but see
-  GAPS.md for why you should delete it rather than ignore it).
+- Struktur berkas frontend: menambah potongan `Style*`/`Js*` baru cukup menambah satu
+  baris `include` di `Index.html` (urutan include = urutan eksekusi).
 
 ## Surprising / non-obvious things that will trip up a newcomer
 
-1. **`harga.gs.js` has nothing to do with the app.** It's gold-price-fetching code
-   (PAXG/XAUT via CoinMarketCap) sitting in the same clasp project as the Kodomo amalan
-   app, with **a hardcoded, plaintext API key**. It will get pushed to the live Apps Script
-   project on every `clasp push` alongside the real app. Do not assume every `.js`/`.gs`
-   file in this repo is part of "the app" — check for actual callers first.
-2. **File extensions are misleading.** `.clasp.json` maps `.js` files to `.gs` on the Apps
-   Script side (`"scriptExtensions": [".js", ".gs"]`). So `Code.js` becomes `Code.gs` and
-   `harga.gs.js` becomes... check what clasp actually names it on push (it likely keeps the
-   base name before the last recognized extension — worth verifying with `clasp pull` on a
-   clean checkout if you're unsure, since this can result in unexpected file names in the
-   Apps Script editor, e.g. `harga.gs.gs` or `harga.gs`).
+1. **`harga.gs.js` sudah dihapus** (Agt 2026) — kode harga emas yang tidak ada kaitannya
+   dengan aplikasi ini, lengkap dengan API key tertanam. Kuncinya **tetap harus dirotasi**:
+   menghapus berkas tidak menghapusnya dari riwayat git. Lihat GAPS.md #1.
+2. **Ekstensi berkas menyesatkan.** `.clasp.json` memetakan `.js` → `.gs` di sisi Apps
+   Script, dan `.html` tetap HTML. Berkas berekstensi lain (mis. `.cjs` di `tools/`) tidak
+   dikenali sehingga tidak pernah terkirim — itu disengaja, lihat `.claspignore`.
 3. **`submitAmalan` does not validate that `data.nama` (or `data.tujuan`) is a real roster
    member.** The dropdown in the UI *looks* like the only way to pick a name, but any user
    can open devtools and call `google.script.run.submitAmalan({nama: 'anything', ...})`
@@ -201,3 +196,42 @@ and no cache — see [GAPS.md](GAPS.md) for the scaling implication.
    this audit — `clasp`, `node`, and `npx` are all absent from PATH in both the bash and
    PowerShell environments checked. CLAUDE.md's instructions to run `clasp push`/`clasp pull`
    assume tooling that isn't currently present; see GAPS.md.
+
+
+## Perintah clasp
+
+Tidak ada build/test/lint di repo ini selain skrip di `tools/` — sisanya clasp.
+
+```bash
+# Sekali saja (clasp/node belum tentu terpasang di mesin ini — periksa dulu)
+node --version
+npm install -g @google/clasp
+clasp login                        # akun Google pemilik script
+
+# Harian — git dulu, clasp belakangan (lihat "Alur wajib" di CLAUDE.md)
+git fetch origin && git merge --ff-only origin/main
+git push origin main               # memicu auto-deploy lewat Actions
+clasp push -f                      # opsional, SETELAH git push, kalau ingin instan
+clasp pull                         # diagnostik saja: lihat yang sedang live di GAS
+clasp open                         # buka editor Apps Script (untuk menjalankan fungsi manual)
+```
+
+**Men-deploy versi web app baru** (hanya perlu kalau ingin URL live mencerminkan perubahan —
+`clasp push` memperbarui script tapi bukan deployment yang sudah ada): `clasp open` →
+Deploy > Manage deployments > edit deployment yang ada > New version. Lakukan dengan sadar;
+ini terlihat semua orang yang punya link.
+
+## Manual QA checklist
+
+Untuk perubahan **frontend**, `node tools/smoke.cjs` sudah menutup sebagian besar ini.
+Checklist di bawah tetap perlu untuk perubahan **server**, karena menyentuh sheet sungguhan.
+
+1. Buka URL web app, pastikan halaman termuat dan dropdown terisi.
+2. Simpan entri "Pahala" → muncul di puncak Riwayat, saldo leaderboard naik benar.
+3. Simpan entri "Dosa" → saldo turun, bukan naik.
+4. Simpan "Transfer" → **dua** baris masuk sheet `Transaksi` (Dosa pengirim + Pahala
+   penerima), kedua saldo berubah benar, dan transfer ke diri sendiri ditolak di klien.
+5. Simpan dengan nominal 0/kosong → ditolak di klien (toast) DAN verifikasi ulang di server
+   dengan memanggil `submitAmalan` langsung dari editor Apps Script memakai payload buruk —
+   pemeriksaan klien bukan penjaga sesungguhnya.
+6. Klik baris leaderboard → panel "transaksi terakhir" membuka/menutup, urut terbaru dulu.

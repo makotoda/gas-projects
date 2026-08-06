@@ -8,7 +8,7 @@ genuinely bad practice regardless of scale.
 
 ## 1. [SECURITY — HIGH] Hardcoded, live-looking API key committed in plaintext
 
-**Where:** [harga.gs.js:4](harga.gs.js:4) and [harga.gs.js:13](harga.gs.js:13)
+**Where:** `harga.gs.js` — **berkas sudah dihapus (Agt 2026)**, tapi kuncinya masih ada di riwayat git dan WAJIB dirotasi.
 ```js
 headers: {"X-CMC_PRO_API_KEY": "9f95________________REDACTED____"}
 ```

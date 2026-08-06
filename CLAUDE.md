@@ -1,255 +1,141 @@
-# Project: Google Apps Script — Kodomo (Pencatat Amalan)
+# Kodomo — Pencatat Amalan (Google Apps Script)
 
-Project ini adalah Google Apps Script yang disinkronkan via clasp.
+Web app GAS tanpa build step: teman-teman mencatat Pahala/Dosa dan transfer; Google Sheet
+jadi basis datanya. Disinkronkan lewat clasp; GitHub Actions auto-`clasp push -f` pada
+setiap push ke `main`.
 
-## Aturan alur kerja — GIT ADALAH SUMBER KEBENARAN, BUKAN GAS
+Detail arsitektur & alasan desain: **[PROJECT.md](PROJECT.md)**.
+Kelemahan yang diketahui (keamanan, utang teknis): **[GAPS.md](GAPS.md)** — baca sebelum
+menyentuh `submitAmalan` atau apa pun soal roster.
 
-Repo ini diedit dari BANYAK tempat (Claude Code lokal di PC, Claude via iPhone/cloud yang
-commit langsung ke GitHub). GitHub Actions otomatis `clasp push -f` ke Apps Script pada
-SETIAP push ke `main` — artinya **perubahan yang hanya di-`clasp push` dari lokal tanpa
-di-commit + push ke GitHub akan TERTIMPA oleh deploy Actions berikutnya** (ini sudah
-pernah terjadi: modul logo 3D hilang dari produksi karena hal ini).
+## Alur wajib — GIT SUMBER KEBENARAN, BUKAN GAS
 
-Alur wajib untuk SEMUA sesi (lokal maupun remote):
-1. **Sebelum edit:** `git fetch origin` lalu rekonsiliasi dengan `origin/main` (fast-forward
-   atau merge). Jangan mengandalkan `clasp pull` saja — GAS bisa tertinggal ATAU lebih baru
-   dari checkout-mu, tapi git-lah yang menang pada deploy berikutnya.
-2. **Setelah edit:** commit ke `main` dan `git push origin main`. Actions akan auto-deploy
-   ke Apps Script.
-3. `clasp push -f` manual boleh dilakukan SETELAH langkah 2 kalau ingin hasil instan tanpa
-   menunggu Actions — tapi jangan pernah sebagai pengganti langkah 2.
+Repo ini diedit dari banyak tempat. Actions men-deploy setiap push ke `main`, jadi
+**perubahan yang hanya di-`clasp push` tanpa di-commit akan tertimpa deploy berikutnya**
+(pernah terjadi: modul logo 3D hilang dari produksi).
 
-## Aturan asli (preserved)
-- File .js di sini adalah file .gs di editor Apps Script.
+1. Sebelum edit: `git fetch origin` lalu rekonsiliasi dengan `origin/main`.
+2. Setelah edit: commit + `git push origin main`. Actions men-deploy sendiri.
+3. `clasp push -f` manual hanya SETELAH langkah 2, tidak pernah menggantikannya.
 
-## What this project is
-A small Google Apps Script web app: friends log "Pahala"/"Dosa" (merit/demerit)
-points and transfers against each other; a Google Sheet is the database; the frontend is
-`Index.html` (kerangka) + berkas-berkas potongan Style*/Body*/Js* yang dijahit lewat
-`include()` — lihat "Peta berkas frontend". No build step, no framework, no package.json. Full narrative
-context lives in **[PROJECT.md](PROJECT.md)** — read it before making non-trivial changes.
-Known weaknesses/security issues live in **[GAPS.md](GAPS.md)** — check it before touching
-`submitAmalan`, `harga.gs.js`, or anything roster-related.
+## Peta berkas — buka yang relevan saja, jangan semuanya
 
-## Commands
-
-There is no build/test/lint tooling in this repo — everything below is `clasp`.
-
-```bash
-# One-time setup (clasp/node are NOT currently installed on this machine — check first)
-node --version                     # verify Node/npm exist; install if missing
-npm install -g @google/clasp       # install clasp CLI
-clasp login                        # authenticate with the Google account that owns the script
-
-# Day-to-day (see "Aturan alur kerja" above — git first, clasp second)
-git fetch origin && git merge --ff-only origin/main   # BEFORE editing — sync with GitHub
-git push origin main               # AFTER editing (committed) — triggers auto-deploy via Actions
-clasp push -f                      # optional, AFTER git push — instant deploy without waiting for Actions
-clasp pull                         # diagnostic only: inspect what's currently live on GAS
-clasp open                         # opens the Apps Script editor in a browser, for manual test runs
-```
-
-There is no automated test command — see "Manual QA checklist" below. There is no lint
-command — none is configured; match existing style by hand.
-
-**Deploying a new web app version** (only needed when you want the *live URL* to reflect
-changes — `clasp push` alone updates the underlying script but not an existing deployment):
-via `clasp open` → Deploy > Manage deployments > edit the existing deployment > New version.
-Do this deliberately, not casually — it's user-visible and affects everyone with the link.
-
-## Manual QA checklist (no automated tests exist — run this after touching Code.js)
-
-1. `clasp push`, open the web app URL, confirm the page loads and dropdowns populate.
-2. Submit a "Pahala" entry → confirm it appears at the top of Riwayat and the leaderboard
-   balance updates correctly.
-3. Submit a "Dosa" entry → confirm balance goes down, not up.
-4. Submit a "Transfer" → confirm **two** rows land in the `Transaksi` sheet (sender Dosa +
-   recipient Pahala) and both people's balances update correctly. Confirm transfer-to-self
-   is blocked (client shows a toast error before any RPC call).
-5. Submit with nominal = 0 or blank → confirm rejected client-side (toast) AND re-verify
-   server-side by calling `submitAmalan` directly from the Apps Script editor with a bad
-   payload — the client check alone is not the real guard.
-6. Click a leaderboard row → confirm the "5 transaksi terakhir" panel expands/collapses and
-   shows the correct newest-first order.
-
-## Conventions this codebase actually follows
-
-- **Bahasa Indonesia for all domain vocabulary**, English for generic code idioms. Function
-  names like `submitAmalan`, `getDashboardData` are in English; parameters/fields (`nama`,
-  `tipe`, `nominal`, `keterangan`, `tujuan`) are in Indonesian and match the sheet column
-  headers and UI copy exactly. **Do not translate these to English** — they're a contract
-  between the sheet schema, the server functions, and the client JS. If you add a new field,
-  follow this same Indonesian-domain-noun convention.
-- **Trailing underscore = private/internal helper** (`getSheet_`, `parseNominal_`). These are
-  not called from the client and are GAS's informal convention for "not part of the public
-  API surface" (GAS has no real module privacy). Keep using this convention for any new
-  internal-only helper.
-- **Server functions always return the full recomputed dashboard**, not a delta or an ack.
-  `submitAmalan` ends with `return getDashboardData();` — follow this pattern for any new
-  mutating function so the client can do a single `render(data)` call.
-- **Errors are thrown as plain `Error` objects with Indonesian user-facing messages**
-  (e.g. `throw new Error('Nominal harus angka lebih dari 0.')`), caught client-side via
-  `.withFailureHandler(err => toast(err.message, 'err'))`. Keep error messages
-  short, in Indonesian, and directly user-displayable — they are shown verbatim in the UI,
-  not logged and translated elsewhere.
-- **All sheet reads/writes go through `getSheet_(name)`**, never `ss.getSheetByName(name)`
-  directly, so that a missing sheet self-heals via `setupSheets()`. Follow this pattern for
-  any new sheet-backed feature (but see [GAPS.md](GAPS.md) #5 — this auto-heal behavior is
-  a known footgun, don't extend it without reading that first).
-- **One shared `LockService.getScriptLock()`** wraps the entire read-modify-write in
-  `submitAmalan`. Any new function that reads-then-writes the `Transaksi` sheet must
-  acquire this same lock pattern (`lock.waitLock(10000)` / `try { ... } finally {
-  lock.releaseLock(); }`) or you reintroduce a race condition.
-- **No CSS/JS framework, no build step** — tetap begitu. Yang berubah: sejak Agt 2026
-  frontend TIDAK lagi satu berkas raksasa. `Index.html` kini hanya kerangka ~48 baris
-  berisi `<?!= include('...') ?>`, dan `doGet` memakai `createTemplateFromFile` +
-  helper `include()` di `Code.js`. **Buka berkas potongan yang relevan saja — jangan
-  membaca semuanya.** Peta berkasnya ada di bagian "Peta berkas frontend" di bawah.
-- **Semua potongan CSS dijahit dalam SATU `<style>`, semua potongan JS dalam SATU
-  `<script>`.** Jangan memecahnya menjadi banyak tag `<script>`: JS di sini tidak
-  dibungkus IIFE dan saling berbagi variabel tingkat atas, jadi memecah tag akan
-  mengubah aturan cakupannya. Menambah berkas = tambah satu baris `include` di
-  `Index.html` pada urutan yang benar (urutan = urutan eksekusi).
-
-## Peta berkas server (buka yang relevan saja)
-
-Semua berkas `.js` di sini menjadi `.gs` di Apps Script dan **berbagi satu namespace
-global** — tidak ada import/require, fungsi mana pun bisa memanggil fungsi berkas lain
-apa adanya. Satu-satunya hal yang peka urutan adalah pernyataan tingkat atas yang
-merujuk konstanta berkas lain; hindari itu (satu-satunya yang ada, `KET_INFAQ_LAMA`
-yang memakai `KAS_NAMA`, sengaja ditaruh sebekas).
+**Server (`.js` → `.gs`).** Semua berbagi satu namespace global; tidak ada import.
 
 | Berkas | Isi |
 |---|---|
 | `Code.js` | konstanta bersama, `doGet` + `include`, `setupSheets`, `getSheet_`, `getAnggota`, helper foto & nominal |
-| `Struk.js` | baca struk/bukti transfer via Gemini (`parseStruk`) + alias nama OCR |
 | `Amalan.js` | `submitAmalan`, `submitAmalanBatch`, baris infaq KAS otomatis |
+| `Dasbor.js` | `getDashboardData` + `deretHarian_` (deret grafik) |
+| `Resto.js` | deteksi nama resto, statistik harga, cache sheet `Resto`, `refreshResto`/`tambahResto`/`hapusResto`/`debugResto` |
+| `Struk.js` | baca struk/bukti transfer via Gemini + alias nama OCR |
+| `Laporan.js` | `getLaporanBulanan` |
 | `Kopdos.js` | katalog belanja (`KATALOG_KOPDOS`) + `submitBelanja` |
 | `Infaq.js` | `getInfaqMap_` / `saveInfaqMap` (kolom C sheet Anggota) |
-| `Dasbor.js` | `getDashboardData` + `deretHarian_` (deret grafik) |
-| `Laporan.js` | `getLaporanBulanan` |
-| `Resto.js` | deteksi nama resto, statistik harga, cache sheet `Resto`, `refreshResto`/`tambahResto`/`hapusResto`/`debugResto` |
 
-## Peta berkas frontend (buka yang relevan saja)
-
-`Index.html` cuma kerangka. Isinya:
+**Frontend.** `Index.html` cuma kerangka berisi `<?!= include('...') ?>`.
 
 | Berkas | Isi |
 |---|---|
-| `StyleBase.html` | reset + variabel `:root` (palet tema gelap) |
-| `StyleTema.html` | tema terang, tema Merah Putih, animasi hujan bendera |
-| `StyleUi.html` | orbs, header, tombol, modal Rekening & Kopdos, kartu statistik, grid, form, tabs |
-| `StyleBoard.html` | leaderboard, riwayat, modal statistik/grafik |
-| `StyleEfek.html` | trail kursor, hujan uang, loader, toast, pita ayat, responsif |
-| `StyleTutorial.html` | tur/walkthrough |
-| `StyleLanding.html` | landing page sinematik |
-| `StyleLaporan.html` | review struk + halaman A4 laporan PDF |
-| `BodyLanding.html` | markup landing page |
-| `BodyUtama.html` | markup aplikasi: header, statistik, form, papan, semua modal |
-| `JsInti.html` | state global, `fmt`/`esc`, animasi angka, input nominal, toggle tipe, modal Rekening |
-| `JsKopdos.html` | katalog belanja + checkout (`submitBelanja`) |
-| `JsStruk.html` | upload & review struk (Gemini) |
-| `JsLaporan.html` | penyusunan PDF laporan bulanan |
-| `JsTema.html` | siklus tema + hujan bendera |
-| `JsPapan.html` | tabs, toast, baris riwayat, avatar, panel expand, papan Leaderboard/Gold/Kas/Resto, modal statistik |
-| `JsGrafik.html` | grafik garis saldo harian (SVG) |
-| `JsAplikasi.html` | `render(data)` + submit form |
-| `JsEfek.html` | trail kursor, hujan uang, pemutar suara (`playSfx`, `SFX_ALIAS`) |
-| `JsAyat.html` | pita ayat 6 agama |
-| `JsMuatAwal.html` | panggilan `getDashboardData` pertama |
-| `JsTutorial.html` | logika tur interaktif |
-| `JsLogo3D.html` | logo 3D Three.js (tag `<script>` terpisah, sengaja) |
+| `StyleBase` | reset + variabel `:root` (tema gelap) |
+| `StyleTema` | tema terang, tema Merah Putih, hujan bendera |
+| `StyleUi` | header, tombol, kartu statistik, grid, form, tabs, modal Rekening & Kopdos |
+| `StyleBoard` | leaderboard, riwayat, modal statistik/grafik |
+| `StyleEfek` | trail kursor, hujan uang, loader, toast, pita ayat, responsif |
+| `StyleTutorial` / `StyleLanding` / `StyleLaporan` | tur, landing page, review struk + halaman A4 |
+| `BodyUtama` / `BodyLanding` | markup aplikasi (termasuk semua modal) / landing page |
+| `JsInti` | state global, `fmt`/`esc`, animasi angka, input nominal, toggle tipe, modal Rekening |
+| `JsPapan` | tabs, toast, baris riwayat, avatar, panel expand, papan Leaderboard/Gold/Kas/Resto, modal statistik |
+| `JsGrafik` | grafik garis saldo harian (SVG) |
+| `JsAplikasi` | `render(data)` + submit form |
+| `JsKopdos` / `JsStruk` / `JsLaporan` | katalog belanja, upload & review struk, penyusunan PDF |
+| `JsTema` | siklus tema + hujan bendera |
+| `JsEfek` | trail kursor, hujan uang, pemutar suara (`playSfx`, `SFX_ALIAS`) |
+| `JsAyat` / `JsMuatAwal` / `JsTutorial` / `JsLogo3D` | pita ayat, panggilan dasbor pertama, tur, logo 3D |
 
-## Gotchas — things that look like they should work one way but don't
+Peta visual (alur `doGet` + siapa memanggil siapa):
+<https://claude.ai/code/artifact/e8153830-e77b-4cfe-a08f-735a6c20a904>
 
-- **`harga.gs.js` is dead code with a leaked API key, unrelated to this app** — do not
-  assume it does anything for Kodomo, do not "fix" or extend it without first reading
-  [GAPS.md](GAPS.md) #1. It should probably just be deleted after rotating the key.
-- **The name dropdown does NOT restrict what the server accepts.** `submitAmalan` trusts
-  `data.nama`/`data.tujuan` as-is; it does not check against `getAnggota()`. Don't assume
-  "the UI only offers valid names" means the server enforces it too — it currently doesn't
-  (see [GAPS.md](GAPS.md) #2).
-- **Profile photos come from column B (`Foto`) of the `Anggota` sheet**, matched by exact
-  name against leaderboard entries. The value must be a **direct image URL** (something an
-  `<img src>` can load) or a **Google Drive share link** (auto-converted to a thumbnail URL
-  by `normalizeFotoUrl_` in `Code.js`). Links to social-media *pages* (e.g.
-  `instagram.com/p/...`) are HTML pages, not images — they will never render; the UI falls
-  back to the person's initial. Non-http(s) values are ignored server-side.
-- **Editing the roster is NOT done in code.** `DEFAULT_ANGGOTA` only seeds the `Anggota`
-  sheet on first run. To add/remove a person on a live deployment, edit the `Anggota` sheet
-  directly in Google Sheets — editing `DEFAULT_ANGGOTA` in `Code.js` and pushing does
-  nothing to an already-initialized sheet.
-- **A "missing sheet" doesn't error — it silently recreates and reseeds.** If you rename or
-  delete `Anggota` or `Transaksi` for any reason (including by accident, e.g. while testing
-  in the Sheets UI), the next page load/`getDashboardData()` call will silently recreate it
-  via `setupSheets()`, **resetting `Anggota` back to the hardcoded default list** and wiping
-  any custom roster edits. There is no confirmation prompt and no backup.
-  Be careful before renaming/deleting sheets on the live spreadsheet.
-- **Belanja Kopdos TIDAK lewat `submitAmalan`.** Katalog (`KATALOG_KOPDOS`) dan harganya
-  hidup di server; `submitBelanja` hanya menerima `{id, qty}` lalu mengalikan sendiri, jadi
-  klien yang dimodifikasi tak bisa menawar harga. Ia menulis baris `Dosa` **tanpa** baris
-  infaq KAS — itu disengaja, jangan "diseragamkan" dengan `submitAmalan`.
-- **Tema ada tiga, berputar**: `mp` (Merah Putih, default sementara) → `dark` → `light`.
-  `mp` dibangun di atas tema terang, jadi ia memasang kelas `.light` DAN `.mp`; blok
-  `body.mp` di CSS harus tetap berada setelah `body.light` karena spesifisitasnya sama.
-  Kuncinya `kodomoTema` (bukan `kodomoTheme` yang lama).
-- **Modal Total Pahala/Dosa punya dua wujud.** Di layar >= 900px ia grafik garis
-  saldo kumulatif 30 hari (satu garis per orang, foto profil di ujung garis), di bawah
-  itu daftar peringkat berhalaman seperti semula. Datanya dari `deret` di
-  `getDashboardData()` (lihat `deretHarian_`), bukan dari `leaderboard`.
-- **Daftar resto (sheet `Resto`) tidak dihitung ulang tiap load.** Ia adalah cache yang
-  ditulis hanya saat (a) ada transaksi `Dosa` baru yang keterangannya cocok dengan resto
-  yang SUDAH terdaftar, atau (b) `refreshResto()` / `tambahResto('nama')` dijalankan manual
-  dari editor Apps Script. Resto baru (< 10 transaksi) **tidak akan muncul sendiri** — itu
-  disengaja. Pakai `debugResto()` untuk melihat sebaran nominal asli sebelum menyetel
-  `RESTO_MIN_TRX` / `RESTO_MAD_K`.
-- **Nama resto tidak punya kolom sendiri** — ditebak dari kolom `Keterangan` baris `Dosa`
-  lewat `normalisasiResto_` + `restoMirip_`. Salah tangkap itu wajar; buang dengan
-  `hapusResto('nama')`, jangan tambal dengan aturan khusus di `submitAmalan`.
-- **`clasp push` pushes everything in the directory**, including `harga.gs.js` — there is no
-  `.claspignore`. If you add scratch/experimental files to this folder, they will get pushed
-  to the live Apps Script project unless you add a `.claspignore`.
-- **The web app runs as the *deploying* user for every visitor** (`executeAs:
-  USER_DEPLOYING` in [appsscript.json](appsscript.json)), not as each individual visitor.
-  Combined with `access: ANYONE_ANONYMOUS`, this means there is no login at all — anyone
-  with the URL can submit entries. Don't assume any request is authenticated; there is no
-  concept of "the current user" server-side.
-- **Transfers are NOT a distinct row type in the sheet.** A "Transfer" always writes as a
-  `Dosa` row (sender) + `Pahala` row (recipient), distinguishable only by the `Keterangan`
-  text prefix (`'Transfer pahala ke ...'` / `'Transfer pahala dari ...'`). If you need to
-  query/report on transfers specifically, you must pattern-match `Keterangan`, not `Tipe
-  Amalan`.
-- **Node/npm/clasp are not currently installed on this machine** (verified during this
-  audit — both bash and PowerShell). Don't assume `clasp push`/`clasp pull` will just work;
-  install the toolchain first (see Commands above).
+## Verifikasi tanpa deploy
 
-## Rules — do not change without care
+```bash
+node tools/render.cjs [keluar.html]   # jahit Index + include jadi satu dokumen
+node tools/smoke.cjs                  # jalankan halaman itu di Chromium (butuh playwright)
+```
 
-- **Sheet column order** (`Timestamp, Nama, Tipe Amalan, Nominal, Keterangan` in
-  `Transaksi`) is an unwritten schema shared by `setupSheets()`, `submitAmalan()`, and
-  `getDashboardData()`. Changing column order/count requires updating all three in lockstep
-  — there is no schema versioning or migration.
-- **Jangan gabungkan lagi berkas server jadi satu.** `Code.js` dulu ~1.200 baris dan
-  membuat setiap tugas server menuntut membaca semuanya. Fitur baru yang berdiri sendiri
-  sebaiknya jadi berkas `.js` sendiri, bukan ditempel ke `Code.js`.
-- **`.clasp.json`'s `scriptId`** binds this local directory to one specific live Apps
-  Script project. Never regenerate or hand-edit this unless you deliberately intend to
-  retarget a different Apps Script project.
-- **`appsscript.json`'s `webapp.access`/`executeAs`** controls the entire security model
-  (anonymous access, runs-as-deployer). Do not change this casually — it's a
-  security-relevant decision, not a config tweak, and changing `executeAs` to
-  `USER_ACCESSING` would require every visitor to have/authorize a Google account (a
-  materially different UX).
-- **`LockService` in `submitAmalan`** must not be removed — it's the only concurrency
-  safety net given GAS has no database transactions.
-- No files here are generated/auto-produced — everything (`Code.js`, `Index.html`,
-  `harga.gs.js`, the two JSON config files) is hand-authored and safe to read directly as
-  source of truth.
+`smoke.cjs` memalsukan `google.script.run`, jadi UI bisa diuji tanpa Google: halaman
+termuat tanpa galat, leaderboard & tab resto ter-render, siklus tema, grafik saldo, dan
+payload checkout Kopdos. Jalankan setiap kali menyentuh berkas frontend. Untuk perubahan
+server, checklist manualnya ada di [PROJECT.md](PROJECT.md#manual-qa-checklist).
 
-## Where to look next
+Perintah clasp lengkap juga di [PROJECT.md](PROJECT.md#perintah-clasp). Tidak ada lint;
+samakan gaya dengan kode sekitarnya secara manual.
 
-- **[PROJECT.md](PROJECT.md)** — full architecture, data flow, tech stack rationale, and
-  what's safe vs. load-bearing to change. Read this first for any non-trivial task.
-- **[GAPS.md](GAPS.md)** — every known weakness (security, tech debt, missing tests, fragile
-  edge cases), ranked by severity, each with a file path and a scoped fix. Check this before
-  touching `submitAmalan`, the roster, or `harga.gs.js`.
+## Konvensi
+
+- **Kosakata domain dalam Bahasa Indonesia**, idiom kode dalam Inggris. `nama`, `tipe`,
+  `nominal`, `keterangan`, `tujuan` adalah kontrak antara skema sheet, fungsi server, dan
+  klien — **jangan diterjemahkan**. Field baru ikut pola yang sama.
+- **Akhiran garis bawah = helper internal** (`getSheet_`, `parseNominal_`), tidak dipanggil
+  dari klien.
+- **Fungsi server yang mengubah data selalu mengembalikan dasbor penuh**
+  (`return getDashboardData();`), supaya klien cukup `render(data)` sekali.
+- **Error = `Error` biasa dengan pesan Indonesia siap tampil** (mis. `'Nominal harus angka
+  lebih dari 0.'`); klien menampilkannya apa adanya lewat `toast(err.message, 'err')`.
+- **Semua akses sheet lewat `getSheet_(name)`**, bukan `ss.getSheetByName` langsung (tapi
+  baca GAPS.md #5 — perilaku auto-heal-nya sendiri adalah jebakan).
+- **`LockService.getScriptLock()`** membungkus setiap read-modify-write ke sheet
+  `Transaksi` (`waitLock(10000)` / `try … finally releaseLock()`). Wajib untuk fungsi baru
+  yang menulis.
+- **Tanpa framework, tanpa build step.** Menambah berkas frontend = tambah satu baris
+  `include` di `Index.html` pada urutan yang benar (urutan include = urutan eksekusi).
+
+## Jebakan — hal yang tampak bekerja padahal tidak
+
+- **`include()` WAJIB `createTemplateFromFile(...).getRawContent()`.** Pola lazim
+  `createHtmlOutputFromFile(...).getContent()` mem-parsing isi sebagai HTML; potongan di
+  sini berisi CSS/JS mentah, sehingga `a < b` dibaca sebagai tag rusak dan seluruh aplikasi
+  mati ("Malformed HTML content"). Sudah pernah terjadi.
+- **Semua potongan CSS dijahit dalam SATU `<style>`, semua JS dalam SATU `<script>`.** JS-nya
+  tidak dibungkus IIFE dan berbagi variabel tingkat atas.
+- **Pemecahan berkas server aman**, kecuali pernyataan tingkat atas yang merujuk konstanta
+  berkas lain (urutan evaluasi tak dijamin). Satu-satunya yang ada, `KET_INFAQ_LAMA` yang
+  memakai `KAS_NAMA`, sengaja sebekas di `Code.js`.
+- **Dropdown nama TIDAK membatasi apa yang diterima server.** `submitAmalan` mempercayai
+  `data.nama`/`data.tujuan` apa adanya (GAPS.md #2).
+- **Roster diedit di Sheet, bukan di kode.** `DEFAULT_ANGGOTA` hanya menyemai sheet `Anggota`
+  saat pertama dibuat.
+- **Sheet yang hilang tidak error — ia dibuat ulang diam-diam** oleh `setupSheets()`, dan
+  `Anggota` kembali ke daftar bawaan. Tidak ada konfirmasi, tidak ada cadangan.
+- **Foto profil** dari kolom B `Anggota`, harus URL gambar langsung atau link share Google
+  Drive (dikonversi `normalizeFotoUrl_`). Link halaman (mis. post Instagram) tidak akan tampil.
+- **Transfer bukan tipe baris tersendiri**: selalu ditulis sebagai Dosa (pengirim) + Pahala
+  (penerima), dibedakan hanya lewat prefiks `Keterangan`.
+- **Belanja Kopdos tidak lewat `submitAmalan`.** Harga hidup di server; `submitBelanja` hanya
+  menerima `{id, qty}` dan menulis baris Dosa **tanpa** infaq KAS — disengaja.
+- **Tema ada tiga, berputar**: `mp` (Merah Putih, default sementara) → `dark` → `light`. `mp`
+  memasang kelas `.light` DAN `.mp`, jadi blok `body.mp` di CSS harus tetap setelah
+  `body.light`. Kuncinya `kodomoTema` (bukan `kodomoTheme` yang lama).
+- **Modal Total Pahala/Dosa punya dua wujud**: ≥900px grafik garis saldo harian (dari `deret`,
+  bukan `leaderboard`), di bawah itu daftar peringkat berhalaman.
+- **Daftar resto adalah cache, tidak dihitung ulang tiap load.** Diperbarui hanya saat ada
+  transaksi Dosa yang cocok dengan resto yang SUDAH terdaftar, atau `refreshResto()` manual.
+  Resto baru (<10 transaksi) sengaja tidak muncul sendiri; pakai `debugResto()` sebelum
+  menyetel `RESTO_MIN_TRX`/`RESTO_MAD_K`. Nama resto ditebak dari `Keterangan` — salah
+  tangkap itu wajar, buang dengan `hapusResto('nama')`.
+- **Web app berjalan sebagai pemilik deployment untuk SEMUA pengunjung**
+  (`executeAs: USER_DEPLOYING` + `access: ANYONE_ANONYMOUS`). Tidak ada login; tidak ada
+  konsep "pengguna saat ini" di server.
+
+## Jangan diubah tanpa berpikir
+
+- **Urutan kolom sheet `Transaksi`** (`Timestamp, Nama, Tipe Amalan, Nominal, Keterangan`)
+  adalah skema tak tertulis yang dipakai `setupSheets`, penulis baris, dan pembaca dasbor.
+  Mengubahnya menuntut ketiganya berubah serentak — tidak ada migrasi.
+- **`appsscript.json` → `webapp.access`/`executeAs`**: itu keseluruhan model keamanan, bukan
+  sekadar konfigurasi.
+- **`.clasp.json` → `scriptId`**: mengikat folder ini ke satu proyek Apps Script tertentu.
+- **`.claspignore`**: menjaga `tools/` tidak ikut ter-push. Skrip Node punya `require()` di
+  tingkat atas, dan di GAS itu dijalankan saat proyek dimuat — aplikasi gagal start.
+- **Jangan gabungkan lagi berkas server jadi satu.** Fitur baru yang berdiri sendiri sebaiknya
+  jadi berkas `.js` sendiri.

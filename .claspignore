@@ -1,0 +1,19 @@
+# Berkas yang TIDAK ikut naik ke Apps Script saat `clasp push`.
+#
+# Tanpa berkas ini, clasp mengirim SEMUA .js/.gs/.html/.json di folder — termasuk
+# skrip bantu dan berkas coba-coba. Itu berbahaya: skrip Node punya `require()`
+# di tingkat atas, dan di GAS pernyataan itu dijalankan saat proyek dimuat
+# sehingga SELURUH aplikasi gagal start.
+#
+# Sabuk pengaman kedua: skrip di tools/ berekstensi .cjs, sementara .clasp.json
+# hanya mengenali .js/.gs sebagai script. Jadi meski pola di bawah meleset,
+# berkas itu tetap tidak terkirim.
+
+node_modules/**
+tools/**
+.github/**
+.git/**
+
+# Berkas coba-coba: pakai akhiran ini kalau butuh scratch di folder proyek.
+*.scratch.js
+*.scratch.html
