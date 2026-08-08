@@ -3,3 +3,9 @@
 
 # Kalau suatu saat pakai npm/node
 node_modules/
+
+# Output knowledge graph graphify (regenerate: graphify . --code-only)
+graphify-out/
+
+# Local price helper files
+harga.gs.js

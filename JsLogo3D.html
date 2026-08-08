@@ -466,18 +466,16 @@ function initLandingPage() {
 
   // Handle Masuk Button
   document.getElementById('lpEnterBtn').addEventListener('click', () => {
-    if (document.getElementById('lpSkipCheck').checked) {
-      try { localStorage.setItem('kodomoSkipLanding', 'true'); } catch(e) {}
-    }
+    try { localStorage.setItem('kodomoSkipLanding', 'true'); } catch(e) {}
     lp.classList.add('hide');
     setTimeout(() => {
       cancelAnimationFrame(animId);
       lp.style.display = 'none';
       
       // Auto-start tutorial jika belum pernah selesai dan baru masuk dari landing page
-      let tutorialDone = false;
-      try { tutorialDone = localStorage.getItem('kodomoTutorialDone') === 'true'; } catch(e) {}
-      if (!tutorialDone && typeof startTutorial === 'function') {
+      let tutorialSeen = false;
+      try { tutorialSeen = localStorage.getItem('kodomo_tutorial_seen') === 'true'; } catch(e) {}
+      if (!tutorialSeen && typeof startTutorial === 'function') {
          // Beri jeda sebentar agar transisi landing page selesai
          setTimeout(startTutorial, 500);
       }
