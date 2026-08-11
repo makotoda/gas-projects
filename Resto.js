@@ -166,12 +166,22 @@ function statistikResto_(nominals) {
   // minimal +-35% median menjaga itu tanpa melonggarkan kasus normal.
   const batas = Math.max(RESTO_MAD_K * mad, med * RESTO_BAND_MIN);
   let pakai = s.filter(v => Math.abs(v - med) <= batas);
-  if (pakai.length < 3) pakai = s;
-  const total = pakai.reduce((a, b) => a + b, 0);
+  if (pakai.length < 3) pakai = s.slice();
+  
+  let total = pakai.reduce((a, b) => a + b, 0);
+  let rata = total / pakai.length;
+  
+  // Jika harga tertinggi masih > 1.5x rata-rata, abaikan dan hitung ulang
+  while (pakai.length > 1 && pakai[pakai.length - 1] > 1.5 * rata) {
+    pakai.pop();
+    total = pakai.reduce((a, b) => a + b, 0);
+    rata = total / pakai.length;
+  }
+  
   return {
     jumlah: s.length,
     dipakai: pakai.length,
-    rata: Math.round(total / pakai.length),
+    rata: Math.round(rata),
     min: pakai[0],
     max: pakai[pakai.length - 1]
   };

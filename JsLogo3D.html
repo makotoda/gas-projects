@@ -344,9 +344,11 @@ function initLandingPage() {
   const lp = document.getElementById('landingPage');
   if (!lp) return;
 
-  // Cek preferensi user
-  let skipLp = false;
-  try { skipLp = localStorage.getItem('kodomoSkipLanding') === 'true'; } catch(e) {}
+  // Cek preferensi user. Karena sering di-embed di Google Sites (third-party storage diblokir),
+  // localStorage sering gagal menyimpan status 'sudah pernah masuk'. Agar tidak mengganggu
+  // user yang sudah sering buka, kita matikan saja secara default.
+  let skipLp = true;
+  try { skipLp = localStorage.getItem('kodomoSkipLanding') !== 'false'; } catch(e) {}
   
   if (skipLp) {
     lp.style.display = 'none';

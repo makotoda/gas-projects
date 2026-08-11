@@ -255,8 +255,9 @@
 
   function checkAutoStartTutorial() {
     try {
+      // Nonaktifkan auto-start karena isu third-party storage di iframe Google Sites
       const seen = localStorage.getItem('kodomo_tutorial_seen');
-      if (!seen) {
+      if (seen === 'false') {
         setTimeout(startTutorial, 800);
       }
     } catch(e) {}
