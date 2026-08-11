@@ -168,15 +168,12 @@ function statistikResto_(nominals) {
   let pakai = s.filter(v => Math.abs(v - med) <= batas);
   if (pakai.length < 3) pakai = s.slice();
   
-  let total = pakai.reduce((a, b) => a + b, 0);
-  let rata = total / pakai.length;
+  // Jika ada harga yang > 1.5x harga termurah, abaikan
+  const termurah = pakai[0];
+  pakai = pakai.filter(v => v <= 1.5 * termurah);
   
-  // Jika harga tertinggi masih > 1.5x rata-rata, abaikan dan hitung ulang
-  while (pakai.length > 1 && pakai[pakai.length - 1] > 1.5 * rata) {
-    pakai.pop();
-    total = pakai.reduce((a, b) => a + b, 0);
-    rata = total / pakai.length;
-  }
+  const total = pakai.reduce((a, b) => a + b, 0);
+  const rata = total / pakai.length;
   
   return {
     jumlah: s.length,
