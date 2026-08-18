@@ -156,9 +156,16 @@
     const rowsPeng = r.pengeluaranList.map(t =>
       `<tr><td>${esc(t.waktu)}</td><td>${t.keterangan ? esc(t.keterangan) : '<span class="muted">—</span>'}</td>` +
       `<td class="num neg">−${fmt(t.nominal)}</td><td class="num">${(t.saldo < 0 ? '−' : '') + fmt(Math.abs(t.saldo))}</td></tr>`);
+    
+    const theadMasuk = `<tr><th>Tanggal</th><th>Keterangan</th><th class="num">Nominal</th><th class="num">Saldo</th></tr>`;
+    const rowsMasuk = r.pemasukanList.map(t =>
+      `<tr><td>${esc(t.waktu)}</td><td>${t.keterangan ? esc(t.keterangan) : '<span class="muted">—</span>'}</td>` +
+      `<td class="num pos">+${fmt(t.nominal)}</td><td class="num">${(t.saldo < 0 ? '−' : '') + fmt(Math.abs(t.saldo))}</td></tr>`);
+
     return [ringkas]
       .concat(tabelKeHalaman(r, 'Total Infaq per Orang', theadInfaq, rowsInfaq, LAP_PER_HAL))
-      .concat(tabelKeHalaman(r, 'Riwayat Pengeluaran', theadPeng, rowsPeng, LAP_PER_HAL));
+      .concat(tabelKeHalaman(r, 'Riwayat Pengeluaran', theadPeng, rowsPeng, LAP_PER_HAL))
+      .concat(tabelKeHalaman(r, 'Riwayat Pemasukan (Non-Infaq)', theadMasuk, rowsMasuk, LAP_PER_HAL));
   }
 
   // --- Pipeline PDF ---

@@ -89,8 +89,12 @@
   function refreshNamaOptions() {
     const sel = $('nama');
     const cur = sel.value;
-    sel.innerHTML = tipeTerpilih === 'Dosa' ? namaOptsDenganKas : namaOptsTanpaKas;
-    if (cur && cur !== KAS_NAMA) sel.value = cur;
+    sel.innerHTML = (tipeTerpilih === 'Dosa' || tipeTerpilih === 'Pahala') ? namaOptsDenganKas : namaOptsTanpaKas;
+    if (cur) {
+      if (cur !== KAS_NAMA || tipeTerpilih !== 'Transfer') {
+        sel.value = cur;
+      }
+    }
   }
 
   /* ---- Rekening: daftar rekening donasi + tombol salin ---- */

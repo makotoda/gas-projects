@@ -6,8 +6,8 @@
 
     // Dropdown nama & tujuan (pertahankan pilihan).
     // KAS bukan orang: hanya masuk akal sebagai pelaku "Dosa" (pengeluaran
-    // operasional) atau tujuan Transfer (infaq masuk). KAS tidak boleh jadi
-    // penerima Pahala manual atau pengirim Transfer — itu akan merusak
+    // operasional), tujuan Transfer (infaq masuk), atau penerima Pahala manual (pemasukan non-infaq).
+    // KAS tidak boleh jadi pengirim Transfer — itu akan merusak
     // asumsi "saldo KAS hanya naik lewat transfer masuk".
     const anggotaOrang = data.anggota.filter(n => n !== KAS_NAMA);
     const optFor = (list, ph) => `<option value="">${ph}</option>` +

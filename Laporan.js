@@ -35,9 +35,11 @@ function getLaporanBulanan(nama, bulanKey) {
     let saldoAwal = 0, run = 0, pemasukan = 0, pengeluaran = 0, jml = 0;
     let prevMasuk = 0, prevKeluar = 0;
     const pengeluaranList = [];
+    const pemasukanList = [];
     const infaqOrang = {}; // nama → infaq bulan ini (dari sisi pengirim)
     const daysInMonth = new Date(yy, mm, 0).getDate();
     const dailyClose = new Array(daysInMonth).fill(null);
+    const anggotaList = getAnggota().filter(n => n !== KAS_NAMA);
 
     rows.forEach(r => {
       const [ts, rnm, tipe, nominal, ket] = r;
@@ -57,8 +59,26 @@ function getLaporanBulanan(nama, bulanKey) {
         if (k === prevKey) { isDosa ? (prevKeluar += val) : (prevMasuk += val); }
       } else if (k === bulanKey) {
         run += delta; jml++;
-        if (isDosa) { pengeluaran += val; pengeluaranList.push({ waktu: fmtWaktu(ts), keterangan: String(ket || ''), nominal: val, saldo: run }); }
-        else pemasukan += val;
+        const sKet = String(ket || '');
+        if (isDosa) {
+          pengeluaran += val;
+          pengeluaranList.push({ waktu: fmtWaktu(ts), keterangan: sKet, nominal: val, saldo: run });
+        } else {
+          pemasukan += val;
+          let isKasInfaq = false;
+          if (sKet.indexOf('Transfer pahala dari ') === 0) isKasInfaq = true;
+          if (!isKasInfaq) {
+            for (let i = 0; i < anggotaList.length; i++) {
+              if (sKet.indexOf(anggotaList[i] + ' - ') === 0) {
+                isKasInfaq = true;
+                break;
+              }
+            }
+          }
+          if (!isKasInfaq) {
+            pemasukanList.push({ waktu: fmtWaktu(ts), keterangan: sKet, nominal: val, saldo: run });
+          }
+        }
         dailyClose[Number(Utilities.formatDate(asDate(ts), tz, 'd')) - 1] = run;
       }
     });
@@ -78,7 +98,8 @@ function getLaporanBulanan(nama, bulanKey) {
       prev: { pemasukan: prevMasuk, pengeluaran: prevKeluar },
       harian: harian,
       infaqPerOrang: Object.keys(infaqOrang).map(p => ({ nama: p, total: infaqOrang[p] })).sort((a, b) => b.total - a.total),
-      pengeluaranList: pengeluaranList
+      pengeluaranList: pengeluaranList,
+      pemasukanList: pemasukanList
     });
   }
 
