@@ -1,51 +1,28 @@
-  /* ---- Tema: Merah Putih / gelap / terang, berputar saat tombol diklik ----
+  /* ---- Tema: gelap / terang, berputar saat tombol diklik ----
      Label tombol menunjukkan tema TUJUAN (berikutnya), bukan tema aktif.
-     'mp' dibangun di atas tema terang, jadi ia memasang kelas .light juga.
-     Kunci localStorage sengaja baru ('kodomoTema') supaya pemakai lama ikut
-     mendapat Merah Putih sebagai default menjelang 17-an, bukan tersangkut
-     pilihan lamanya. */
-  /* Isi wadah hujan bendera sekali di awal. Elemennya tetap ada di DOM pada
-     tema lain, cuma disembunyikan lewat CSS — jauh lebih murah daripada
-     membangun ulang tiap kali tema berganti, dan animasi CSS pada elemen
-     display:none memang tidak berjalan. */
+     Tema kemerdekaan (Merah Putih / 'mp') dinonaktifkan karena sudah lewat Agustus. */
   function siapkanHujanBendera_() {
     const wadah = $('benderaHujan');
-    if (!wadah) return;
-    const sempit = window.innerWidth < 700;
-    const jumlah = sempit ? 10 : 18;
-    const acak = (a, b) => a + Math.random() * (b - a);
-    let html = '';
-    for (let i = 0; i < jumlah; i++) {
-      const w = Math.round(acak(16, 30));
-      html += `<span class="bendera" style="` +
-        `--x:${acak(0, 98).toFixed(1)}vw;` +
-        `--w:${w}px;` +
-        `--d:${acak(9, 18).toFixed(1)}s;` +
-        `--del:-${acak(0, 18).toFixed(1)}s;` +   // negatif = mulai di tengah jalan
-        `--r0:${Math.round(acak(-25, 25))}deg;` +
-        `--r1:${Math.round(acak(-200, 200))}deg;` +
-        `"><i><b></b></i></span>`;
-    }
-    wadah.innerHTML = html;
+    if (wadah) wadah.innerHTML = '';
   }
-  siapkanHujanBendera_();
+  // siapkanHujanBendera_(); // Dinonaktifkan di luar Agustus
 
-  const TEMA_URUT = ['mp', 'dark', 'light'];
-  const TEMA_LABEL = { mp: '🇮🇩 Merah Putih', dark: '🌙 Gelap', light: '☀️ Terang' };
+  const TEMA_URUT = ['dark', 'light'];
+  const TEMA_LABEL = { dark: '🌙 Gelap', light: '☀️ Terang' };
   const themeBtn = $('themeBtn');
-  let temaAktif = 'mp';
+  let temaAktif = 'dark';
 
   function setTheme_(nama) {
-    temaAktif = TEMA_URUT.indexOf(nama) >= 0 ? nama : 'mp';
-    document.body.classList.toggle('mp', temaAktif === 'mp');
-    document.body.classList.toggle('light', temaAktif === 'light' || temaAktif === 'mp');
+    temaAktif = TEMA_URUT.indexOf(nama) >= 0 ? nama : 'dark';
+    document.body.classList.remove('mp');
+    document.body.classList.toggle('light', temaAktif === 'light');
     const next = TEMA_URUT[(TEMA_URUT.indexOf(temaAktif) + 1) % TEMA_URUT.length];
     themeBtn.textContent = TEMA_LABEL[next];
     try { localStorage.setItem('kodomoTema', temaAktif); } catch (e) {}
   }
   let temaTersimpan = null;
   try { temaTersimpan = localStorage.getItem('kodomoTema'); } catch (e) {}
-  setTheme_(temaTersimpan || 'mp');
+  setTheme_(temaTersimpan || 'dark');
   themeBtn.addEventListener('click', () =>
     setTheme_(TEMA_URUT[(TEMA_URUT.indexOf(temaAktif) + 1) % TEMA_URUT.length]));
 

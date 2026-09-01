@@ -11,10 +11,11 @@
  * hanya mengirim .js/.gs (lihat juga .claspignore).
  */
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 const AKAR = path.join(__dirname, '..');
-const TAG = /^<\?!= include\('(\w+)'\) \?>$/;
+const TAG = /^<\?!= include\('(\w+)'\) \?>\r?$/;
 
 function render() {
   const kerangka = fs.readFileSync(path.join(AKAR, 'Index.html'), 'utf8');
@@ -41,7 +42,7 @@ function yatimPiatu(dipakai) {
 }
 
 if (require.main === module) {
-  const keluaran = process.argv[2] || '/tmp/kodomo-render.html';
+  const keluaran = process.argv[2] || path.join(os.tmpdir(), 'kodomo-render.html');
   const { html, dipakai } = render();
   fs.writeFileSync(keluaran, html);
   const yatim = yatimPiatu(dipakai);

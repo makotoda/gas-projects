@@ -88,20 +88,18 @@ const cek = (nama, syarat, detail) => {
     (await page.locator('#viewLeaderboard .lb-item.neg').count()) === 1);
   cek('tab resto terisi', (await page.locator('#viewResto .resto-item').count()) === 1);
 
-  // Tema: default Merah Putih, lalu berputar tiga langkah kembali ke awal.
-  // Dibandingkan sebagai HIMPUNAN kelas: urutan className di DOM tidak stabil
-  // ('mp light' vs 'light mp' adalah keadaan yang sama).
+  // Tema: default Gelap, lalu berputar dua langkah kembali ke awal.
   const kelas = () => page.evaluate(() =>
     [...document.body.classList].sort().join(' ') || '(gelap)');
   const tema = [await kelas()];
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 2; i++) {
     await page.click('#themeBtn');
     await page.waitForTimeout(80);
     tema.push(await kelas());
   }
-  cek('tema default Merah Putih', tema[0].includes('mp'), tema[0]);
-  cek('siklus tema tiga langkah kembali ke awal',
-    tema[3] === tema[0] && new Set(tema.slice(0, 3)).size === 3, tema.join(' → '));
+  cek('tema default Gelap', tema[0] === '(gelap)', tema[0]);
+  cek('siklus tema dua langkah kembali ke awal',
+    tema[2] === tema[0] && new Set(tema.slice(0, 2)).size === 2, tema.join(' → '));
 
   // Grafik saldo harian (hanya di layar lebar).
   await page.click('.stat[data-metric="pahala"]');

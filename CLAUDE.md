@@ -116,9 +116,8 @@ samakan gaya dengan kode sekitarnya secara manual.
   pengaman keamanan — jangan bingung dengan validasi nominal yang memang server-side.
 - **Belanja Kopdos tidak lewat `submitAmalan`.** Harga hidup di server; `submitBelanja` hanya
   menerima `{id, qty}` dan menulis baris Dosa **tanpa** infaq KAS — disengaja.
-- **Tema ada tiga, berputar**: `mp` (Merah Putih, default sementara) → `dark` → `light`. `mp`
-  memasang kelas `.light` DAN `.mp`, jadi blok `body.mp` di CSS harus tetap setelah
-  `body.light`. Kuncinya `kodomoTema` (bukan `kodomoTheme` yang lama).
+- **Tema ada dua, berputar**: `dark` (default) → `light`. Tema `mp` (Merah Putih / kemerdekaan)
+  dinonaktifkan karena sudah lewat Agustus. Kuncinya `kodomoTema` di localStorage.
 - **Modal Total Pahala/Dosa punya dua wujud**: ≥900px grafik garis saldo harian (dari `deret`,
   bukan `leaderboard`), di bawah itu daftar peringkat berhalaman.
 - **Daftar resto adalah cache, tidak dihitung ulang tiap load.** Diperbarui hanya saat ada
