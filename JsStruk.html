@@ -96,15 +96,29 @@
     }
     loader.classList.add('overlay');
     loader.classList.remove('hide');
+    // Server mencoba ulang otomatis saat Gemini penuh (lihat panggilGemini_ di
+    // Struk.js), jadi satu gambar bisa butuh puluhan detik. Tanpa keterangan,
+    // pemakai mengira aplikasinya macet lalu menutup halaman.
+    const pesan = $('loaderPesan');
+    let timerSabar = null;
     const tutupLoader = () => {
+      clearTimeout(timerSabar);
+      pesan.textContent = '';
       loader.classList.add('hide');
       if (window.KodomoLogo3D) window.KodomoLogo3D.keHeader();
     };
     try {
       let rows = [];
-      for (const file of files) {
-        const base64 = await bacaFileSebagaiBase64_(file);
-        rows = rows.concat(await parseStrukAsync_(base64, file.type, strukMode));
+      for (let i = 0; i < files.length; i++) {
+        const label = files.length > 1 ? `Membaca gambar ${i + 1} dari ${files.length}…` : 'Membaca gambar…';
+        pesan.textContent = label;
+        clearTimeout(timerSabar);
+        timerSabar = setTimeout(() => {
+          pesan.textContent = label + ' Server Google sedang ramai, aplikasi mencoba ulang ' +
+            'otomatis — mohon tunggu, bisa sampai 1 menit.';
+        }, 8000);
+        const base64 = await bacaFileSebagaiBase64_(files[i]);
+        rows = rows.concat(await parseStrukAsync_(base64, files[i].type, strukMode));
       }
       tutupLoader();
       bentukBarisStruk_(rows);
@@ -124,7 +138,11 @@
       $('strukModal').classList.add('show');
     } catch (e) {
       tutupLoader();
-      toast(e.message || 'Gagal membaca struk.', 'err');
+      // Jejak percobaan per model ('[gemini-…#1→503, …]') berguna untuk
+      // diagnosis tapi tak terbaca di toast 3 detik — tampilkan di konsol saja.
+      const asli = (e && e.message) || 'Gagal membaca struk.';
+      console.warn(asli);
+      toast(asli.replace(/\s*\[[^\]]*\]\s*$/, ''), 'err');
     }
   });
 

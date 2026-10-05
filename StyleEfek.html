@@ -56,6 +56,21 @@
   }
   body.light #loader.overlay { background: rgba(238, 240, 248, .6); }
   .loader-box { display: grid; place-items: center; gap: 18px; }
+  /* Teks status di bawah logo loader — dipakai saat membaca struk, yang bisa
+     makan waktu lama kalau server Gemini sedang penuh dan dicoba ulang. */
+  .loader-pesan {
+    max-width: min(320px, 80vw);
+    text-align: center;
+    font-size: 13px; line-height: 1.5;
+    color: var(--text);
+    padding: 8px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border-soft);
+    /* Latar pekat: overlay loader tembus pandang, tanpa ini teks status
+       bertumpuk dengan isi kartu di belakangnya. */
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+  }
+  .loader-pesan:empty { display: none; }
   /* Slot logo 3D di loader: menggantikan logo "K" + spinner kalau Three.js siap */
   #loaderLogo { width: min(240px, 65vw); height: min(240px, 65vw); display: none; }
   #loader.logo3d #loaderLogo { display: block; }

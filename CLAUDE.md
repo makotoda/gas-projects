@@ -114,6 +114,10 @@ samakan gaya dengan kode sekitarnya secara manual.
 - **Transfer > Rp500.000 diblokir HANYA di klien** (`BATAS_TRANSFER_ADMIN` di `JsAplikasi`),
   bukan di `submitAmalan`. Ini kebijakan operasional (admin mencatat manual ke sheet), bukan
   pengaman keamanan — jangan bingung dengan validasi nominal yang memang server-side.
+- **Panggilan Gemini (`parseStruk`) tahan server sibuk** lewat `panggilGemini_` di `Struk.js`:
+  429/5xx dicoba ulang dengan jeda bertahap, lalu pindah ke `GEMINI_MODEL_CADANGAN` (bisa
+  ditimpa via Script Property `GEMINI_MODEL_CADANGAN`, dipisah koma). Batas total 90 dtk per
+  gambar. 401/403 langsung gagal — itu masalah API key, bukan beban server.
 - **Belanja Kopdos tidak lewat `submitAmalan`.** Harga hidup di server; `submitBelanja` hanya
   menerima `{id, qty}` dan menulis baris Dosa **tanpa** infaq KAS — disengaja.
 - **Tema ada dua, berputar**: `dark` (default) → `light`. Tema `mp` (Merah Putih / kemerdekaan)
