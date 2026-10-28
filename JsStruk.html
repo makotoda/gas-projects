@@ -219,7 +219,7 @@
           const masuk = res.hasil.filter(h => h !== 'menunggu').length;
           const tunggu = res.hasil.length - masuk;
           if (tunggu && !masuk) {
-            toast('Bukti tersimpan ⏳ — saldo masuk otomatis begitu notifikasi bank diterima.', 'ok');
+            toast('Bukti tersimpan ⏳ — saldo masuk setelah dikonfirmasi (notifikasi bank atau admin).', 'ok');
             return;
           }
           toast(res.hasil.indexOf('terverifikasi') >= 0
@@ -265,8 +265,8 @@
     const el = $('topupMenunggu');
     el.hidden = !dataTopUpMenunggu.length;
     if (!dataTopUpMenunggu.length) { el.innerHTML = ''; return; }
-    el.innerHTML = `<b>⏳ ${dataTopUpMenunggu.length} top-up menunggu notifikasi bank</b>` +
+    el.innerHTML = `<b>⏳ ${dataTopUpMenunggu.length} top-up menunggu konfirmasi</b>` +
       dataTopUpMenunggu.map(t =>
         `<div><span>${esc(t.nama)}</span><span>${fmt(t.nominal)}</span><small>${esc(t.waktu)}</small></div>`).join('') +
-      '<p>Masuk otomatis begitu notifikasi dana masuk diterima. Kalau lebih dari sehari, hubungi admin.</p>';
+      '<p>Saldo masuk begitu dikonfirmasi notifikasi bank atau disetujui admin.</p>';
   }

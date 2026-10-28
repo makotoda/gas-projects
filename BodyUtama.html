@@ -31,6 +31,7 @@
       <button class="music-btn" id="laporanBtn" type="button">📄 Laporan</button>
       <button class="music-btn" id="kopdosBtn" type="button">🛒 Kopdos Merah Putih</button>
       <div class="header-right">
+        <button type="button" class="sound-btn" id="adminBtn" title="Mode admin">🔐</button>
         <button type="button" class="sound-btn" id="soundBtn" title="Suara efek">🔊</button>
       </div>
     </div>
@@ -230,6 +231,33 @@
       <div class="psn-aksi">
         <button type="button" id="psnKembali">‹ Daftar pesanan</button>
         <button type="button" id="psnAbaikan">Abaikan pesanan ini</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="adminModal">
+  <div class="modal-card adm-card">
+    <div class="modal-head">
+      <h3>🔐 Mode Admin</h3>
+      <button class="modal-close" id="adminClose" type="button">✕</button>
+    </div>
+
+    <form id="admMasuk" autocomplete="off">
+      <p class="adm-intro">Masukkan PIN admin untuk memantau dan menyetujui top-up.</p>
+      <input type="password" id="admPin" inputmode="numeric" placeholder="PIN admin" aria-label="PIN admin">
+      <button class="submit-btn" id="admMasukBtn" type="submit">Masuk</button>
+    </form>
+
+    <div id="admIsi" hidden>
+      <div class="adm-filter" role="tablist">
+        <button type="button" data-filter="menunggu" class="aktif">⏳ Menunggu <b id="admJmlMenunggu">0</b></button>
+        <button type="button" data-filter="semua">Semua 30 hari</button>
+      </div>
+      <div id="admDaftar"></div>
+      <div class="adm-aksi">
+        <button type="button" id="admMuat">↻ Muat ulang</button>
+        <button type="button" id="admKeluar">Keluar dari mode admin</button>
       </div>
     </div>
   </div>

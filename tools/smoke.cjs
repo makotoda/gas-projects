@@ -57,7 +57,8 @@ window.google = { script: { run: new Proxy({}, { get(t, k) {
   if (k === 'withSuccessHandler') return fn => (window.__ok = fn, google.script.run);
   if (k === 'withFailureHandler') return fn => (window.__err = fn, google.script.run);
   return (...a) => { window.__rpc = { fn: k, args: a };
-    setTimeout(() => window.__ok && window.__ok(${JSON.stringify(DATA)}), 20); };
+    const balas = window.__balas && k in window.__balas ? window.__balas[k] : ${JSON.stringify(DATA)};
+    setTimeout(() => window.__ok && window.__ok(balas), 20); };
 }})}};
 </script>`;
 
@@ -205,6 +206,39 @@ const cek = (nama, syarat, detail) => {
   await page.waitForTimeout(200);
   cek('tombol "Ambil invoice Grab" memanggil jemputInvoiceSekarang',
     (await page.evaluate(() => window.__rpc && window.__rpc.fn)) === 'jemputInvoiceSekarang');
+
+  // Mode admin: daftar top-up ber-PIN (TopUp.js adminDaftarTopUp / adminPutuskanTopUp)
+  const ADM = [
+    { id: 'T1', waktu: '28 Oct 2026 • 10:00', nama: 'Jana', nominal: 50000, status: 'menunggu', pengirim: 'JANA P', keterangan: '', notifikasi: null },
+    { id: 'T2', waktu: '28 Oct 2026 • 09:00', nama: 'Ochi', nominal: 75000, status: 'email', pengirim: 'Ochi', keterangan: 'Melalui BCA',
+      notifikasi: { pengirim: 'OCHI W', bank: 'BCA', waktu: '28 Oct • 09:01' } }
+  ];
+  await page.evaluate(a => { window.__balas = { adminDaftarTopUp: a }; }, ADM);
+  await page.click('#adminBtn');
+  cek('🔐 membuka modal admin dengan form PIN', await page.isVisible('#admPin'));
+  await page.fill('#admPin', '246810');
+  await page.click('#admMasukBtn');
+  await page.waitForTimeout(200);
+  const rpcAdm = await page.evaluate(() => window.__rpc);
+  cek('PIN dikirim ke adminDaftarTopUp', rpcAdm.fn === 'adminDaftarTopUp' && rpcAdm.args[0] === '246810');
+  cek('tab Menunggu: hanya yang menunggu, jumlah benar',
+    (await page.$$eval('.adm-item', el => el.length)) === 1 && (await page.textContent('#admJmlMenunggu')) === '1');
+  await page.click('.adm-filter [data-filter="semua"]');
+  cek('tab Semua: yang terkonfirmasi email ditandai + notifikasi bank',
+    /Terkonfirmasi email/.test(await page.textContent('.adm-item.ok')) && /OCHI W/.test(await page.textContent('.adm-item.ok')));
+  await page.click('.adm-filter [data-filter="menunggu"]');
+  await page.evaluate(() => { window.__rpc = null; });
+  await page.click('.adm-tolak');
+  cek('Tolak butuh dua ketukan', (await page.evaluate(() => window.__rpc)) === null && /Yakin/.test(await page.textContent('.adm-tolak')));
+  await page.evaluate(([d, data]) => { window.__balas = { adminPutuskanTopUp: { daftar: d, data } }; },
+    [ADM.map(t => t.id === 'T1' ? Object.assign({}, t, { status: 'manual' }) : t), DATA]);
+  await page.click('.adm-setujui');
+  await page.waitForTimeout(200);
+  const rpcPut = await page.evaluate(() => window.__rpc);
+  cek('Setujui memanggil adminPutuskanTopUp(pin, id, "setujui")',
+    rpcPut && rpcPut.fn === 'adminPutuskanTopUp' && rpcPut.args.join() === '246810,T1,setujui', JSON.stringify(rpcPut));
+  cek('setelah disetujui: antrean kosong, dasbor ter-render ulang',
+    (await page.textContent('#admJmlMenunggu')) === '0' && await page.isVisible('.adm-kosong'));
 
   await browser.close();
   console.log(gagal ? `\n${gagal} pemeriksaan GAGAL` : '\nsemua pemeriksaan lolos');

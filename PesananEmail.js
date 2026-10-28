@@ -40,6 +40,24 @@ const INVOICE_BATAS_JALAN_MS = 4 * 60 * 1000;
  * (GAS menjalankan pemicu harian "sekitar" jam itu, bisa meleset ±15 menit.)
  */
 const INVOICE_JADWAL = { hari: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY'], jam: 15, zona: 'Asia/Jakarta' };
+
+/**
+ * Hanya order JAM KERJA yang diambil otomatis: email receipt yang masuk pada
+ * hari INVOICE_JADWAL.hari, pukul [mulai, selesai) WIB. Order kantor paling
+ * lambat sekitar 14.00 dan receipt-nya datang setelah makanan diantar, jadi
+ * batas 15.00 masih menangkapnya — sementara order pribadi malam hari / akhir
+ * pekan TIDAK ikut (dan tidak menghabiskan kuota Gemini). Order di luar jam ini
+ * tetap bisa dicatat lewat unggah screenshot manual.
+ */
+const INVOICE_JAM_KERJA = { mulai: 7, selesai: 15 };
+
+/** Email ini masuk di jam kerja (hari & jam menurut zona WIB)? */
+function dalamJamKerja_(tanggal) {
+  const [hari, jam] = Utilities.formatDate(tanggal, INVOICE_JADWAL.zona, 'u H').split(' ').map(Number);
+  const NAMA_HARI = ['', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+  return INVOICE_JADWAL.hari.indexOf(NAMA_HARI[hari]) >= 0 &&
+    jam >= INVOICE_JAM_KERJA.mulai && jam < INVOICE_JAM_KERJA.selesai;
+}
 /** Naikkan angka ini setiap INVOICE_JADWAL diubah: pemicu lama yang masih
  *  terpasang akan memasang ulang jadwal sendiri saat berjalan berikutnya. */
 const INVOICE_JADWAL_VERSI = '2';
@@ -120,6 +138,7 @@ function jemputInvoiceGmail() {
       const id = msg.getId();
       if (sudah[id]) continue;
       if (msg.getDate() < mulai) { tandai(id); continue; } // sebelum fitur dipasang
+      if (!dalamJamKerja_(msg.getDate())) { tandai(id); ringkas.dilewati++; continue; } // order pribadi
       const teks = String(msg.getPlainBody() || '');
       if (!/GrabFood/i.test(teks)) { tandai(id); ringkas.dilewati++; continue; } // GrabCar, GrabBike, dll
       // sisanya di jalan berikutnya (10 menit lagi)

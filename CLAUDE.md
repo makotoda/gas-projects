@@ -34,7 +34,7 @@ Repo ini diedit dari banyak tempat. Actions men-deploy setiap push ke `main`, ja
 | `Infaq.js` | `getInfaqMap_` / `saveInfaqMap` (kolom C sheet Anggota) |
 | `Pesanan.js` | invoice GrabFood → sheet `Pesanan` → dibagi per orang dengan rumus Grab (`parseInvoiceGrab`, `simpanPesanan`, `abaikanPesanan`, `hitungBagiPesanan_`) |
 | `PesananEmail.js` | penjemputan invoice dari Gmail, Sen–Kam 15.00 WIB + tombol "Ambil invoice Grab" (`jemputInvoiceGmail`, `jemputInvoiceSekarang`, `pasangPemicuInvoice`) |
-| `TopUp.js` | verifikasi top-up: bukti TF dicocokkan dengan notifikasi dana masuk bank di Gmail (`ajukanTopUp`, `prosesTopUpMenunggu`, `pasangPemicuTopUp`), sheet `TopUp` & `Mutasi` |
+| `TopUp.js` | verifikasi top-up: bukti TF dicocokkan dengan notifikasi dana masuk bank di Gmail (`ajukanTopUp`, `prosesTopUpMenunggu`, `pasangPemicuTopUp`), sheet `TopUp` & `Mutasi`; mode admin ber-PIN (`adminDaftarTopUp`, `adminPutuskanTopUp`) |
 
 **Frontend.** `Index.html` cuma kerangka berisi `<?!= include('...') ?>`.
 
@@ -53,6 +53,7 @@ Repo ini diedit dari banyak tempat. Actions men-deploy setiap push ke `main`, ja
 | `JsAplikasi` | `render(data)` + submit form |
 | `JsKopdos` / `JsStruk` / `JsLaporan` | katalog belanja, upload & review struk, penyusunan PDF |
 | `JsPesanan` + `StylePesanan` | Pesanan Masuk: unggah invoice Grab, layar bagi (ketuk orang → ketuk menu) |
+| `JsAdmin` + `StyleAdmin` | Mode Admin (🔐 di header): daftar top-up 30 hari, tandai terkonfirmasi email, Setujui/Tolak |
 | `JsTema` | siklus tema + hujan bendera |
 | `JsEfek` | trail kursor, hujan uang, pemutar suara (`playSfx`, `SFX_ALIAS`) |
 | `JsAyat` / `JsMuatAwal` / `JsTutorial` / `JsLogo3D` | pita ayat, panggilan dasbor pertama, tur, logo 3D |
@@ -133,10 +134,18 @@ samakan gaya dengan kode sekitarnya secara manual.
   `simpanPesanan` menjumlahkan semua slot satu nama jadi SATU baris Dosa (`namaDasarSlot_`).
 - **Jadwal invoice punya versi** (`INVOICE_JADWAL_VERSI`): ubah `INVOICE_JADWAL` → naikkan
   versinya, dan pemicu lama memasang ulang jadwal sendiri saat berjalan berikutnya.
-- **Verifikasi top-up mati sampai Script Property `MUTASI_GMAIL_KUERI` diisi** — sebelum itu
-  `ajukanTopUp` langsung menulis Pahala seperti dulu. Cocok = nominal sama persis + nama
-  pengirim mirip + belum dipakai; ragu → menunggu. Keputusan manual admin HANYA di sheet
-  `TopUp` (kolom Status → setujui/tolak), sengaja tidak ada tombolnya di UI karena tanpa login.
+- **Verifikasi top-up mati sampai Script Property `ADMIN_PIN` atau `MUTASI_GMAIL_KUERI`
+  diisi** — sebelum itu `ajukanTopUp` langsung menulis Pahala seperti dulu. Hanya `ADMIN_PIN`
+  → semua top-up menunggu persetujuan admin. Cocok email = nominal sama persis + nama pengirim
+  mirip + belum dipakai; ragu → menunggu. Keputusan manual: Mode Admin (🔐) atau kolom Status
+  sheet `TopUp`.
+- **Mode Admin hanya dilindungi PIN yang diperiksa di SERVER** (`cekPinAdmin_`, 5× salah →
+  terkunci 10 menit). Fungsi admin baru WAJIB memanggil `cekPinAdmin_(pin)` di baris pertama —
+  menyembunyikan tombol di klien tidak melindungi apa pun (tanpa login). PIN di klien hanya di
+  `sessionStorage`.
+- **Invoice email hanya diambil di jam kerja** (`INVOICE_JAM_KERJA` 07.00–15.00 WIB, hari
+  `INVOICE_JADWAL`, menurut waktu email tiba) supaya order pribadi malam/akhir pekan tidak
+  masuk. Di luar jam → ditandai terproses tanpa memanggil Gemini; pengecualian = unggah manual.
 - **Penjemputan Gmail hanya membaca**, mengambil email setelah `INVOICE_GMAIL_MULAI` (diset
   saat `pasangPemicuInvoice()` pertama kali). Email yang gagal dibaca (tidak seimbang, dll)
   tidak dicoba lagi tapi tampil sebagai peringatan di Kodomo (`INVOICE_GMAIL_GAGAL`); yang

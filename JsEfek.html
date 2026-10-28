@@ -170,7 +170,8 @@
   document.addEventListener('click', e => {
     // Layar bagi pesanan butuh belasan ketukan beruntun (chip orang & menu) —
     // koin + hujan uang di setiap ketukan di sana jadi bising, bukan meriah.
-    if (e.target.closest && e.target.closest('.psn-unit, .psn-chip')) return;
+    // Mode admin juga: menyetujui top-up adalah kerja administrasi, bukan perayaan.
+    if (e.target.closest && e.target.closest('.psn-unit, .psn-chip, #adminModal')) return;
     playCoin();
     moneyRain(e.clientX, e.clientY);
   });

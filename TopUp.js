@@ -11,7 +11,8 @@
  *    'menunggu' di sheet `TopUp`.
  * 2. Pemicu tiap jam (prosesTopUpMenunggu) mencoba lagi yang menunggu — notifikasi
  *    bank kadang datang terlambat.
- * 3. Admin bisa memutuskan manual di sheet `TopUp`: ubah kolom Status menjadi
+ * 3. Admin memutuskan manual lewat Mode Admin di Kodomo (🔐, ber-PIN — lihat
+ *    adminDaftarTopUp), atau langsung di sheet `TopUp`: ubah kolom Status menjadi
  *    "setujui" atau "tolak" (mis. transfer dari e-wallet yang tidak mengirim
  *    email). Diproses seketika oleh pemicu onEdit.
  *
@@ -19,9 +20,12 @@
  * dari unggah, nama pengirim mirip (bank sering memotong nama), dan notifikasi
  * itu belum pernah dipakai top-up lain. Ragu → dibiarkan menunggu admin.
  *
- * AKTIF hanya kalau Script Property MUTASI_GMAIL_KUERI diisi (kueri pencarian
- * Gmail untuk email notifikasi dana masuk). Tanpa itu, top-up langsung masuk
- * seperti sebelumnya. Setelah mengisinya, jalankan pasangPemicuTopUp() sekali.
+ * AKTIF kalau Script Property ADMIN_PIN dan/atau MUTASI_GMAIL_KUERI (kueri
+ * pencarian Gmail untuk notifikasi dana masuk) diisi. Hanya ADMIN_PIN → semua
+ * top-up menunggu persetujuan admin; dengan MUTASI_GMAIL_KUERI → yang cocok
+ * dengan notifikasi bank disetujui otomatis. Tanpa keduanya, top-up langsung
+ * masuk seperti dulu. Setelah mengisi MUTASI_GMAIL_KUERI, jalankan
+ * pasangPemicuTopUp() sekali.
  *
  * Hanya MEMBACA Gmail. Bagian dari proyek Kodomo — namespace global bersama.
  */
@@ -44,8 +48,105 @@ const MUTASI_ABAIKAN = 'abaikan';   // bukan dana masuk / tak terbaca
 const TOPUP_PROP_KUERI = 'MUTASI_GMAIL_KUERI';
 const TOPUP_JENDELA_HARI = 3;
 
+/** Verifikasi aktif kalau ada CARA memverifikasi: notifikasi bank di Gmail
+ *  (MUTASI_GMAIL_KUERI) dan/atau admin yang bisa menyetujui (ADMIN_PIN).
+ *  Tanpa keduanya, top-up langsung masuk seperti dulu. */
 function verifikasiTopUpAktif_() {
-  return !!String(PropertiesService.getScriptProperties().getProperty(TOPUP_PROP_KUERI) || '').trim();
+  const props = PropertiesService.getScriptProperties();
+  return !!String(props.getProperty(TOPUP_PROP_KUERI) || '').trim() ||
+    !!String(props.getProperty(ADMIN_PROP_PIN) || '').trim();
+}
+
+/* ===========================================================================
+ * MODE ADMIN — daftar & persetujuan top-up di Kodomo.
+ *
+ * Web app ini tanpa login (ANYONE_ANONYMOUS), jadi setiap fungsi admin WAJIB
+ * menerima PIN dan memeriksanya di server. PIN disimpan di Script Property
+ * ADMIN_PIN — tidak pernah di kode, tidak pernah dikirim balik ke klien.
+ * Salah PIN 5× dalam 10 menit → mode admin terkunci 10 menit.
+ * ======================================================================== */
+const ADMIN_PROP_PIN = 'ADMIN_PIN';
+const ADMIN_MAKS_SALAH = 5;
+const ADMIN_KUNCI_DTK = 600;
+const ADMIN_RIWAYAT_HARI = 30;
+
+function cekPinAdmin_(pin) {
+  const benar = String(PropertiesService.getScriptProperties().getProperty(ADMIN_PROP_PIN) || '').trim();
+  if (!benar) throw new Error('Mode admin belum diaktifkan: isi ADMIN_PIN di Script Properties.');
+  const cache = CacheService.getScriptCache();
+  const salah = Number(cache.get('ADMIN_SALAH') || 0);
+  if (salah >= ADMIN_MAKS_SALAH) throw new Error('Terlalu banyak PIN salah. Coba lagi 10 menit lagi.');
+  if (String(pin || '').trim() !== benar) {
+    cache.put('ADMIN_SALAH', String(salah + 1), ADMIN_KUNCI_DTK);
+    throw new Error('PIN admin salah.');
+  }
+}
+
+/**
+ * Daftar top-up 30 hari terakhir untuk admin, terbaru dulu, beserta asal
+ * persetujuannya: 'email' (cocok notifikasi bank), 'manual' (admin), atau
+ * belum. Notifikasi bank yang dipakai ikut ditampilkan sebagai bukti.
+ */
+function adminDaftarTopUp(pin) {
+  cekPinAdmin_(pin);
+  return daftarTopUpAdmin_();
+}
+
+function daftarTopUpAdmin_() {
+  const sheet = getSheet_(SHEET_TOPUP);
+  const last = sheet.getLastRow();
+  if (last < 2) return [];
+  const mutasi = {};
+  bacaMutasi_().forEach(m => { mutasi[m.id] = m; });
+  const batas = Date.now() - ADMIN_RIWAYAT_HARI * 86400000;
+  const tz = Session.getScriptTimeZone();
+  return sheet.getRange(2, 1, last - 1, TOPUP_HEADER.length).getValues()
+    .filter(r => new Date(r[1]).getTime() >= batas)
+    .map(r => {
+      const status = String(r[4]).trim().toLowerCase();
+      const m = mutasi[String(r[7])];
+      return {
+        id: String(r[0]),
+        waktu: Utilities.formatDate(new Date(r[1]), tz, 'dd MMM yyyy • HH:mm'),
+        nama: String(r[2]), nominal: Number(r[3]) || 0,
+        status: status === TOPUP_DISETUJUI ? 'email'
+          : status === TOPUP_DISETUJUI_MANUAL ? 'manual'
+          : status === TOPUP_DITOLAK ? 'ditolak' : 'menunggu',
+        pengirim: String(r[5]), keterangan: String(r[6]),
+        notifikasi: m ? { pengirim: m.pengirim, bank: m.bank,
+          waktu: Utilities.formatDate(m.waktu, tz, 'dd MMM • HH:mm') } : null
+      };
+    })
+    .reverse();
+}
+
+/** Setujui / tolak satu top-up yang masih menunggu. Balikan daftar terbaru + dasbor. */
+function adminPutuskanTopUp(pin, id, keputusan) {
+  cekPinAdmin_(pin);
+  if (keputusan !== 'setujui' && keputusan !== 'tolak') throw new Error('Keputusan tidak dikenal.');
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const sheet = getSheet_(SHEET_TOPUP);
+    const last = sheet.getLastRow();
+    const rows = last < 2 ? [] : sheet.getRange(2, 1, last - 1, TOPUP_HEADER.length).getValues();
+    const i = rows.findIndex(r => String(r[0]) === String(id));
+    if (i < 0) throw new Error('Top-up tidak ditemukan.');
+    const r = rows[i];
+    if (String(r[4]).trim().toLowerCase() !== TOPUP_MENUNGGU) {
+      throw new Error('Top-up ini sudah diputuskan (' + r[4] + ').');
+    }
+    if (keputusan === 'setujui') {
+      setujuiTopUp_(sheet, i + 2, { id: String(r[0]), nama: String(r[2]), nominal: Number(r[3]) || 0,
+        keterangan: String(r[6]) }, TOPUP_DISETUJUI_MANUAL, null);
+    } else {
+      sheet.getRange(i + 2, 5).setValue(TOPUP_DITOLAK);
+      sheet.getRange(i + 2, 9).setValue(new Date().toISOString());
+    }
+  } finally {
+    lock.releaseLock();
+  }
+  return { daftar: daftarTopUpAdmin_(), data: getDashboardData() };
 }
 
 /**
@@ -312,7 +413,7 @@ function daftarTopUpMenunggu_() {
 
 /** Jalankan SEKALI dari editor setelah mengisi MUTASI_GMAIL_KUERI. Aman diulang. */
 function pasangPemicuTopUp() {
-  if (!verifikasiTopUpAktif_()) {
+  if (!String(PropertiesService.getScriptProperties().getProperty(TOPUP_PROP_KUERI) || '').trim()) {
     throw new Error('Isi dulu Script Property ' + TOPUP_PROP_KUERI + ' (kueri Gmail notifikasi dana masuk).');
   }
   ScriptApp.getProjectTriggers()

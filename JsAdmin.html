@@ -1,0 +1,157 @@
+  /* ================= Mode Admin: pantau & setujui top-up (TopUp.js) =================
+     Web app tanpa login, jadi semua aksi admin membawa PIN dan diperiksa di SERVER
+     (cekPinAdmin_). PIN hanya disimpan di sessionStorage tab ini — tutup tab, hilang. */
+  const ADM_KUNCI_PIN = 'kodomoAdminPin';
+  let admPin = '';
+  let admDaftar = [];
+  let admFilter = 'menunggu';
+  let admYakinTolak = '';           // id top-up yang tombol Tolak-nya sudah diketuk sekali
+
+  try { admPin = sessionStorage.getItem(ADM_KUNCI_PIN) || ''; } catch (e) {}
+
+  function simpanPinAdm_(pin) {
+    admPin = pin;
+    try {
+      if (pin) sessionStorage.setItem(ADM_KUNCI_PIN, pin);
+      else sessionStorage.removeItem(ADM_KUNCI_PIN);
+    } catch (e) {}
+  }
+
+  const ADM_STATUS = {
+    email: ['ok', '✓ Terkonfirmasi email bank'],
+    manual: ['ok', '✓ Disetujui manual'],
+    ditolak: ['tolak', '✕ Ditolak'],
+    menunggu: ['tunggu', '⏳ Menunggu']
+  };
+
+  function tampilMasukAdm_() {
+    $('admMasuk').hidden = false;
+    $('admIsi').hidden = true;
+    $('admPin').value = '';
+    setTimeout(() => $('admPin').focus(), 50);
+  }
+
+  function renderAdm_() {
+    $('admMasuk').hidden = true;
+    $('admIsi').hidden = false;
+    const menunggu = admDaftar.filter(t => t.status === 'menunggu');
+    $('admJmlMenunggu').textContent = menunggu.length;
+    document.querySelectorAll('.adm-filter button').forEach(b =>
+      b.classList.toggle('aktif', b.dataset.filter === admFilter));
+    const isi = admFilter === 'menunggu' ? menunggu : admDaftar;
+    if (!isi.length) {
+      $('admDaftar').innerHTML = `<p class="adm-kosong">${admFilter === 'menunggu'
+        ? 'Tidak ada top-up yang menunggu. 🎉' : 'Belum ada top-up 30 hari terakhir.'}</p>`;
+      return;
+    }
+    $('admDaftar').innerHTML = isi.map(t => {
+      const [kelas, label] = ADM_STATUS[t.status] || ADM_STATUS.menunggu;
+      const n = t.notifikasi;
+      const bukti = n
+        ? `<div class="adm-bukti">📧 ${esc(n.bank || 'Bank')} · dari <b>${esc(n.pengirim || '?')}</b> · ${esc(n.waktu)}</div>`
+        : '';
+      const aksi = t.status !== 'menunggu' ? '' : `
+        <div class="adm-tombol">
+          <button type="button" class="adm-tolak${admYakinTolak === t.id ? ' yakin' : ''}" data-id="${esc(t.id)}" data-aksi="tolak">
+            ${admYakinTolak === t.id ? 'Yakin tolak?' : 'Tolak'}</button>
+          <button type="button" class="adm-setujui" data-id="${esc(t.id)}" data-aksi="setujui">Setujui</button>
+        </div>`;
+      return `
+        <div class="adm-item ${kelas}">
+          <div class="adm-baris"><b>${esc(t.nama)}</b><span class="adm-nom">${fmt(t.nominal)}</span></div>
+          <div class="adm-meta">${esc(t.waktu)}${t.pengirim ? ` · pengirim di bukti: <b>${esc(t.pengirim)}</b>` : ''}</div>
+          ${t.keterangan ? `<div class="adm-meta">${esc(t.keterangan)}</div>` : ''}
+          <span class="adm-badge ${kelas}">${label}</span>
+          ${bukti}${aksi}
+        </div>`;
+    }).join('');
+  }
+
+  function muatAdm_(pin) {
+    $('admMuat').disabled = true;
+    google.script.run
+      .withSuccessHandler(daftar => {
+        $('admMuat').disabled = false;
+        simpanPinAdm_(pin);
+        admDaftar = daftar || [];
+        renderAdm_();
+      })
+      .withFailureHandler(err => {
+        $('admMuat').disabled = false;
+        toast(err.message || 'Gagal memuat daftar top-up.', 'err');
+        // PIN tersimpan ternyata salah/kedaluwarsa → kembali ke form PIN.
+        if (/PIN|admin belum/i.test(err.message || '')) { simpanPinAdm_(''); tampilMasukAdm_(); }
+      })
+      .adminDaftarTopUp(pin);
+  }
+
+  function tutupAdm_() {
+    $('adminModal').classList.remove('show');
+    admYakinTolak = '';
+  }
+
+  $('adminBtn').addEventListener('click', () => {
+    $('adminModal').classList.add('show');
+    admYakinTolak = '';
+    if (admPin) { admFilter = 'menunggu'; muatAdm_(admPin); }
+    else tampilMasukAdm_();
+  });
+
+  $('admMasuk').addEventListener('submit', e => {
+    e.preventDefault();
+    const pin = $('admPin').value.trim();
+    if (!pin) return;
+    $('admMasukBtn').disabled = true;
+    google.script.run
+      .withSuccessHandler(daftar => {
+        $('admMasukBtn').disabled = false;
+        simpanPinAdm_(pin);
+        admDaftar = daftar || [];
+        admFilter = 'menunggu';
+        renderAdm_();
+      })
+      .withFailureHandler(err => {
+        $('admMasukBtn').disabled = false;
+        toast(err.message || 'Gagal masuk mode admin.', 'err');
+      })
+      .adminDaftarTopUp(pin);
+  });
+
+  document.querySelectorAll('.adm-filter button').forEach(b => b.addEventListener('click', () => {
+    admFilter = b.dataset.filter;
+    renderAdm_();
+  }));
+
+  $('admDaftar').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-aksi]');
+    if (!btn) return;
+    const id = btn.dataset.id, aksi = btn.dataset.aksi;
+    if (aksi === 'tolak' && admYakinTolak !== id) { admYakinTolak = id; renderAdm_(); return; }
+    admYakinTolak = '';
+    const t = admDaftar.find(x => x.id === id);
+    $('admDaftar').querySelectorAll('button').forEach(x => { x.disabled = true; });
+    google.script.run
+      .withSuccessHandler(res => {
+        admDaftar = res.daftar || [];
+        render(res.data);
+        renderAdm_();
+        if (t) toast(aksi === 'setujui'
+          ? `Top-up ${t.nama} ${fmt(t.nominal)} disetujui ✓` : `Top-up ${t.nama} ditolak.`, 'ok');
+      })
+      .withFailureHandler(err => {
+        toast(err.message || 'Gagal.', 'err');
+        muatAdm_(admPin);
+      })
+      .adminPutuskanTopUp(admPin, id, aksi);
+  });
+
+  $('admMuat').addEventListener('click', () => muatAdm_(admPin));
+  $('admKeluar').addEventListener('click', () => {
+    simpanPinAdm_('');
+    admDaftar = [];
+    tampilMasukAdm_();
+    toast('Keluar dari mode admin.', 'ok');
+  });
+  $('adminClose').addEventListener('click', tutupAdm_);
+  $('adminModal').addEventListener('click', e => { if (e.target === $('adminModal')) tutupAdm_(); });
+
