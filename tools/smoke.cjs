@@ -39,6 +39,7 @@ const DATA = {
   katalog: [{ id: 'tissue', nama: 'Tissue', harga: 35000, emoji: '🧻' }],
   resto: [{ nama: 'Ayam Ternate', kunci: 'ayam ternate', varian: 'ayam ternate',
             jumlah: 13, dipakai: 10, rata: 8707, min: 5682, max: 11142, update: '04 Aug 2026' }],
+  topupMenunggu: [{ nama: 'Jana', nominal: 120000, waktu: '28 Oct • 14:02' }],
   // Invoice Grab nyata (28 Okt 2026) yang menunggu dibagi
   pesanan: [{ id: 'A-AWRBEG3WX9C9AV', resto: 'RM Sari Minang', waktu: '28 Oct 26 11:02', total: 86740,
     detail: { pesananId: 'A-AWRBEG3WX9C9AV', resto: 'RM Sari Minang', waktu: '28 Oct 26 11:02',
@@ -136,6 +137,11 @@ const cek = (nama, syarat, detail) => {
     rpc && JSON.stringify(rpc.args[0]) === '{"nama":"Ochi","items":[{"id":"tissue","qty":2}]}',
     JSON.stringify(rpc && rpc.args[0]));
 
+  // Top-up yang menunggu notifikasi bank tampil (hanya info, tanpa tombol setujui).
+  const teksTopup = (await page.textContent('#topupMenunggu')).replace(/\s+/g, ' ').trim();
+  cek('top-up menunggu verifikasi tampil', await page.isVisible('#topupMenunggu') &&
+    teksTopup.includes('Jana') && teksTopup.includes('120.000'), teksTopup.slice(0, 60));
+
   // Pesanan Masuk: bagi invoice Grab per orang lalu simpan.
   cek('banner pesanan menunggu tampil', await page.isVisible('#pesananBanner'),
     (await page.textContent('#pesananBanner')).replace(/\s+/g, ' ').trim());
@@ -190,8 +196,15 @@ const cek = (nama, syarat, detail) => {
   cek('daftar menampilkan rincian kegagalan', await page.isVisible('.psn-gagal'));
   await page.click('#psnTutupGagal');
   await page.waitForTimeout(200);
+  cek('modal punya jalan cadangan unggah screenshot manual', await page.isVisible('#psnUnggahManual'));
   cek('tutup peringatan memanggil hapusCatatanInvoiceGagal',
     (await page.evaluate(() => window.__rpc && window.__rpc.fn)) === 'hapusCatatanInvoiceGagal');
+
+  await page.click('#pesananClose');
+  await page.click('#ambilInvoiceBtn');
+  await page.waitForTimeout(200);
+  cek('tombol "Ambil invoice Grab" memanggil jemputInvoiceSekarang',
+    (await page.evaluate(() => window.__rpc && window.__rpc.fn)) === 'jemputInvoiceSekarang');
 
   await browser.close();
   console.log(gagal ? `\n${gagal} pemeriksaan GAGAL` : '\nsemua pemeriksaan lolos');

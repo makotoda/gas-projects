@@ -193,7 +193,8 @@
       nominal: it.nominal,
       keterangan: it.traktir
         ? ('Traktir struk' + (ketBersama ? ': ' + ketBersama : ''))
-        : ketBersama
+        : ketBersama,
+      pengirim: it.asli || ''   // nama di bukti TF — dicocokkan dengan notifikasi bank (TopUp.js)
     }));
 
     const btn = $('strukConfirmBtn');
@@ -205,6 +206,36 @@
     const totalNominal = antrian.reduce((s, it) => s + it.nominal, 0);
     $('strukStatus').textContent = `Menyimpan ${payload.length} transaksi…`;
 
+    // Top-up lewat bukti transfer: server mencocokkan dengan notifikasi dana masuk
+    // dari bank (kalau verifikasi diaktifkan admin) — bisa langsung masuk, bisa
+    // menunggu notifikasi. Perayaan & pengumuman suara hanya untuk yang SUDAH masuk.
+    if (strukMode === 'transfer') {
+      $('strukStatus').textContent = 'Mencocokkan dengan notifikasi bank…';
+      google.script.run
+        .withSuccessHandler(res => {
+          btn.disabled = false;
+          $('strukModal').classList.remove('show');
+          render(res.data);
+          const masuk = res.hasil.filter(h => h !== 'menunggu').length;
+          const tunggu = res.hasil.length - masuk;
+          if (tunggu && !masuk) {
+            toast('Bukti tersimpan ⏳ — saldo masuk otomatis begitu notifikasi bank diterima.', 'ok');
+            return;
+          }
+          toast(res.hasil.indexOf('terverifikasi') >= 0
+            ? `Top-up terverifikasi ✓${tunggu ? ` · ${tunggu} masih menunggu notifikasi bank` : ''}`
+            : `${payload.length} top-up tersimpan ✓`, 'ok');
+          playSfxUrut(['kaching'].concat(daftarUmumanPahala_(saldoSebelum, totalNominal)));
+        })
+        .withFailureHandler(err => {
+          btn.disabled = false;
+          $('strukStatus').textContent = 'Gagal simpan: ' + (err.message || 'error');
+          toast(err.message || 'Gagal menyimpan top-up.', 'err');
+        })
+        .ajukanTopUp(payload);
+      return;
+    }
+
     // Satu request untuk semua baris (termasuk baris traktir) — server menulis
     // semuanya dalam satu batch write, bukan appendRow bergantian per baris.
     google.script.run
@@ -214,8 +245,7 @@
         render(data);
         toast(`${payload.length} transaksi dari struk tersimpan ✓`, 'ok');
         // Top-up: ka-ching kasir dulu, baru pengumuman suara.
-        if (strukMode === 'transfer') playSfxUrut(['kaching'].concat(daftarUmumanPahala_(saldoSebelum, totalNominal)));
-        else playSfx('mantul');
+        playSfx('mantul');
       })
       .withFailureHandler(err => {
         btn.disabled = false;
@@ -225,3 +255,18 @@
       .submitAmalanBatch(payload);
   });
 
+
+  /* ---- Top-up yang menunggu verifikasi notifikasi bank (TopUp.js) ----
+     Hanya tampilan: keputusan manual dilakukan admin di sheet TopUp, bukan di
+     sini — web app ini tanpa login, jadi tombol "setujui" di UI bisa dipencet
+     siapa saja. */
+  let dataTopUpMenunggu = [];
+  function renderTopUpMenunggu() {
+    const el = $('topupMenunggu');
+    el.hidden = !dataTopUpMenunggu.length;
+    if (!dataTopUpMenunggu.length) { el.innerHTML = ''; return; }
+    el.innerHTML = `<b>⏳ ${dataTopUpMenunggu.length} top-up menunggu notifikasi bank</b>` +
+      dataTopUpMenunggu.map(t =>
+        `<div><span>${esc(t.nama)}</span><span>${fmt(t.nominal)}</span><small>${esc(t.waktu)}</small></div>`).join('') +
+      '<p>Masuk otomatis begitu notifikasi dana masuk diterima. Kalau lebih dari sehari, hubungi admin.</p>';
+  }

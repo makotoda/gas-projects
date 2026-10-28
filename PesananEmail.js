@@ -1,7 +1,8 @@
 /**
  * KODOMO — penjemputan otomatis invoice GrabFood dari Gmail pemilik skrip.
  *
- * Pemicu waktu (tiap 10 menit) mencari email "Your Grab E-Receipt" dari
+ * Pemicu terjadwal (Senin–Kamis pukul 15.00 WIB, lihat INVOICE_JADWAL) dan
+ * tombol "Ambil invoice Grab" di Kodomo mencari email "Your Grab E-Receipt" dari
  * no-reply@grab.com, membaca TEKS email lewat Gemini (Pesanan.js →
  * bacaInvoiceGemini_), lalu menyimpannya sebagai pesanan 'menunggu' — sama
  * persis seperti unggah screenshot manual, termasuk pemeriksaan keseimbangan
@@ -29,18 +30,52 @@ const INVOICE_MAKS_PER_JALAN = 5;      // batasi kerja sekali jalan (waktu eksek
  *  yang sudah diproses. */
 const INVOICE_BATAS_JALAN_MS = 4 * 60 * 1000;
 
-/** Jalankan SEKALI dari editor Apps Script. Aman diulang (tidak menggandakan pemicu). */
+/**
+ * Jadwal otomatis: hari kerja kantor (Senin–Kamis) pukul 15.00 WIB — setelah
+ * order makan siang selesai dan email receipt-nya pasti sudah datang. Order di
+ * luar jadwal bisa diambil kapan saja lewat tombol "Ambil invoice Grab".
+ * (GAS menjalankan pemicu harian "sekitar" jam itu, bisa meleset ±15 menit.)
+ */
+const INVOICE_JADWAL = { hari: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY'], jam: 15, zona: 'Asia/Jakarta' };
+/** Naikkan angka ini setiap INVOICE_JADWAL diubah: pemicu lama yang masih
+ *  terpasang akan memasang ulang jadwal sendiri saat berjalan berikutnya. */
+const INVOICE_JADWAL_VERSI = '2';
+const INVOICE_PROP_JADWAL = 'INVOICE_GMAIL_JADWAL_VERSI';
+/** Jeda minimum antar-pengambilan manual dari tombol di Kodomo (detik). */
+const INVOICE_JEDA_MANUAL_DTK = 60;
+
+/** Jalankan dari editor Apps Script. Aman diulang (tidak menggandakan pemicu). */
 function pasangPemicuInvoice() {
   lepasPemicuInvoice();
-  ScriptApp.newTrigger('jemputInvoiceGmail').timeBased().everyMinutes(10).create();
+  INVOICE_JADWAL.hari.forEach(hari => {
+    ScriptApp.newTrigger('jemputInvoiceGmail').timeBased()
+      .onWeekDay(ScriptApp.WeekDay[hari]).atHour(INVOICE_JADWAL.jam).nearMinute(0)
+      .inTimezone(INVOICE_JADWAL.zona).create();
+  });
   const props = PropertiesService.getScriptProperties();
   if (!props.getProperty(INVOICE_PROP_MULAI)) {
     props.setProperty(INVOICE_PROP_MULAI, new Date().toISOString());
   }
-  const pesan = 'Pemicu terpasang: invoice Grab dicek tiap 10 menit, mulai email setelah ' +
-    props.getProperty(INVOICE_PROP_MULAI) + '.';
+  props.setProperty(INVOICE_PROP_JADWAL, INVOICE_JADWAL_VERSI);
+  const pesan = 'Pemicu terpasang: invoice Grab dicek Senin–Kamis pukul ' + INVOICE_JADWAL.jam +
+    '.00 WIB, mulai email setelah ' + props.getProperty(INVOICE_PROP_MULAI) + '.';
   console.log(pesan);
   return pesan;
+}
+
+/**
+ * Tombol "Ambil invoice Grab" di Kodomo: jemput sekarang tanpa menunggu jadwal.
+ * Dibatasi sekali per menit — web app ini bisa dibuka siapa saja tanpa login,
+ * jadi jangan biarkan tombol ini dipakai menghabiskan kuota Gemini.
+ */
+function jemputInvoiceSekarang() {
+  const cache = CacheService.getScriptCache();
+  if (cache.get('INVOICE_JEMPUT_MANUAL')) {
+    throw new Error('Email baru saja dicek. Coba lagi sebentar lagi.');
+  }
+  cache.put('INVOICE_JEMPUT_MANUAL', '1', INVOICE_JEDA_MANUAL_DTK);
+  const ringkas = jemputInvoiceGmail();
+  return { ringkas: ringkas, data: getDashboardData() };
 }
 
 /** Hentikan penjemputan otomatis (unggah manual tetap bisa dipakai). */
@@ -56,6 +91,11 @@ function lepasPemicuInvoice() {
  */
 function jemputInvoiceGmail() {
   const props = PropertiesService.getScriptProperties();
+  // Migrasi diam-diam: pemicu versi lama (mis. tiap 10 menit) memasang jadwal
+  // terbaru lalu terhapus sendiri, tanpa admin perlu membuka editor lagi.
+  if (props.getProperty(INVOICE_PROP_JADWAL) !== INVOICE_JADWAL_VERSI) {
+    try { pasangPemicuInvoice(); } catch (e) { console.warn('Gagal memperbarui jadwal: ' + e.message); }
+  }
   const mulaiStr = props.getProperty(INVOICE_PROP_MULAI);
   const mulai = mulaiStr ? new Date(mulaiStr) : new Date();
   let terproses = [];

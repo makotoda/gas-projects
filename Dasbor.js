@@ -172,6 +172,7 @@ function getDashboardData() {
     katalog: KATALOG_KOPDOS,    // katalog belanja Kopdos Merah Putih
     pesanan: daftarPesananMenunggu_(), // invoice Grab yang belum dibagi (Pesanan.js)
     invoiceGagal: daftarInvoiceGagal_(), // invoice email yang gagal dibaca otomatis (PesananEmail.js)
+    topupMenunggu: daftarTopUpMenunggu_(), // top-up yang menunggu notifikasi bank (TopUp.js)
     resto: bacaSheetResto_(),   // urut termurah dulu; lihat modul infografis resto
     infaqMap: getInfaqMap_(),
     strukAlias: getStrukAlias_(),

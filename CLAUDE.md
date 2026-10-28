@@ -33,7 +33,8 @@ Repo ini diedit dari banyak tempat. Actions men-deploy setiap push ke `main`, ja
 | `Kopdos.js` | katalog belanja (`KATALOG_KOPDOS`) + `submitBelanja` |
 | `Infaq.js` | `getInfaqMap_` / `saveInfaqMap` (kolom C sheet Anggota) |
 | `Pesanan.js` | invoice GrabFood → sheet `Pesanan` → dibagi per orang dengan rumus Grab (`parseInvoiceGrab`, `simpanPesanan`, `abaikanPesanan`, `hitungBagiPesanan_`) |
-| `PesananEmail.js` | penjemputan invoice dari Gmail tiap 10 menit (`jemputInvoiceGmail`, `pasangPemicuInvoice`/`lepasPemicuInvoice`) |
+| `PesananEmail.js` | penjemputan invoice dari Gmail, Sen–Kam 15.00 WIB + tombol "Ambil invoice Grab" (`jemputInvoiceGmail`, `jemputInvoiceSekarang`, `pasangPemicuInvoice`) |
+| `TopUp.js` | verifikasi top-up: bukti TF dicocokkan dengan notifikasi dana masuk bank di Gmail (`ajukanTopUp`, `prosesTopUpMenunggu`, `pasangPemicuTopUp`), sheet `TopUp` & `Mutasi` |
 
 **Frontend.** `Index.html` cuma kerangka berisi `<?!= include('...') ?>`.
 
@@ -130,6 +131,12 @@ samakan gaya dengan kode sekitarnya secara manual.
 - **Titipan = slot `nama#k`** (`dita#2`, `__SAYA__#2`): teman di luar roster yang nitip lewat
   anggota. Tiap slot dihitung sebagai pemesan terpisah (ikut menanggung ongkir), tapi
   `simpanPesanan` menjumlahkan semua slot satu nama jadi SATU baris Dosa (`namaDasarSlot_`).
+- **Jadwal invoice punya versi** (`INVOICE_JADWAL_VERSI`): ubah `INVOICE_JADWAL` → naikkan
+  versinya, dan pemicu lama memasang ulang jadwal sendiri saat berjalan berikutnya.
+- **Verifikasi top-up mati sampai Script Property `MUTASI_GMAIL_KUERI` diisi** — sebelum itu
+  `ajukanTopUp` langsung menulis Pahala seperti dulu. Cocok = nominal sama persis + nama
+  pengirim mirip + belum dipakai; ragu → menunggu. Keputusan manual admin HANYA di sheet
+  `TopUp` (kolom Status → setujui/tolak), sengaja tidak ada tombolnya di UI karena tanpa login.
 - **Penjemputan Gmail hanya membaca**, mengambil email setelah `INVOICE_GMAIL_MULAI` (diset
   saat `pasangPemicuInvoice()` pertama kali). Email yang gagal dibaca (tidak seimbang, dll)
   tidak dicoba lagi tapi tampil sebagai peringatan di Kodomo (`INVOICE_GMAIL_GAGAL`); yang

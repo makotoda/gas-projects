@@ -171,7 +171,7 @@
       <div class="psn-gagal">
         <b>⚠️ Invoice email yang gagal dibaca otomatis</b>
         ${dataInvoiceGagal.map(x => `<div><span>${esc(x.waktu)}</span> — ${esc(x.alasan)}</div>`).join('')}
-        <p>Unggah screenshot invoice-nya lewat tombol 🧾 Invoice Grab.</p>
+        <p>Unggah screenshot invoice-nya lewat tautan di bawah.</p>
         <button type="button" id="psnTutupGagal">Sudah, tutup peringatan ini</button>
       </div>` : '';
     $('psnDaftar').innerHTML = gagal + (dataPesanan.length
@@ -181,7 +181,10 @@
           <span class="psn-tot">${fmt(p.total)}</span>
           <small>${esc(p.waktu || '')} · ${esc(p.id)}</small>
         </button>`).join('')
-      : '<div class="empty">Tidak ada pesanan yang menunggu. Unggah invoice lewat tombol 🧾 Invoice Grab.</div>');
+      : '<div class="empty">Tidak ada pesanan yang menunggu.</div>') +
+      // Jalan cadangan kalau email tidak terbaca otomatis / belum datang.
+      '<button type="button" class="psn-unggah" id="psnUnggahManual">🧾 Unggah screenshot invoice secara manual</button>';
+    $('psnUnggahManual').addEventListener('click', () => $('invoiceFile').click());
     const tutupGagal = $('psnTutupGagal');
     if (tutupGagal) tutupGagal.addEventListener('click', () => {
       tutupGagal.disabled = true;
@@ -370,7 +373,34 @@
   });
 
   /* ---- Unggah invoice ---- */
-  $('invoiceBtn').addEventListener('click', () => $('invoiceFile').click());
+  /* ---- Ambil invoice dari email sekarang (tanpa menunggu jadwal Sen–Kam 15.00) ---- */
+  $('ambilInvoiceBtn').addEventListener('click', () => {
+    const btn = $('ambilInvoiceBtn');
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '📧 Mengecek email…';
+    const selesai = () => { btn.disabled = false; btn.textContent = label; };
+    google.script.run
+      .withSuccessHandler(res => {
+        selesai();
+        render(res.data);
+        const r = res.ringkas || {};
+        if (r.baru) {
+          toast(`${r.baru} invoice Grab baru masuk ✓`, 'ok');
+          bukaPesananModal_();
+        } else if (dataPesanan.length || dataInvoiceGagal.length) {
+          toast('Tidak ada invoice baru — ada yang masih menunggu dibagi.', 'ok');
+          bukaPesananModal_();
+        } else {
+          toast(r.ditunda ? 'Server Google sedang penuh, coba lagi sebentar.' : 'Tidak ada invoice Grab baru di email.',
+            r.ditunda ? 'err' : 'ok');
+        }
+      })
+      .withFailureHandler(err => { selesai(); toast(err.message || 'Gagal mengecek email.', 'err'); })
+      .jemputInvoiceSekarang();
+  });
+
+  /* ---- Unggah screenshot invoice manual (cadangan) ---- */
   $('invoiceFile').addEventListener('change', async () => {
     const file = $('invoiceFile').files[0];
     $('invoiceFile').value = '';

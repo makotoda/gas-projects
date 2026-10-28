@@ -50,6 +50,8 @@
     dataStrukAlias = data.strukAlias || dataStrukAlias;
     dataPesanan = data.pesanan || [];
     dataInvoiceGagal = data.invoiceGagal || [];
+    dataTopUpMenunggu = data.topupMenunggu || [];
+    if (typeof renderTopUpMenunggu === 'function') renderTopUpMenunggu();
     if (typeof renderBannerPesanan === 'function') renderBannerPesanan();
     if (typeof isiPemilihLaporan === 'function') isiPemilihLaporan();
     renderLeaderboard();

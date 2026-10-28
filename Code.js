@@ -124,6 +124,13 @@ function setupSheets() {
     psn.setFrozenRows(1);
   }
 
+  [[SHEET_TOPUP, TOPUP_HEADER], [SHEET_MUTASI, MUTASI_HEADER]].forEach(([nama, header]) => {
+    if (ss.getSheetByName(nama)) return;
+    const sh = ss.insertSheet(nama);
+    sh.getRange(1, 1, 1, header.length).setValues([header]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+  });
+
   let agt = ss.getSheetByName(SHEET_ANGGOTA);
   if (!agt) {
     agt = ss.insertSheet(SHEET_ANGGOTA);
