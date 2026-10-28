@@ -23,7 +23,10 @@ const INVOICE_PROP_MULAI = 'INVOICE_GMAIL_MULAI';          // ISO: email sebelum
 const INVOICE_PROP_TERPROSES = 'INVOICE_GMAIL_TERPROSES';  // JSON: ID pesan Gmail yang selesai
 const INVOICE_PROP_GAGAL = 'INVOICE_GMAIL_GAGAL';          // JSON: catatan gagal baca untuk UI
 const INVOICE_SIMPAN_TERPROSES = 300;  // Script Property maks ~9 KB → simpan 300 ID terakhir
-const INVOICE_MAKS_PER_JALAN = 5;      // batasi kerja sekali jalan (waktu eksekusi & kuota Gemini)
+/** Batas kasar email per jalan. Dulu 5 (wajar saat jadwal tiap 10 menit); dengan
+ *  jadwal sekali sehari, 5 membuat receipt ke-6 dst. tertunda sampai jadwal
+ *  BERIKUTNYA (Kamis sore → Senin). Pengaman sesungguhnya INVOICE_BATAS_JALAN_MS. */
+const INVOICE_MAKS_PER_JALAN = 30;
 /** Jangan MULAI email baru setelah sekian lama berjalan. Saat Gemini penuh, satu
  *  email bisa makan ±100 dtk (coba ulang + cadangan); pemicu GAS dipotong paksa
  *  di 6 menit, dan eksekusi yang terpotong tidak sempat menyimpan daftar email
