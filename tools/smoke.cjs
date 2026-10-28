@@ -24,7 +24,9 @@ const DATA = {
     { nama: 'Jana',   foto: '', pahala: 350000, dosa: 16547,  saldo: 333453,  recent: [] },
     { nama: 'Kumala', foto: '', pahala: 10000,  dosa: 175215, saldo: -165215, recent: [] }
   ],
-  history: [{ waktu: '04 Aug 2026 • 20:00', nama: 'Ochi', tipe: 'Dosa', nominal: 35000,
+  history: [{ waktu: '05 Aug 2026 • 09:00', nama: 'Jana', tipe: 'Pahala', nominal: 50000,
+              keterangan: 'Melalui BCA', menunggu: true },
+            { waktu: '04 Aug 2026 • 20:00', nama: 'Ochi', tipe: 'Dosa', nominal: 35000,
               keterangan: 'Kopdos — Tissue x1' }],
   kas: { saldo: 125000, history: [], leaderboard: [{ nama: 'Ochi', foto: '', total: 5000 }] },
   infaqMap: { Ochi: 500 },
@@ -95,10 +97,36 @@ const cek = (nama, syarat, detail) => {
   cek('halaman termuat tanpa galat JS', galat.length === 0, galat[0]);
   cek('dasbor pertama dipanggil',
     await page.evaluate(() => !!window.__rpc || !!document.querySelector('.lb-item')));
-  cek('leaderboard ter-render',
+  // Leaderboard default = gelembung (JsGelembung)
+  cek('leaderboard gelembung ter-render',
+    (await page.locator('#viewLeaderboard .bb').count()) === 3);
+  cek('gelembung dosa ditandai .neg & saldo disingkat',
+    (await page.locator('#viewLeaderboard .bb.neg').count()) === 1 &&
+    (await page.textContent('#viewLeaderboard .bb.neg .bb-nilai')) === '−165K');
+  const luas = await page.$$eval('#viewLeaderboard .bb', els => els.map(e => e.getBoundingClientRect().width));
+  cek('gelembung terbesar = saldo terbesar', luas[0] > luas[1] && luas[1] > luas[2], luas.join(' '));
+  await page.locator('#viewLeaderboard .bb').first().click();
+  await page.waitForTimeout(150);
+  cek('ketuk gelembung → kartu rincian terbuka',
+    (await page.locator('#viewLeaderboard .bb-detail .lb-item.open').count()) === 1 &&
+    /Ochi/.test(await page.textContent('#viewLeaderboard .bb-detail .lb-name')));
+  const bb = await page.locator('#viewLeaderboard .bb').nth(1).boundingBox();
+  await page.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bb.x + bb.width / 2 + 60, bb.y + bb.height / 2 + 5, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForTimeout(100);
+  cek('seret gelembung tidak mengganti pilihan',
+    /Ochi/.test(await page.textContent('#viewLeaderboard .bb-detail .lb-name')));
+  await page.click('#viewLeaderboard .papan-mode [data-mode="daftar"]');
+  cek('mode Daftar: leaderboard baris ter-render',
     (await page.locator('#viewLeaderboard .lb-item').count()) === 3);
   cek('baris dosa ditandai .neg',
     (await page.locator('#viewLeaderboard .lb-item.neg').count()) === 1);
+  await page.click('#viewLeaderboard .papan-mode [data-mode="gelembung"]');
+  cek('kembali ke mode Gelembung', (await page.locator('#viewLeaderboard .bb').count()) === 3);
+  cek('riwayat: top-up menunggu bertanda',
+    (await page.locator('#viewRiwayat .hx-row.menunggu .hx-tunda').count()) === 1);
   cek('tab resto terisi', (await page.locator('#viewResto .resto-item').count()) === 1);
 
   // Tema: default Gelap, lalu berputar dua langkah kembali ke awal.

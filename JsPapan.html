@@ -14,17 +14,21 @@
   }
 
   /* ---- Baris riwayat (dipakai riwayat utama & expand) ---- */
+  // h.menunggu = top-up yang belum disetujui admin (TopUp.js): tampil di riwayat
+  // supaya pengunggah tahu buktinya diterima, tapi belum masuk saldo.
   function hxRowHtml(h, mini) {
     const isDosa = h.tipe === 'Dosa';
+    const kelas = h.menunggu ? 'menunggu' : isDosa ? 'dosa' : 'pahala';
     return `
-    <div class="hx-row${mini ? ' mini' : ''}">
-      <div class="hx-icon ${isDosa ? 'dosa' : 'pahala'}">${isDosa ? '🔥' : '✨'}</div>
+    <div class="hx-row${mini ? ' mini' : ''}${h.menunggu ? ' menunggu' : ''}">
+      <div class="hx-icon ${kelas}">${h.menunggu ? '⏳' : isDosa ? '🔥' : '✨'}</div>
       <div class="hx-main">
-        <div class="hx-title">${mini ? esc(h.tipe) : esc(h.nama)}</div>
+        <div class="hx-title">${mini ? (h.menunggu ? 'Top-up' : esc(h.tipe)) : esc(h.nama)}${h.menunggu
+          ? ' <span class="hx-tunda">Menunggu persetujuan admin</span>' : ''}</div>
         ${h.keterangan ? `<div class="hx-ket">${esc(h.keterangan)}</div>` : ''}
         <div class="hx-time">${esc(h.waktu)}</div>
       </div>
-      <div class="hx-nom ${isDosa ? 'dosa' : 'pahala'}">${isDosa ? '−' : '+'}${fmt(h.nominal)}</div>
+      <div class="hx-nom ${kelas}">${isDosa ? '−' : '+'}${fmt(h.nominal)}</div>
     </div>`;
   }
 
@@ -95,20 +99,11 @@
   // Nama dengan penanda "(Gold)" masuk menu leaderboard terpisah (tab 🥇 Gold).
   const isGold_ = o => o.nama.includes('(Gold)');
 
-  /* ---- Render satu papan leaderboard (dengan expand) ke dalam container ---- */
-  function renderBoard_(container, list, kosongMsg) {
-    if (!list.length) {
-      container.innerHTML = `<div class="empty">${kosongMsg}</div>`;
-      return;
-    }
-    const maxAbs = Math.max(...list.map(o => Math.abs(o.saldo)), 1);
-    const ranks = computeRanks(list, o => o.saldo);
-    container.innerHTML = list.map((o, i) => {
-      const rank = ranks[i];
-      const pct = Math.max(4, Math.round(Math.abs(o.saldo) / maxAbs * 100));
-      const neg = o.saldo < 0;
-      const open = expandTerbuka === o.nama;
-      return `
+  /* ---- Satu baris leaderboard (dipakai mode Daftar & kartu rincian mode Gelembung) ---- */
+  function lbItemHtml_(o, rank, maxAbs, open) {
+    const pct = Math.max(4, Math.round(Math.abs(o.saldo) / maxAbs * 100));
+    const neg = o.saldo < 0;
+    return `
       <div class="lb-item ${neg ? 'neg' : 'pos'}${open ? ' open' : ''}" data-nama="${esc(o.nama)}">
         <div class="lb-row">
           <div class="rank${rank <= 3 ? ' r' + rank : ''}">${rank}</div>
@@ -126,7 +121,53 @@
           <div class="lb-expand-inner">${panelHtml(o)}</div>
         </div></div>
       </div>`;
-    }).join('');
+  }
+
+  // Angka berjalan untuk saldo & rincian pahala/dosa satu baris
+  function animasiBarisLb_(item, o) {
+    animasiAngka(item.querySelector('[data-angka="saldo"]'), Math.abs(o.saldo),
+      'lb:' + o.nama + ':saldo', o.saldo < 0 ? '−' : '+');
+    animasiAngka(item.querySelector('[data-angka="pahala"]'), o.pahala, 'lb:' + o.nama + ':pahala');
+    animasiAngka(item.querySelector('[data-angka="dosa"]'), o.dosa, 'lb:' + o.nama + ':dosa');
+  }
+
+  /* ---- Mode papan: 🫧 Gelembung (default, ala Crypto Bubbles) atau ☰ Daftar ---- */
+  let modePapan = 'gelembung';
+  try { modePapan = localStorage.getItem('kodomoPapan') === 'daftar' ? 'daftar' : 'gelembung'; } catch (e) {}
+
+  function modePapanHtml_() {
+    return `<div class="papan-mode" role="tablist">${[['gelembung', '🫧 Gelembung'], ['daftar', '☰ Daftar']]
+      .map(([m, label]) => `<button type="button" data-mode="${m}"${modePapan === m ? ' class="aktif"' : ''}>${label}</button>`)
+      .join('')}</div>`;
+  }
+
+  function pasangModePapan_(container) {
+    container.querySelectorAll('.papan-mode button').forEach(b => b.addEventListener('click', () => {
+      if (modePapan === b.dataset.mode) return;
+      modePapan = b.dataset.mode;
+      try { localStorage.setItem('kodomoPapan', modePapan); } catch (e) {}
+      renderLeaderboard();
+      renderGoldBoard();
+    }));
+  }
+
+  /* ---- Render satu papan leaderboard ke dalam container ---- */
+  function renderBoard_(container, list, kosongMsg) {
+    if (!list.length) {
+      container.innerHTML = `<div class="empty">${kosongMsg}</div>`;
+      return;
+    }
+    if (modePapan === 'gelembung') renderGelembung_(container, list);
+    else renderDaftar_(container, list);
+    pasangModePapan_(container);
+  }
+
+  /* ---- Mode Daftar: baris berperingkat dengan expand ---- */
+  function renderDaftar_(container, list) {
+    const maxAbs = Math.max(...list.map(o => Math.abs(o.saldo)), 1);
+    const ranks = computeRanks(list, o => o.saldo);
+    container.innerHTML = modePapanHtml_() + list.map((o, i) =>
+      lbItemHtml_(o, ranks[i], maxAbs, expandTerbuka === o.nama)).join('');
 
     // Klik baris → expand / tutup. Saat buka: reset ke slide 0 & render ulang
     // panel dgn state KAS terkini (panel yg tertutup bisa berisi konten basi).
@@ -141,16 +182,7 @@
       });
       // Item yg sudah terbuka (mis. setelah data refresh) perlu tombol aktif.
       if (o && expandTerbuka === item.dataset.nama) refreshPanel(item, o);
-    });
-
-    // Angka berjalan untuk saldo & rincian pahala/dosa tiap baris
-    container.querySelectorAll('.lb-item').forEach(item => {
-      const o = list.find(x => x.nama === item.dataset.nama);
-      if (!o) return;
-      animasiAngka(item.querySelector('[data-angka="saldo"]'), Math.abs(o.saldo),
-        'lb:' + o.nama + ':saldo', o.saldo < 0 ? '−' : '+');
-      animasiAngka(item.querySelector('[data-angka="pahala"]'), o.pahala, 'lb:' + o.nama + ':pahala');
-      animasiAngka(item.querySelector('[data-angka="dosa"]'), o.dosa, 'lb:' + o.nama + ':dosa');
+      if (o) animasiBarisLb_(item, o);
     });
   }
 

@@ -403,9 +403,10 @@ function daftarTopUpMenunggu_() {
   const last = sheet.getLastRow();
   if (last < 2) return [];
   const tz = Session.getScriptTimeZone();
-  return sheet.getRange(2, 1, last - 1, 5).getValues()
+  return sheet.getRange(2, 1, last - 1, 7).getValues()
     .filter(r => String(r[4]).trim().toLowerCase() === TOPUP_MENUNGGU)
-    .map(r => ({ nama: String(r[2]), nominal: Number(r[3]) || 0,
+    .map(r => ({ nama: String(r[2]), nominal: Number(r[3]) || 0, keterangan: String(r[6]),
+      t: new Date(r[1]).getTime() || 0,
       waktu: Utilities.formatDate(new Date(r[1]), tz, 'dd MMM • HH:mm') }))
     .reverse()
     .slice(0, 20);

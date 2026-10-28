@@ -124,12 +124,22 @@ function getDashboardData() {
       nama: nm,
       tipe: isDosa ? 'Dosa' : 'Pahala',
       nominal: val,
-      keterangan: String(ket || '')
+      keterangan: String(ket || ''),
+      t: ts instanceof Date ? ts.getTime() : 0 // urutan sisip top-up menunggu
     };
 
     history.push(item);
     saldoMap[nm].recent.push(item);
   });
+
+  // Top-up yang menunggu persetujuan tampil di riwayat (bertanda ⏳) tapi
+  // BUKAN transaksi: tidak masuk saldo, total, maupun jumlah transaksi.
+  const topupMenunggu = daftarTopUpMenunggu_();
+  const tundaRiwayat = topupMenunggu.map(x => ({
+    waktu: Utilities.formatDate(new Date(x.t), tz, 'dd MMM yyyy • HH:mm'),
+    nama: x.nama, tipe: 'Pahala', nominal: x.nominal, keterangan: x.keterangan,
+    menunggu: true, t: x.t
+  }));
 
   const fotoMap = getFotoMap_();
   const kasData = saldoMap[KAS_NAMA];
@@ -141,7 +151,8 @@ function getDashboardData() {
       pahala: o.pahala,
       dosa: o.dosa,
       saldo: o.pahala - o.dosa,
-      recent: o.recent.slice(-40).reverse() // buffer utk panel (client paginasi 10 + filter KAS)
+      recent: sisipMenunggu_(o.recent.slice(-40).reverse(), // buffer utk panel (client paginasi 10 + filter KAS)
+        tundaRiwayat.filter(x => x.nama === o.nama))
     }))
     .sort((a, b) => b.saldo - a.saldo);
 
@@ -160,7 +171,7 @@ function getDashboardData() {
     totalDosa: totalDosa,
     totalTransaksi: history.length,
     leaderboard: leaderboard,
-    history: history.slice(-30).reverse(), // 30 transaksi terbaru
+    history: sisipMenunggu_(history.slice(-30).reverse(), tundaRiwayat).slice(0, 30), // 30 terbaru
     kas: {
       saldo: kasData ? kasData.pahala - kasData.dosa : 0,
       history: kasData ? kasData.recent.slice(-30).reverse() : [],
@@ -172,11 +183,25 @@ function getDashboardData() {
     katalog: KATALOG_KOPDOS,    // katalog belanja Kopdos Merah Putih
     pesanan: daftarPesananMenunggu_(), // invoice Grab yang belum dibagi (Pesanan.js)
     invoiceGagal: daftarInvoiceGagal_(), // invoice email yang gagal dibaca otomatis (PesananEmail.js)
-    topupMenunggu: daftarTopUpMenunggu_(), // top-up yang menunggu notifikasi bank (TopUp.js)
+    topupMenunggu: topupMenunggu, // top-up yang menunggu notifikasi bank (TopUp.js)
     resto: bacaSheetResto_(),   // urut termurah dulu; lihat modul infografis resto
     infaqMap: getInfaqMap_(),
     strukAlias: getStrukAlias_(),
     anggota: getAnggota(),
     bulanList: Object.keys(bulanSet).sort().reverse().map(k => ({ key: k, label: labelBulan_(k) }))
   };
+}
+
+/**
+ * Sisipkan top-up menunggu ke daftar riwayat (terbaru dulu) menurut waktunya,
+ * tanpa mengubah urutan baris sheet yang sudah ada — baris yang dicatat admin
+ * dengan stempel waktu mundur tetap di posisinya.
+ */
+function sisipMenunggu_(daftar, tunda) {
+  const hasil = daftar.slice();
+  tunda.slice().sort((a, b) => a.t - b.t).forEach(x => {
+    const i = hasil.findIndex(h => h.t && h.t <= x.t);
+    hasil.splice(i < 0 ? hasil.length : i, 0, x);
+  });
+  return hasil;
 }

@@ -1,0 +1,260 @@
+  /* ================= Leaderboard Gelembung (ala cryptobubbles.net) =================
+     Tiap anggota = satu gelembung: LUAS sebanding |saldo|, hijau = saldo pahala,
+     merah = saldo dosa, label = saldo disingkat (298K). Gelembung mengapung,
+     saling dorong, bisa diseret/dilempar; ketuk → kartu rincian di bawahnya
+     (baris leaderboard yang sama dengan mode Daftar, lengkap dengan riwayatnya).
+
+     Fisika ditulis sendiri (tanpa library, ~40 lingkaran → tabrakan O(n²) murah)
+     dan digambar dengan DOM, bukan canvas, supaya foto profil & ketukan gratis.
+     render(data) membangun ulang DOM, tapi posisi disimpan per papan (gbPosisi)
+     sehingga gelembung tidak "meloncat" setiap kali data diperbarui. */
+  const gbPosisi = {};               // id container → { nama → {x, y, vx, vy, r} }
+  const gbPapan = new Set();         // papan gelembung yang hidup di DOM
+  let gbRaf = 0;
+  const gbDiam = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /** 298000 → '+298K', -1250000 → '−1,3jt', 0 → '0' */
+  function saldoSingkat_(n) {
+    const a = Math.abs(n), tanda = n > 0 ? '+' : n < 0 ? '−' : '';
+    const angka = (v, d) => v.toFixed(d).replace(/\.0$/, '').replace('.', ',');
+    if (a < 1000) return tanda + a;
+    if (a < 1e6) return tanda + (a < 10000 ? angka(a / 1000, 1) : Math.round(a / 1000)) + 'K';
+    return tanda + angka(a / 1e6, a < 1e7 ? 1 : 0) + 'jt';
+  }
+
+  function renderGelembung_(container, list) {
+    const ranks = computeRanks(list, o => o.saldo);
+    const maxAbs = Math.max(...list.map(o => Math.abs(o.saldo)), 1);
+    container.innerHTML = modePapanHtml_() + `
+      <div class="bb-wadah"></div>
+      <p class="bb-petunjuk">Luas gelembung = besar saldo · ketuk untuk rincian · seret untuk mendorong</p>
+      <div class="bb-detail"></div>`;
+    const wadah = container.querySelector('.bb-wadah');
+    const posisi = gbPosisi[container.id] || (gbPosisi[container.id] = {});
+
+    // Buang papan lama milik container ini (DOM-nya baru saja diganti)
+    gbPapan.forEach(st => { if (st.container === container) { st.ro && st.ro.disconnect(); gbPapan.delete(st); } });
+
+    const st = { container, wadah, W: 0, H: 0, seret: null, barusanSeret: false, ro: null,
+      bola: list.map((o, i) => {
+        const el = document.createElement('div');
+        el.className = 'bb ' + (o.saldo > 0 ? 'pos' : o.saldo < 0 ? 'neg' : 'nol') +
+          (expandTerbuka === o.nama ? ' pilih' : '');
+        el.dataset.nama = o.nama;
+        el.style.setProperty('--a', (Math.abs(o.saldo) / maxAbs).toFixed(3));
+        el.innerHTML = `<div class="bb-isi">
+            <div class="bb-foto">${o.foto ? `<img src="${esc(o.foto)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}<span>${esc(o.nama.trim().charAt(0).toUpperCase())}</span></div>
+            <div class="bb-nama">${esc(o.nama.replace(/\s*\(Gold\)\s*/i, ''))}</div>
+            <div class="bb-nilai">${saldoSingkat_(o.saldo)}</div>
+          </div>`;
+        wadah.appendChild(el);
+        const lama = posisi[o.nama];
+        return { o, el, rank: ranks[i], x: lama ? lama.x : NaN, y: lama ? lama.y : NaN,
+          vx: lama ? lama.vx : 0, vy: lama ? lama.vy : 0, r: lama ? lama.r : 0, rT: 0, rTampil: -1 };
+      }) };
+    st.posisi = posisi;
+    st.maxAbs = maxAbs;
+    gbPapan.add(st);
+
+    const tataUkuran = () => {
+      const W = wadah.clientWidth;
+      if (!W) return;                                   // tab tersembunyi → tunggu terlihat
+      const H = Math.round(Math.min(560, Math.max(340, W * (W < 560 ? 1.25 : 0.7))));
+      if (W === st.W && H === st.H) { gbMulai_(); return; }  // tab papan baru tampil lagi
+      st.W = W; st.H = H;
+      wadah.style.height = H + 'px';
+      hitungJari_(st);
+      const baru = st.bola.some(b => isNaN(b.x));
+      st.bola.forEach(b => {
+        if (isNaN(b.x)) {                               // gelembung baru: sebar acak lalu biarkan fisika merapikan
+          b.x = W / 2 + (Math.random() - .5) * W * .7;
+          b.y = H / 2 + (Math.random() - .5) * H * .7;
+          b.r = b.rT;
+        }
+        b.x = Math.min(Math.max(b.x, b.r), W - b.r);
+        b.y = Math.min(Math.max(b.y, b.r), H - b.r);
+      });
+      if (baru) for (let i = 0; i < 160; i++) langkahGb_(st, true);   // rapikan sebelum tampil
+      gambarGb_(st);
+      gbMulai_();
+    };
+    if (window.ResizeObserver) { st.ro = new ResizeObserver(tataUkuran); st.ro.observe(wadah); }
+    else window.addEventListener('resize', tataUkuran);
+    tataUkuran();
+
+    pasangSeretGb_(st);
+    renderDetailGb_(st);
+  }
+
+  // Jari-jari: luas ∝ |saldo|. Dibatasi min (supaya
+  // saldo kecil tetap bisa diketuk) & maks; k disesuaikan ulang setelah dibatasi.
+  // Total luas ≈ 56% wadah: lebih padat dari itu, gelembung tak bisa bergerak bebas.
+  function hitungJari_(st) {
+    const nilai = st.bola.map(b => Math.abs(b.o.saldo));
+    const total = nilai.reduce((a, v) => a + v, 0) || 1;
+    const sisi = Math.min(st.W, st.H);
+    const rMin = Math.max(16, sisi * .055), rMaks = sisi * .24;
+    const target = st.W * st.H * .56;
+    const jari = k => nilai.map(v => Math.min(rMaks, Math.max(rMin, k * Math.sqrt(v))));
+    let k = Math.sqrt(target / (Math.PI * total));
+    for (let i = 0; i < 6; i++) {
+      const luas = jari(k).reduce((a, r) => a + Math.PI * r * r, 0);
+      k *= Math.sqrt(target / luas);
+    }
+    // Anggota sedikit (mis. tab Gold) → jangan semua mentok rMaks; perbandingan
+    // ukuran lebih penting daripada memenuhi wadah.
+    k = Math.min(k, rMaks / Math.sqrt(Math.max(...nilai, 1)));
+    jari(k).forEach((r, i) => { st.bola[i].rT = r; });
+  }
+
+  function langkahGb_(st, rapikan) {
+    const { W, H, bola } = st;
+    const cx = W / 2, cy = H / 2;
+    bola.forEach(b => {
+      b.r += (b.rT - b.r) * .12;
+      if (b === st.seret) return;
+      // Tarikan lembut ke tengah (gelembung berkumpul) + goyangan acak (terasa hidup)
+      b.vx += (cx - b.x) * .00012 * (rapikan ? 8 : 1);
+      b.vy += (cy - b.y) * .00012 * (rapikan ? 8 : 1);
+      if (!rapikan && !gbDiam) { b.vx += (Math.random() - .5) * .05; b.vy += (Math.random() - .5) * .05; }
+      b.vx *= rapikan ? .8 : .975; b.vy *= rapikan ? .8 : .975;
+      b.x += b.vx; b.y += b.vy;
+    });
+    // Tabrakan: dorong keluar sepanjang garis pusat, tukar sebagian kecepatan
+    for (let i = 0; i < bola.length; i++) {
+      for (let j = i + 1; j < bola.length; j++) {
+        const a = bola[i], c = bola[j];
+        let dx = c.x - a.x, dy = c.y - a.y;
+        let d = Math.hypot(dx, dy);
+        const min = a.r + c.r + 2;
+        if (d >= min) continue;
+        if (d < .01) { dx = Math.random() - .5; dy = Math.random() - .5; d = Math.hypot(dx, dy); }
+        const nx = dx / d, ny = dy / d, lebih = min - d;
+        const wa = a === st.seret ? 0 : c === st.seret ? 1 : c.r * c.r / (a.r * a.r + c.r * c.r);
+        const wc = 1 - wa;
+        a.x -= nx * lebih * wa; a.y -= ny * lebih * wa;
+        c.x += nx * lebih * wc; c.y += ny * lebih * wc;
+        const rel = (c.vx - a.vx) * nx + (c.vy - a.vy) * ny;
+        if (rel < 0) {
+          const imp = rel * .9;
+          a.vx += nx * imp * wa * 2; a.vy += ny * imp * wa * 2;
+          c.vx -= nx * imp * wc * 2; c.vy -= ny * imp * wc * 2;
+        }
+      }
+    }
+    // Dinding: memantul pelan
+    bola.forEach(b => {
+      if (b.x < b.r) { b.x = b.r; b.vx = Math.abs(b.vx) * .6; }
+      if (b.x > W - b.r) { b.x = W - b.r; b.vx = -Math.abs(b.vx) * .6; }
+      if (b.y < b.r) { b.y = b.r; b.vy = Math.abs(b.vy) * .6; }
+      if (b.y > H - b.r) { b.y = H - b.r; b.vy = -Math.abs(b.vy) * .6; }
+    });
+  }
+
+  function gambarGb_(st) {
+    st.bola.forEach(b => {
+      if (Math.abs(b.r - b.rTampil) > .3) {
+        b.rTampil = b.r;
+        const d = b.r * 2;
+        b.el.style.width = b.el.style.height = d + 'px';
+        b.el.style.fontSize = (b.r * .3).toFixed(1) + 'px';   // CSS memberi batas bawah keterbacaan
+        b.el.classList.toggle('kecil', b.r < 21);
+        b.el.classList.toggle('foto', b.r >= 40);
+      }
+      b.el.style.transform = `translate3d(${(b.x - b.rTampil).toFixed(1)}px, ${(b.y - b.rTampil).toFixed(1)}px, 0)`;
+      st.posisi[b.o.nama] = { x: b.x, y: b.y, vx: b.vx, vy: b.vy, r: b.r };
+    });
+  }
+
+  // Satu rAF untuk semua papan; hanya papan yang terlihat yang dihitung, dan
+  // loop berhenti sendiri saat tab browser/tab papan tidak tampil.
+  function gbLoop_() {
+    gbRaf = 0;
+    let jalan = false;
+    gbPapan.forEach(st => {
+      if (!st.wadah.isConnected) { st.ro && st.ro.disconnect(); gbPapan.delete(st); return; }
+      if (!st.W || st.wadah.offsetParent === null) return;
+      jalan = true;
+      langkahGb_(st, false);
+      gambarGb_(st);
+    });
+    if (jalan && !document.hidden) gbRaf = requestAnimationFrame(gbLoop_);
+  }
+  function gbMulai_() { if (!gbRaf) gbRaf = requestAnimationFrame(gbLoop_); }
+  document.addEventListener('visibilitychange', gbMulai_);
+
+  /* ---- Seret / lempar / ketuk ---- */
+  function pasangSeretGb_(st) {
+    let mulai = null;                                    // {b, px, py, x0, y0, t, bergerak}
+    const titik = e => {
+      const k = st.wadah.getBoundingClientRect();
+      return { x: e.clientX - k.left, y: e.clientY - k.top };
+    };
+    st.wadah.addEventListener('pointerdown', e => {
+      const el = e.target.closest('.bb');
+      if (!el) return;
+      const b = st.bola.find(x => x.el === el);
+      const p = titik(e);
+      mulai = { b, px: p.x, py: p.y, dx: b.x - p.x, dy: b.y - p.y, lx: p.x, ly: p.y, t: performance.now(), bergerak: false };
+      try { el.setPointerCapture(e.pointerId); } catch (err) {}
+    });
+    st.wadah.addEventListener('pointermove', e => {
+      if (!mulai) return;
+      const p = titik(e);
+      if (!mulai.bergerak && Math.hypot(p.x - mulai.px, p.y - mulai.py) < 6) return;
+      mulai.bergerak = true;
+      st.seret = mulai.b;
+      const b = mulai.b, now = performance.now(), dt = Math.max(8, now - mulai.t);
+      b.vx = (p.x - mulai.lx) / dt * 16; b.vy = (p.y - mulai.ly) / dt * 16;
+      b.x = Math.min(Math.max(p.x + mulai.dx, b.r), st.W - b.r);
+      b.y = Math.min(Math.max(p.y + mulai.dy, b.r), st.H - b.r);
+      mulai.lx = p.x; mulai.ly = p.y; mulai.t = now;
+      b.el.classList.add('diseret');
+      gbMulai_();
+    });
+    const lepas = batal => {
+      if (!mulai) return;
+      const { b, bergerak } = mulai;
+      b.el.classList.remove('diseret');
+      st.seret = null;
+      if (bergerak) {
+        st.barusanSeret = true;                          // jangan picu hujan uang / pilih
+        const lim = 14, v = Math.hypot(b.vx, b.vy);
+        if (v > lim) { b.vx *= lim / v; b.vy *= lim / v; }
+      } else if (!batal) {
+        pilihGb_(st, b.o.nama);
+      }
+      mulai = null;
+    };
+    st.wadah.addEventListener('pointerup', () => lepas(false));
+    st.wadah.addEventListener('pointercancel', () => lepas(true));
+    // Klik yang menutup sebuah seretan bukan ketukan: hentikan sebelum sampai
+    // ke efek klik global (koin + hujan uang di JsEfek).
+    st.wadah.addEventListener('click', e => {
+      if (st.barusanSeret) { st.barusanSeret = false; e.stopPropagation(); }
+    });
+  }
+
+  function pilihGb_(st, nama) {
+    expandTerbuka = expandTerbuka === nama ? null : nama;
+    expandHalaman = 0;
+    st.bola.forEach(b => b.el.classList.toggle('pilih', b.o.nama === expandTerbuka));
+    renderDetailGb_(st);
+    const det = st.container.querySelector('.bb-detail');
+    if (expandTerbuka && det.getBoundingClientRect().top > window.innerHeight - 120) {
+      det.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
+  // Kartu rincian = baris leaderboard yang sama dengan mode Daftar (terbuka).
+  function renderDetailGb_(st) {
+    const det = st.container.querySelector('.bb-detail');
+    const b = st.bola.find(x => x.o.nama === expandTerbuka);
+    if (!b) { det.innerHTML = ''; return; }
+    det.innerHTML = lbItemHtml_(b.o, b.rank, st.maxAbs, true);
+    const item = det.querySelector('.lb-item');
+    refreshPanel(item, b.o);
+    animasiBarisLb_(item, b.o);
+    item.querySelector('.lb-row').addEventListener('click', () => pilihGb_(st, b.o.nama));
+  }
+

@@ -50,6 +50,7 @@ Repo ini diedit dari banyak tempat. Actions men-deploy setiap push ke `main`, ja
 | `JsInti` | state global, `fmt`/`esc`, animasi angka, input nominal, toggle tipe, modal Rekening |
 | `JsPapan` | tabs, toast, baris riwayat, avatar, panel expand, papan Leaderboard/Gold/Kas/Resto, modal statistik |
 | `JsGrafik` | grafik garis saldo harian (SVG) |
+| `JsGelembung` + `StyleGelembung` | leaderboard gelembung ala cryptobubbles (fisika DOM sendiri, seret/ketuk), pemilih mode 🫧 Gelembung / ☰ Daftar |
 | `JsAplikasi` | `render(data)` + submit form |
 | `JsKopdos` / `JsStruk` / `JsLaporan` | katalog belanja, upload & review struk, penyusunan PDF |
 | `JsPesanan` + `StylePesanan` | Pesanan Masuk: unggah invoice Grab, layar bagi (ketuk orang → ketuk menu) |
@@ -157,6 +158,12 @@ samakan gaya dengan kode sekitarnya secara manual.
   menerima `{id, qty}` dan menulis baris Dosa **tanpa** infaq KAS — disengaja.
 - **Tema ada dua, berputar**: `dark` (default) → `light`. Tema `mp` (Merah Putih / kemerdekaan)
   dinonaktifkan karena sudah lewat Agustus. Kuncinya `kodomoTema` di localStorage.
+- **Leaderboard punya dua mode** (`modePapan`, localStorage `kodomoPapan`): 🫧 Gelembung
+  (default) dan ☰ Daftar. Keduanya memakai `lbItemHtml_` yang sama — di mode Gelembung baris itu
+  jadi kartu rincian saat gelembung diketuk. Luas gelembung ∝ |saldo|; posisi disimpan per papan
+  (`gbPosisi`) supaya tidak meloncat saat `render(data)` membangun ulang DOM.
+- **Top-up menunggu tampil di riwayat** (`menunggu: true`, ditandai ⏳) lewat `sisipMenunggu_`
+  (Dasbor.js), tapi BUKAN baris `Transaksi`: tidak masuk saldo/total/jumlah transaksi.
 - **Modal Total Pahala/Dosa punya dua wujud**: ≥900px grafik garis saldo harian (dari `deret`,
   bukan `leaderboard`), di bawah itu daftar peringkat berhalaman.
 - **Daftar resto adalah cache, tidak dihitung ulang tiap load.** Diperbarui hanya saat ada
