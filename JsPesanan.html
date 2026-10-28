@@ -8,6 +8,7 @@
   const PSN_SAYA = '__SAYA__';      // sama dengan PESANAN_SAYA di Pesanan.js
   const PSN_LABEL_SAYA = 'Saya (tidak dicatat)';
   let dataPesanan = [];             // diisi render(data) dari getDashboardData
+  let dataInvoiceGagal = [];        // invoice EMAIL yang gagal dibaca otomatis (PesananEmail.js)
   let psnAktif = null;              // pesanan yang sedang dibagi
   let psnKuas = '';                 // orang yang sedang dipilih
   let psnAbaikanTimer = null;
@@ -89,7 +90,33 @@
   // </bagi-pesanan>
 
   const psnWarna = i => 'hsl(' + Math.round((i * 137.508 + 20) % 360) + ' 70% 55%)';
-  const psnNamaTampil = n => n === PSN_SAYA ? PSN_LABEL_SAYA : n;
+  /* Titipan: satu nama boleh punya beberapa SLOT ('dita', 'dita#2', '__SAYA__#2')
+     — tiap slot pemesan terpisah di hitungan Grab (ikut menanggung ongkir),
+     tapi saat disimpan digabung ke satu baris Dosa atas nama itu. Sama dengan
+     namaDasarSlot_ di Pesanan.js. */
+  const psnNamaDasar = slot => String(slot || '').replace(/#\d+$/, '');
+  const psnNomorSlot = slot => { const m = String(slot).match(/#(\d+)$/); return m ? Number(m[1]) : 1; };
+  const psnNamaTampil = slot => {
+    const dasar = psnNamaDasar(slot), k = psnNomorSlot(slot);
+    if (dasar === PSN_SAYA) return k > 1 ? `Saya · titipan ${k - 1}` : PSN_LABEL_SAYA;
+    return k > 1 ? `${dasar} · titipan ${k - 1}` : dasar;
+  };
+  /** Slot berikutnya untuk sebuah nama: 'dita' kalau belum ada, lalu 'dita#2', … */
+  const psnSlotBaru = (nama, peserta) => {
+    if (peserta.indexOf(nama) < 0) return nama;
+    let k = 2;
+    while (peserta.indexOf(nama + '#' + k) >= 0) k++;
+    return nama + '#' + k;
+  };
+  /** Banyak anggota berbeda yang akan dicatat dosanya (titipan digabung, Saya tidak). */
+  const psnJumlahDicatat = h => {
+    const nama = {};
+    h.peserta.forEach(o => {
+      const dasar = psnNamaDasar(o.nama);
+      if (dasar !== PSN_SAYA) nama[dasar] = (nama[dasar] || 0) + o.bayar;
+    });
+    return Object.keys(nama).filter(n => nama[n] > 0).length;
+  };
 
   /* Draf penugasan disimpan per pesanan (di memori + localStorage kalau bisa),
      supaya menutup modal atau memuat ulang halaman tidak menghapus pekerjaan. */
@@ -114,9 +141,12 @@
   }
 
   function renderBannerPesanan() {
-    const n = dataPesanan.length;
-    $('pesananBanner').hidden = n === 0;
-    $('pesananJumlah').textContent = n;
+    const n = dataPesanan.length, g = dataInvoiceGagal.length;
+    $('pesananBanner').hidden = n === 0 && g === 0;
+    const bagian = [];
+    if (n) bagian.push(`📥 <b>${n}</b> pesanan Grab menunggu dibagi`);
+    if (g) bagian.push(`⚠️ <b>${g}</b> invoice email gagal dibaca`);
+    $('pesananTeks').innerHTML = bagian.join(' · ');
     // Modal terbuka di tampilan daftar → segarkan; pesanan aktif yang sudah
     // tidak menunggu lagi (dicatat dari perangkat lain) → kembali ke daftar.
     if (!$('pesananModal').classList.contains('show')) return;
@@ -126,7 +156,7 @@
 
   function bukaPesananModal_() {
     psnAktif = null;
-    if (dataPesanan.length === 1) bukaBagi_(dataPesanan[0]);
+    if (dataPesanan.length === 1 && !dataInvoiceGagal.length) bukaBagi_(dataPesanan[0]);
     else tampilDaftarPsn_();
     $('pesananModal').classList.add('show');
   }
@@ -135,14 +165,31 @@
     $('pesananJudul').textContent = '📥 Pesanan Masuk';
     $('psnBagi').hidden = true;
     $('psnDaftar').hidden = false;
-    $('psnDaftar').innerHTML = dataPesanan.length
+    // Invoice email yang gagal dibaca otomatis: jangan sampai hilang senyap —
+    // admin perlu tahu ada order yang harus diunggah manual.
+    const gagal = dataInvoiceGagal.length ? `
+      <div class="psn-gagal">
+        <b>⚠️ Invoice email yang gagal dibaca otomatis</b>
+        ${dataInvoiceGagal.map(x => `<div><span>${esc(x.waktu)}</span> — ${esc(x.alasan)}</div>`).join('')}
+        <p>Unggah screenshot invoice-nya lewat tombol 🧾 Invoice Grab.</p>
+        <button type="button" id="psnTutupGagal">Sudah, tutup peringatan ini</button>
+      </div>` : '';
+    $('psnDaftar').innerHTML = gagal + (dataPesanan.length
       ? dataPesanan.map(p => `
         <button type="button" class="psn-item" data-id="${esc(p.id)}">
           <b>${esc(p.resto)}</b>
           <span class="psn-tot">${fmt(p.total)}</span>
           <small>${esc(p.waktu || '')} · ${esc(p.id)}</small>
         </button>`).join('')
-      : '<div class="empty">Tidak ada pesanan yang menunggu. Unggah invoice lewat tombol 🧾 Invoice Grab.</div>';
+      : '<div class="empty">Tidak ada pesanan yang menunggu. Unggah invoice lewat tombol 🧾 Invoice Grab.</div>');
+    const tutupGagal = $('psnTutupGagal');
+    if (tutupGagal) tutupGagal.addEventListener('click', () => {
+      tutupGagal.disabled = true;
+      google.script.run
+        .withSuccessHandler(data => { render(data); tampilDaftarPsn_(); })
+        .withFailureHandler(err => { tutupGagal.disabled = false; toast(err.message || 'Gagal.', 'err'); })
+        .hapusCatatanInvoiceGagal();
+    });
     $('psnDaftar').querySelectorAll('.psn-item').forEach(b => b.addEventListener('click', () => {
       const p = dataPesanan.find(x => x.id === b.dataset.id);
       if (p) bukaBagi_(p);
@@ -190,10 +237,13 @@
       renderBagi_();
     }));
 
-    // Tambah orang dari roster (yang belum jadi chip). KAS bukan pemesan.
-    const sisa = dataAnggota.filter(n => n !== KAS_NAMA && d.peserta.indexOf(n) < 0);
-    $('psnTambah').innerHTML = '<option value="">+ Tambah orang yang ikut pesan…</option>' +
-      sisa.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    // Tambah orang dari roster. Nama yang sudah ada tetap ditawarkan sebagai
+    // TITIPAN (slot baru, warna sendiri). KAS bukan pemesan.
+    const adaSlot = nama => d.peserta.some(s => psnNamaDasar(s) === nama);
+    $('psnTambah').innerHTML = '<option value="">+ Tambah orang / titipan…</option>' +
+      `<option value="${PSN_SAYA}">Saya — tambah titipan (tidak dicatat)</option>` +
+      dataAnggota.filter(n => n !== KAS_NAMA).map(n =>
+        `<option value="${esc(n)}">${esc(n)}${adaSlot(n) ? ' — tambah titipan' : ''}</option>`).join('');
 
     // Unit menu
     $('psnMenu').innerHTML = units.map((u, i) => {
@@ -214,14 +264,14 @@
     const h = hitungBagiPesanan_(p.detail, d.penugasan);
     $('psnRingkas').innerHTML = h.peserta.length
       ? h.peserta.map(o => `
-        <div class="rk${o.nama === PSN_SAYA ? ' saya' : ''}" style="--w:${warnaDari(o.nama)}">
+        <div class="rk${psnNamaDasar(o.nama) === PSN_SAYA ? ' saya' : ''}" style="--w:${warnaDari(o.nama)}">
           <i></i><span>${esc(psnNamaTampil(o.nama))}</span>
           <span class="it">menu ${fmt(o.item)}</span><b>${fmt(o.bayar)}</b>
         </div>`).join('')
       : '<div class="kosong">Belum ada menu yang ditetapkan.</div>';
 
     const status = $('psnStatus');
-    const jmlDicatat = h.peserta.filter(o => o.nama !== PSN_SAYA && o.bayar > 0).length;
+    const jmlDicatat = psnJumlahDicatat(h);
     if (!h.lengkap) {
       status.className = 'psn-status';
       status.textContent = `Masih ${h.belum} menu belum punya pemilik. Angka di atas masih sementara — ` +
@@ -236,7 +286,7 @@
       const dMenu = jm((u.diskon || []).filter(x => x.untuk !== 'biaya'));
       const bBersih = jm(u.biaya) - jm((u.diskon || []).filter(x => x.untuk === 'biaya'));
       status.className = 'psn-status ok';
-      status.textContent = `✓ Semua menu terbagi ke ${h.peserta.length} orang · jumlah ${fmt(h.jumlahBayar)} ` +
+      status.textContent = `✓ Semua menu terbagi ke ${h.peserta.length} pemesan · jumlah ${fmt(h.jumlahBayar)} ` +
         `= total tagihan. Diskon menu ${(dMenu / sub * 100).toFixed(1).replace('.0', '')}% dibagi prorata, ` +
         `biaya bersama ${fmt(Math.max(0, bBersih))} dibagi rata.`;
     }
@@ -248,8 +298,9 @@
     const nama = e.target.value;
     if (!nama || !psnAktif) return;
     const d = drafPesanan_(psnAktif);
-    if (d.peserta.indexOf(nama) < 0) d.peserta.push(nama);
-    psnKuas = nama;          // orang baru langsung jadi "kuas"
+    const slot = psnSlotBaru(nama, d.peserta);
+    d.peserta.push(slot);
+    psnKuas = slot;          // orang/titipan baru langsung jadi "kuas"
     simpanDraf_(psnAktif);
     renderBagi_();
   });
@@ -270,7 +321,7 @@
         psnAktif = null;
         $('pesananModal').classList.remove('show');
         render(data);
-        const k = h.peserta.filter(o => o.nama !== PSN_SAYA && o.bayar > 0).length;
+        const k = psnJumlahDicatat(h);
         toast(`Pesanan ${p.resto} tercatat ✓ (${k} orang)`, 'ok');
         if (typeof playCoinBurst === 'function') playCoinBurst();
       })

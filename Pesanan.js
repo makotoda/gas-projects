@@ -28,6 +28,18 @@ const STATUS_PESANAN_DIABAIKAN = 'diabaikan';
  *  — sama dengan perilaku upload struk yang membuang baris "You". */
 const PESANAN_SAYA = '__SAYA__';
 
+/**
+ * TITIPAN: teman yang tidak terdaftar di Kodomo sering "nitip" lewat satu
+ * anggota (atau lewat admin). Di Grab ia tetap pemesan terpisah — ikut
+ * menanggung bagian ongkir sendiri — jadi di sini satu nama boleh punya
+ * beberapa SLOT: 'dita', 'dita#2', '__SAYA__#2', dst. Rumus memperlakukan tiap
+ * slot sebagai satu pemesan; saat dicatat, semua slot satu nama DIJUMLAHKAN
+ * menjadi satu baris Dosa atas nama itu (dialah yang menagih temannya).
+ */
+function namaDasarSlot_(slot) {
+  return String(slot || '').replace(/#\d+$/, '');
+}
+
 /* ---------------------------------------------------------------------------
  * Hitungan pembagian — fungsi murni, tanpa API GAS.
  *
@@ -133,64 +145,60 @@ function periksaPesanan_(d) {
   return masalah;
 }
 
+/** Prompt & skema dipakai bersama oleh unggah gambar dan penjemputan email. */
+const PROMPT_INVOICE_GRAB =
+  'Ekstrak dari e-receipt GrabFood ini (Rupiah):\n' +
+  '- pesananId: nilai "Pesanan ID" persis seperti tertulis (mis. A-XXXXXXXX).\n' +
+  '- resto: nama merchant di bagian "Pesanan Dari", HANYA nama tokonya (tanpa alamat).\n' +
+  '- waktu: tanggal dan waktu pesanan persis seperti tertulis.\n' +
+  '- items: SETIAP baris menu: nama (gabungkan teks tambahan/topping yang masih bagian ' +
+  'baris itu), qty (angka sebelum "x"), harga (harga total baris itu).\n' +
+  '- subtotal dan total ("TOTAL (INCL. TAX)").\n' +
+  '- biaya: setiap biaya tambahan bernilai positif selain subtotal (Biaya Pengiriman, ' +
+  'Biaya Pemesanan, Biaya Layanan, Biaya Kemasan, Tip, dll).\n' +
+  '- diskon: setiap potongan (baris bertanda minus), nominal ditulis sebagai angka POSITIF, ' +
+  'dan untuk = "biaya" bila potongan itu khusus untuk ongkos kirim/pengiriman/biaya ' +
+  'layanan, selain itu untuk = "menu".\n' +
+  'Abaikan blok "Detail Pembayaran" yang berisi metode bayar (Visa, OVO, dll) — itu bukan ' +
+  'biaya. Semua angka bulat tanpa "Rp", titik, atau koma.';
+
+function skemaInvoiceGrab_() {
+  const angka = { type: 'NUMBER' };
+  return {
+    type: 'OBJECT',
+    properties: {
+      pesananId: { type: 'STRING' },
+      resto: { type: 'STRING' },
+      waktu: { type: 'STRING' },
+      subtotal: angka,
+      total: angka,
+      items: { type: 'ARRAY', items: { type: 'OBJECT',
+        properties: { nama: { type: 'STRING' }, qty: angka, harga: angka },
+        required: ['nama', 'qty', 'harga'] } },
+      biaya: { type: 'ARRAY', items: { type: 'OBJECT',
+        properties: { label: { type: 'STRING' }, nominal: angka },
+        required: ['label', 'nominal'] } },
+      diskon: { type: 'ARRAY', items: { type: 'OBJECT',
+        properties: { label: { type: 'STRING' }, nominal: angka,
+          untuk: { type: 'STRING', enum: ['menu', 'biaya'] } },
+        required: ['label', 'nominal', 'untuk'] } }
+    },
+    required: ['pesananId', 'resto', 'total', 'items']
+  };
+}
+
 /**
- * Baca gambar invoice GrabFood (screenshot e-receipt email) lalu simpan
- * sebagai pesanan 'menunggu'. Kalau Pesanan ID yang sama sudah ada:
- * - masih menunggu / diabaikan → dikembalikan apa adanya (dibuka lagi);
- * - sudah tercatat → DITOLAK, supaya satu order tidak tercatat dua kali.
+ * Kirim satu invoice ke Gemini (parts = gambar ATAU teks email), rapikan
+ * hasilnya, lalu periksa keseimbangannya. Balikan detail pesanan yang sudah
+ * aman dipakai, atau lempar Error berbahasa Indonesia.
  */
-function parseInvoiceGrab(base64, mimeType) {
+function bacaInvoiceGemini_(parts) {
   const apiKey = getGeminiApiKey_();
   if (!apiKey) throw new Error('Fitur baca invoice belum diaktifkan (GEMINI_API_KEY belum diatur).');
-  if (!base64) throw new Error('Gambar invoice kosong.');
-  const tipe = String(mimeType || '').trim();
-  if (tipe.indexOf('image/') !== 0) throw new Error('File harus berupa gambar.');
-
-  const prompt =
-    'Ini screenshot email e-receipt GrabFood (Rupiah). Ekstrak:\n' +
-    '- pesananId: nilai "Pesanan ID" persis seperti tertulis (mis. A-XXXXXXXX).\n' +
-    '- resto: nama merchant di bagian "Pesanan Dari", HANYA nama tokonya (tanpa alamat).\n' +
-    '- waktu: tanggal dan waktu pesanan persis seperti tertulis.\n' +
-    '- items: SETIAP baris menu: nama (gabungkan teks tambahan/topping yang masih bagian ' +
-    'baris itu), qty (angka sebelum "x"), harga (harga total baris itu).\n' +
-    '- subtotal dan total ("TOTAL (INCL. TAX)").\n' +
-    '- biaya: setiap biaya tambahan bernilai positif selain subtotal (Biaya Pengiriman, ' +
-    'Biaya Pemesanan, Biaya Layanan, Biaya Kemasan, Tip, dll).\n' +
-    '- diskon: setiap potongan (baris bertanda minus), nominal ditulis sebagai angka POSITIF, ' +
-    'dan untuk = "biaya" bila potongan itu khusus untuk ongkos kirim/pengiriman/biaya ' +
-    'layanan, selain itu untuk = "menu".\n' +
-    'Abaikan blok "Detail Pembayaran" yang berisi metode bayar (Visa, OVO, dll) — itu bukan ' +
-    'biaya. Semua angka bulat tanpa "Rp", titik, atau koma.';
-
-  const angka = { type: 'NUMBER' };
   const body = {
-    contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: tipe, data: base64 } }] }],
-    generationConfig: {
-      responseMimeType: 'application/json',
-      responseSchema: {
-        type: 'OBJECT',
-        properties: {
-          pesananId: { type: 'STRING' },
-          resto: { type: 'STRING' },
-          waktu: { type: 'STRING' },
-          subtotal: angka,
-          total: angka,
-          items: { type: 'ARRAY', items: { type: 'OBJECT',
-            properties: { nama: { type: 'STRING' }, qty: angka, harga: angka },
-            required: ['nama', 'qty', 'harga'] } },
-          biaya: { type: 'ARRAY', items: { type: 'OBJECT',
-            properties: { label: { type: 'STRING' }, nominal: angka },
-            required: ['label', 'nominal'] } },
-          diskon: { type: 'ARRAY', items: { type: 'OBJECT',
-            properties: { label: { type: 'STRING' }, nominal: angka,
-              untuk: { type: 'STRING', enum: ['menu', 'biaya'] } },
-            required: ['label', 'nominal', 'untuk'] } }
-        },
-        required: ['pesananId', 'resto', 'total', 'items']
-      }
-    }
+    contents: [{ parts: [{ text: PROMPT_INVOICE_GRAB }].concat(parts) }],
+    generationConfig: { responseMimeType: 'application/json', responseSchema: skemaInvoiceGrab_() }
   };
-
   const teks = panggilGemini_(apiKey, body); // coba ulang + model cadangan (Struk.js)
   let mentah;
   try {
@@ -223,14 +231,23 @@ function parseInvoiceGrab(base64, mimeType) {
       untuk: d.untuk === 'biaya' ? 'biaya' : 'menu'
     })).filter(d => d.nominal > 0)
   };
-  if (!detail.pesananId) throw new Error('Pesanan ID tidak terbaca — pastikan bagian "Pesanan ID" ikut terfoto.');
-  if (!detail.resto) throw new Error('Nama resto tidak terbaca — pastikan bagian "Pesanan Dari" ikut terfoto.');
+  if (!detail.pesananId) throw new Error('Pesanan ID tidak terbaca — pastikan bagian "Pesanan ID" ikut terlihat.');
+  if (!detail.resto) throw new Error('Nama resto tidak terbaca — pastikan bagian "Pesanan Dari" ikut terlihat.');
   const masalah = periksaPesanan_(detail);
   if (masalah.length) {
     throw new Error('Hasil baca invoice tidak seimbang (' + masalah.join('; ') + '). ' +
-      'Coba unggah ulang dengan gambar yang lebih jelas dan utuh.');
+      'Coba unggah screenshot invoice yang jelas dan utuh.');
   }
+  return detail;
+}
 
+/**
+ * Simpan detail sebagai pesanan 'menunggu'. Kalau Pesanan ID yang sama sudah ada:
+ * - masih menunggu / diabaikan → dikembalikan apa adanya (dibuka lagi);
+ * - sudah tercatat → DITOLAK, supaya satu order tidak tercatat dua kali.
+ * Dipakai unggah manual DAN penjemputan email, jadi keduanya aman berpapasan.
+ */
+function simpanPesananMenunggu_(detail) {
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
@@ -256,11 +273,20 @@ function parseInvoiceGrab(base64, mimeType) {
   return objekPesanan_(detail);
 }
 
+/** Unggah manual: baca gambar invoice (screenshot e-receipt email Grab). */
+function parseInvoiceGrab(base64, mimeType) {
+  if (!base64) throw new Error('Gambar invoice kosong.');
+  const tipe = String(mimeType || '').trim();
+  if (tipe.indexOf('image/') !== 0) throw new Error('File harus berupa gambar.');
+  const detail = bacaInvoiceGemini_([{ inlineData: { mimeType: tipe, data: base64 } }]);
+  return simpanPesananMenunggu_(detail);
+}
+
 /**
- * Bagi & catat satu pesanan. penugasan = array nama per unit menu (lihat
- * unitPesanan_), boleh berisi PESANAN_SAYA. ringkasLayar = { nama: bayar }
- * hasil pratinjau di klien — kalau berbeda dari hitungan server, ditolak
- * (tanda salinan rumus di JsPesanan.html sudah tidak sama).
+ * Bagi & catat satu pesanan. penugasan = array SLOT per unit menu (lihat
+ * unitPesanan_ & namaDasarSlot_), boleh berisi PESANAN_SAYA dan slot titipan.
+ * ringkasLayar = { slot: bayar } hasil pratinjau di klien — kalau berbeda dari
+ * hitungan server, ditolak (tanda salinan rumus di JsPesanan.html sudah beda).
  */
 function simpanPesanan(pesananId, penugasan, ringkasLayar) {
   const id = String(pesananId || '').trim();
@@ -276,7 +302,8 @@ function simpanPesanan(pesananId, penugasan, ringkasLayar) {
     if (!ada) throw new Error('Pesanan ' + id + ' tidak ditemukan.');
     if (ada.status === STATUS_PESANAN_TERCATAT) throw new Error('Pesanan ' + id + ' sudah tercatat sebelumnya.');
 
-    (penugasan || []).forEach(nama => {
+    (penugasan || []).forEach(slot => {
+      const nama = namaDasarSlot_(slot);
       if (nama && nama !== PESANAN_SAYA && (roster.indexOf(nama) < 0 || nama === KAS_NAMA)) {
         throw new Error('"' + nama + '" bukan anggota Kodomo.');
       }
@@ -292,9 +319,19 @@ function simpanPesanan(pesananId, penugasan, ringkasLayar) {
     }
 
     resto = ada.detail.resto;
-    const items = hasil.peserta
-      .filter(p => p.nama !== PESANAN_SAYA && p.bayar > 0)
-      .map(p => ({ nama: p.nama, tipe: 'Dosa', nominal: p.bayar, keterangan: resto }));
+    // Gabungkan slot titipan per nama: satu baris Dosa per anggota (infaq
+    // otomatis pun hanya sekali), keterangan tetap nama resto apa adanya.
+    const perNama = {};
+    const urutNama = [];
+    hasil.peserta.forEach(p => {
+      const nama = namaDasarSlot_(p.nama);
+      if (nama === PESANAN_SAYA) return;
+      if (!(nama in perNama)) { perNama[nama] = 0; urutNama.push(nama); }
+      perNama[nama] += p.bayar;
+    });
+    const items = urutNama
+      .filter(nama => perNama[nama] > 0)
+      .map(nama => ({ nama: nama, tipe: 'Dosa', nominal: perNama[nama], keterangan: resto }));
     if (!items.length) throw new Error('Tidak ada porsi orang lain untuk dicatat.');
 
     ketResto = tulisBarisBatch_(items); // Amalan.js — lock sudah dipegang di sini

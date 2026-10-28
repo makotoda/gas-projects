@@ -137,3 +137,21 @@
   }
   .psn-aksi button:hover { color: var(--text); }
   #psnAbaikan.yakin { color: var(--rose); font-weight: 600; }
+
+  /* Peringatan invoice email yang gagal dibaca otomatis */
+  .psn-gagal {
+    margin-bottom: 12px; padding: 12px 14px;
+    font-size: 12.5px; line-height: 1.5;
+    background: color-mix(in srgb, var(--rose) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--rose) 45%, transparent);
+    border-radius: 12px;
+  }
+  .psn-gagal b { display: block; margin-bottom: 4px; font-size: 13px; }
+  .psn-gagal span { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .psn-gagal p { margin: 6px 0 8px; color: var(--muted); }
+  .psn-gagal button {
+    padding: 6px 12px;
+    font: inherit; font-size: 12px; color: var(--text);
+    background: var(--glass); border: 1px solid var(--border); border-radius: 999px;
+    cursor: pointer;
+  }

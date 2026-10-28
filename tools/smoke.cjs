@@ -152,9 +152,16 @@ const cek = (nama, syarat, detail) => {
     for (const i of unit) await page.click(`.psn-unit[data-i="${i}"]`);
   };
   await tetapkan('Ochi', [0, 1]);
-  await tetapkan('Jana', [2, 3]);
+  await tetapkan('Jana', [2]);
+  await tetapkan('Jana', [3]);       // Jana dipilih lagi → slot TITIPAN baru (Jana#2)
   await tetapkan('Saya', [4, 5]);
   await tetapkan('Kumala', [6, 7]);
+  const chipJana = await page.$$eval('.psn-chip', cs => cs
+    .filter(c => c.dataset.nama.replace(/#\d+$/, '') === 'Jana')
+    .map(c => ({ label: c.textContent.replace(/\s+/g, ' ').trim(), warna: c.style.getPropertyValue('--w') })));
+  cek('titipan: Jana punya 2 chip dengan warna berbeda',
+    chipJana.length === 2 && chipJana[0].warna !== chipJana[1].warna,
+    chipJana.map(c => `${c.label} [${c.warna}]`).join(' | '));
   const status = await page.textContent('#psnStatus');
   cek('semua terbagi → status hijau & jumlah = total', status.includes('✓') && status.includes('86.740'), status);
   cek('tombol simpan aktif untuk 3 orang (Saya tidak dicatat)',
@@ -166,6 +173,25 @@ const cek = (nama, syarat, detail) => {
   cek('simpan memanggil simpanPesanan dengan penugasan & ringkas',
     rpcPsn && rpcPsn.fn === 'simpanPesanan' && rpcPsn.args[1].length === 8 && rk === 86740,
     rpcPsn && JSON.stringify(rpcPsn.args[2]));
+  cek('titipan dikirim sebagai slot tersendiri (Jana#2)',
+    rpcPsn && rpcPsn.args[1][3] === 'Jana#2' && 'Jana#2' in rpcPsn.args[2]);
+
+  // Invoice email yang gagal dibaca otomatis harus terlihat, bukan hilang senyap.
+  await page.evaluate(() => {
+    dataPesanan = [];
+    dataInvoiceGagal = [{ waktu: '28 Oct 2026 • 11:02', alasan: 'Hasil baca invoice tidak seimbang' }];
+    renderBannerPesanan();
+  });
+  const teksBanner = (await page.textContent('#pesananBanner')).replace(/\s+/g, ' ').trim();
+  cek('invoice email gagal → banner peringatan tampil', await page.isVisible('#pesananBanner') &&
+    teksBanner.includes('gagal dibaca'), teksBanner);
+  await page.click('#pesananBanner');
+  await page.waitForTimeout(200);
+  cek('daftar menampilkan rincian kegagalan', await page.isVisible('.psn-gagal'));
+  await page.click('#psnTutupGagal');
+  await page.waitForTimeout(200);
+  cek('tutup peringatan memanggil hapusCatatanInvoiceGagal',
+    (await page.evaluate(() => window.__rpc && window.__rpc.fn)) === 'hapusCatatanInvoiceGagal');
 
   await browser.close();
   console.log(gagal ? `\n${gagal} pemeriksaan GAGAL` : '\nsemua pemeriksaan lolos');

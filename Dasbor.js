@@ -171,6 +171,7 @@ function getDashboardData() {
     deret: deretHarian_(rows, tz, fotoMap), // grafik saldo harian (modal desktop)
     katalog: KATALOG_KOPDOS,    // katalog belanja Kopdos Merah Putih
     pesanan: daftarPesananMenunggu_(), // invoice Grab yang belum dibagi (Pesanan.js)
+    invoiceGagal: daftarInvoiceGagal_(), // invoice email yang gagal dibaca otomatis (PesananEmail.js)
     resto: bacaSheetResto_(),   // urut termurah dulu; lihat modul infografis resto
     infaqMap: getInfaqMap_(),
     strukAlias: getStrukAlias_(),

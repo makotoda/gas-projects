@@ -33,6 +33,7 @@ Repo ini diedit dari banyak tempat. Actions men-deploy setiap push ke `main`, ja
 | `Kopdos.js` | katalog belanja (`KATALOG_KOPDOS`) + `submitBelanja` |
 | `Infaq.js` | `getInfaqMap_` / `saveInfaqMap` (kolom C sheet Anggota) |
 | `Pesanan.js` | invoice GrabFood → sheet `Pesanan` → dibagi per orang dengan rumus Grab (`parseInvoiceGrab`, `simpanPesanan`, `abaikanPesanan`, `hitungBagiPesanan_`) |
+| `PesananEmail.js` | penjemputan invoice dari Gmail tiap 10 menit (`jemputInvoiceGmail`, `pasangPemicuInvoice`/`lepasPemicuInvoice`) |
 
 **Frontend.** `Index.html` cuma kerangka berisi `<?!= include('...') ?>`.
 
@@ -126,6 +127,13 @@ samakan gaya dengan kode sekitarnya secara manual.
   Diskon `untuk: 'biaya'` (mis. diskon ongkir) mengurangi biaya bersama yang dibagi RATA;
   diskon lain dibagi PRORATA harga menu. Admin ditetapkan sebagai `__SAYA__`: ikut dihitung
   sebagai pemesan (supaya biaya dibagi sama seperti Grab) tapi tidak ditulis sebagai Dosa.
+- **Titipan = slot `nama#k`** (`dita#2`, `__SAYA__#2`): teman di luar roster yang nitip lewat
+  anggota. Tiap slot dihitung sebagai pemesan terpisah (ikut menanggung ongkir), tapi
+  `simpanPesanan` menjumlahkan semua slot satu nama jadi SATU baris Dosa (`namaDasarSlot_`).
+- **Penjemputan Gmail hanya membaca**, mengambil email setelah `INVOICE_GMAIL_MULAI` (diset
+  saat `pasangPemicuInvoice()` pertama kali). Email yang gagal dibaca (tidak seimbang, dll)
+  tidak dicoba lagi tapi tampil sebagai peringatan di Kodomo (`INVOICE_GMAIL_GAGAL`); yang
+  gagal karena Gemini penuh dicoba ulang di jalan berikutnya.
 - **`tulisBarisBatch_` (Amalan.js) mengandaikan lock SUDAH dipegang pemanggil** — dipakai
   `submitAmalanBatch` dan `simpanPesanan` supaya menulis baris + menandai pesanan "tercatat"
   terjadi di bawah satu lock (mencegah satu order tercatat dua kali).

@@ -1,0 +1,136 @@
+/**
+ * KODOMO — penjemputan otomatis invoice GrabFood dari Gmail pemilik skrip.
+ *
+ * Pemicu waktu (tiap 10 menit) mencari email "Your Grab E-Receipt" dari
+ * no-reply@grab.com, membaca TEKS email lewat Gemini (Pesanan.js →
+ * bacaInvoiceGemini_), lalu menyimpannya sebagai pesanan 'menunggu' — sama
+ * persis seperti unggah screenshot manual, termasuk pemeriksaan keseimbangan
+ * dan penolakan Pesanan ID ganda. Admin tinggal membagi di Kodomo.
+ *
+ * SEKALI SAJA, dari editor Apps Script: jalankan pasangPemicuInvoice() dan
+ * setujui izin Gmail. Email yang datang SEBELUM itu sengaja tidak diambil,
+ * supaya order lama yang sudah dicatat lewat struk tidak muncul lagi.
+ *
+ * Hanya MEMBACA Gmail. Email tidak diberi label, dipindah, atau dihapus;
+ * yang sudah diproses dicatat (ID pesan) di Script Properties.
+ *
+ * Bagian dari proyek Kodomo — semua berkas .gs berbagi satu namespace global.
+ */
+
+const INVOICE_GMAIL_KUERI = 'from:no-reply@grab.com subject:"Your Grab E-Receipt" newer_than:7d';
+const INVOICE_PROP_MULAI = 'INVOICE_GMAIL_MULAI';          // ISO: email sebelum ini diabaikan
+const INVOICE_PROP_TERPROSES = 'INVOICE_GMAIL_TERPROSES';  // JSON: ID pesan Gmail yang selesai
+const INVOICE_PROP_GAGAL = 'INVOICE_GMAIL_GAGAL';          // JSON: catatan gagal baca untuk UI
+const INVOICE_SIMPAN_TERPROSES = 300;  // Script Property maks ~9 KB → simpan 300 ID terakhir
+const INVOICE_MAKS_PER_JALAN = 5;      // batasi kerja sekali jalan (waktu eksekusi & kuota Gemini)
+/** Jangan MULAI email baru setelah sekian lama berjalan. Saat Gemini penuh, satu
+ *  email bisa makan ±100 dtk (coba ulang + cadangan); pemicu GAS dipotong paksa
+ *  di 6 menit, dan eksekusi yang terpotong tidak sempat menyimpan daftar email
+ *  yang sudah diproses. */
+const INVOICE_BATAS_JALAN_MS = 4 * 60 * 1000;
+
+/** Jalankan SEKALI dari editor Apps Script. Aman diulang (tidak menggandakan pemicu). */
+function pasangPemicuInvoice() {
+  lepasPemicuInvoice();
+  ScriptApp.newTrigger('jemputInvoiceGmail').timeBased().everyMinutes(10).create();
+  const props = PropertiesService.getScriptProperties();
+  if (!props.getProperty(INVOICE_PROP_MULAI)) {
+    props.setProperty(INVOICE_PROP_MULAI, new Date().toISOString());
+  }
+  const pesan = 'Pemicu terpasang: invoice Grab dicek tiap 10 menit, mulai email setelah ' +
+    props.getProperty(INVOICE_PROP_MULAI) + '.';
+  console.log(pesan);
+  return pesan;
+}
+
+/** Hentikan penjemputan otomatis (unggah manual tetap bisa dipakai). */
+function lepasPemicuInvoice() {
+  ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === 'jemputInvoiceGmail')
+    .forEach(t => ScriptApp.deleteTrigger(t));
+}
+
+/**
+ * Dipanggil pemicu (atau manual dari editor untuk mencoba). Balikan ringkasan
+ * { baru, dilewati, gagal, ditunda } — juga tercatat di log Executions.
+ */
+function jemputInvoiceGmail() {
+  const props = PropertiesService.getScriptProperties();
+  const mulaiStr = props.getProperty(INVOICE_PROP_MULAI);
+  const mulai = mulaiStr ? new Date(mulaiStr) : new Date();
+  let terproses = [];
+  try { terproses = JSON.parse(props.getProperty(INVOICE_PROP_TERPROSES) || '[]'); } catch (e) {}
+  const sudah = {};
+  terproses.forEach(id => { sudah[id] = true; });
+  const tandai = id => { if (!sudah[id]) { sudah[id] = true; terproses.push(id); } };
+
+  const ringkas = { baru: 0, dilewati: 0, gagal: 0, ditunda: 0 };
+  let dikerjakan = 0;
+  const mulaiJalan = Date.now();
+
+  const threads = GmailApp.search(INVOICE_GMAIL_KUERI, 0, 30);
+  luar:
+  for (let t = 0; t < threads.length; t++) {
+    const pesanList = threads[t].getMessages();
+    for (let m = 0; m < pesanList.length; m++) {
+      const msg = pesanList[m];
+      const id = msg.getId();
+      if (sudah[id]) continue;
+      if (msg.getDate() < mulai) { tandai(id); continue; } // sebelum fitur dipasang
+      const teks = String(msg.getPlainBody() || '');
+      if (!/GrabFood/i.test(teks)) { tandai(id); ringkas.dilewati++; continue; } // GrabCar, GrabBike, dll
+      // sisanya di jalan berikutnya (10 menit lagi)
+      if (dikerjakan >= INVOICE_MAKS_PER_JALAN || Date.now() - mulaiJalan > INVOICE_BATAS_JALAN_MS) break luar;
+      dikerjakan++;
+
+      try {
+        const detail = bacaInvoiceGemini_([{ text: 'Teks email e-receipt:\n\n' + teks.slice(0, 20000) }]);
+        simpanPesananMenunggu_(detail);
+        tandai(id);
+        ringkas.baru++;
+      } catch (e) {
+        const alasan = String((e && e.message) || e);
+        if (/sudah tercatat/.test(alasan)) {
+          tandai(id); ringkas.dilewati++;               // sudah dicatat lewat unggah manual
+        } else if (/sedang penuh|GEMINI_API_KEY/.test(alasan)) {
+          ringkas.ditunda++;                            // sementara: coba lagi 10 menit lagi
+        } else {
+          tandai(id); ringkas.gagal++;                  // permanen: beri tahu admin di UI
+          catatInvoiceGagal_(msg.getDate(), alasan);
+          console.warn('Invoice email gagal dibaca (' + id + '): ' + alasan);
+        }
+      }
+    }
+  }
+
+  props.setProperty(INVOICE_PROP_TERPROSES, JSON.stringify(terproses.slice(-INVOICE_SIMPAN_TERPROSES)));
+  console.log('jemputInvoiceGmail: ' + JSON.stringify(ringkas));
+  return ringkas;
+}
+
+/** Simpan 10 kegagalan terakhir supaya tampil di Kodomo, bukan hilang di log. */
+function catatInvoiceGagal_(tanggal, alasan) {
+  const props = PropertiesService.getScriptProperties();
+  let daftar = [];
+  try { daftar = JSON.parse(props.getProperty(INVOICE_PROP_GAGAL) || '[]'); } catch (e) {}
+  daftar.push({
+    waktu: Utilities.formatDate(tanggal, Session.getScriptTimeZone(), 'dd MMM yyyy • HH:mm'),
+    alasan: alasan.replace(/\s*\[[^\]]*\]\s*$/, '').slice(0, 200)
+  });
+  props.setProperty(INVOICE_PROP_GAGAL, JSON.stringify(daftar.slice(-10)));
+}
+
+/** Untuk dasbor: daftar invoice email yang gagal dibaca otomatis. */
+function daftarInvoiceGagal_() {
+  try {
+    return JSON.parse(PropertiesService.getScriptProperties().getProperty(INVOICE_PROP_GAGAL) || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+/** Dipanggil klien saat admin menutup peringatan (sudah diunggah manual). */
+function hapusCatatanInvoiceGagal() {
+  PropertiesService.getScriptProperties().deleteProperty(INVOICE_PROP_GAGAL);
+  return getDashboardData();
+}
