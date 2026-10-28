@@ -1,0 +1,139 @@
+  /* ===== Pesanan Masuk: bagi invoice Grab per orang (JsPesanan) ===== */
+
+  /* Banner di form — hanya tampil kalau ada pesanan menunggu */
+  .psn-banner {
+    width: 100%;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    margin: -8px 0 20px;
+    padding: 12px 16px;
+    font: inherit; font-size: 13.5px; text-align: left;
+    color: var(--text);
+    background: var(--glass-strong);
+    border: 1px solid var(--violet);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: transform .15s, box-shadow .2s;
+  }
+  .psn-banner:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(139,92,246,.25); }
+  .psn-banner[hidden] { display: none; }
+  .psn-banner .ar { font-size: 18px; color: var(--muted); }
+
+  .psn-card { max-width: 520px; }
+
+  /* Daftar pesanan menunggu */
+  .psn-item {
+    width: 100%;
+    display: grid; grid-template-columns: 1fr auto; gap: 2px 12px;
+    padding: 12px 14px; margin-bottom: 8px;
+    font: inherit; text-align: left; color: var(--text);
+    background: var(--glass);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    cursor: pointer;
+  }
+  .psn-item:hover { border-color: var(--border); }
+  .psn-item b { font-size: 14px; }
+  .psn-item small { grid-column: 1; font-size: 11.5px; color: var(--muted); }
+  .psn-item .psn-tot {
+    grid-row: 1 / span 2; grid-column: 2; align-self: center;
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .psn-info {
+    padding: 10px 12px; margin-bottom: 4px;
+    font-size: 12.5px; line-height: 1.5; color: var(--muted);
+    background: var(--glass);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+  }
+  .psn-info b { color: var(--text); font-size: 14px; }
+
+  .psn-label {
+    margin: 16px 0 8px;
+    font-size: 11px; letter-spacing: 1.1px; text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* Chip orang: ketuk untuk memilih "kuas" */
+  .psn-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .psn-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    font: inherit; font-size: 12.5px; color: var(--text);
+    background: var(--glass);
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .psn-chip i { width: 9px; height: 9px; border-radius: 50%; background: var(--w); flex: none; }
+  .psn-chip small { color: var(--muted); font-size: 11px; }
+  .psn-chip .x {
+    margin-left: 2px; padding: 0 2px;
+    font-size: 14px; line-height: 1; color: var(--muted);
+  }
+  .psn-chip .x:hover { color: var(--rose); }
+  .psn-chip.aktif {
+    border-color: var(--w);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--w) 35%, transparent);
+    font-weight: 600;
+  }
+  .psn-tambah {
+    width: 100%; margin-top: 8px; padding: 9px 12px;
+    font: inherit; font-size: 13px; color: var(--text);
+    background: var(--glass);
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+  }
+
+  /* Unit menu: ketuk untuk memberikan ke orang yang sedang dipilih */
+  .psn-menu { display: flex; flex-direction: column; gap: 6px; }
+  .psn-unit {
+    display: grid; grid-template-columns: 1fr auto; gap: 2px 10px;
+    padding: 9px 12px;
+    font: inherit; text-align: left; color: var(--text);
+    background: var(--glass);
+    border: 1px solid var(--border-soft);
+    border-left: 4px solid var(--w, var(--border-soft));
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  .psn-unit:hover { border-color: var(--border); border-left-color: var(--w, var(--border)); }
+  .psn-unit .nm { font-size: 13.5px; }
+  .psn-unit .hg { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); }
+  /* Warna orang dicampur warna teks tema: lebih gelap di tema terang, lebih
+     terang di tema gelap — warna murni (mis. hijau) di atas putih tak terbaca. */
+  .psn-unit .ol {
+    grid-column: 1 / -1; font-size: 11.5px; font-weight: 600;
+    color: color-mix(in srgb, var(--w, var(--muted)) 62%, var(--text));
+  }
+  .psn-unit.belum .ol { color: var(--muted); font-weight: 400; font-style: italic; }
+
+  /* Rincian per orang */
+  .psn-ringkas { font-size: 13px; }
+  .psn-ringkas .rk {
+    display: grid; grid-template-columns: 12px 1fr auto auto; align-items: center; gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .psn-ringkas .rk i { width: 9px; height: 9px; border-radius: 50%; background: var(--w); }
+  .psn-ringkas .rk .it { color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  .psn-ringkas .rk b { font-family: 'Space Grotesk', sans-serif; font-variant-numeric: tabular-nums; }
+  .psn-ringkas .rk.saya { opacity: .65; }
+  .psn-ringkas .kosong { color: var(--muted); font-size: 12.5px; padding: 6px 0; }
+
+  .psn-status {
+    margin: 12px 0 14px;
+    font-size: 12.5px; line-height: 1.5;
+    color: var(--muted);
+  }
+  .psn-status.ok { color: var(--mint); }
+
+  .psn-aksi { display: flex; justify-content: space-between; gap: 10px; margin-top: 10px; }
+  .psn-aksi button {
+    padding: 6px 2px;
+    font: inherit; font-size: 12.5px; color: var(--muted);
+    background: none; border: none; cursor: pointer;
+  }
+  .psn-aksi button:hover { color: var(--text); }
+  #psnAbaikan.yakin { color: var(--rose); font-weight: 600; }

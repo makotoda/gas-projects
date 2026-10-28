@@ -76,6 +76,12 @@
         <span class="ar">›</span>
       </button>
 
+      <!-- Muncul hanya kalau ada invoice Grab yang belum dibagi (JsPesanan). -->
+      <button class="psn-banner" id="pesananBanner" type="button" hidden>
+        <span>📥 <b id="pesananJumlah">0</b> pesanan Grab menunggu dibagi</span>
+        <span class="ar">›</span>
+      </button>
+
       <h2><span class="bar"></span>Catat Amalan</h2>
 
       <div id="namaField">
@@ -117,8 +123,10 @@
       <button class="submit-btn" id="submitBtn">Simpan catatan</button>
       <div style="display:flex; gap:8px; margin-top:8px">
         <button class="music-btn" id="strukBtn" type="button" style="flex:1; justify-content:center">📷 Upload Struk (split tagihan)</button>
+        <button class="music-btn" id="invoiceBtn" type="button" style="flex:1; justify-content:center">🧾 Invoice Grab (email)</button>
       </div>
       <input type="file" id="strukFile" accept="image/*" multiple style="display:none">
+      <input type="file" id="invoiceFile" accept="image/*" style="display:none">
     </div>
 
     <!-- ===== Leaderboard & riwayat ===== -->
@@ -187,6 +195,40 @@
     </p>
     <div class="admin-warn-detail" id="transferAdminDetail"></div>
     <button class="submit-btn" id="transferAdminOk" type="button">Mengerti</button>
+  </div>
+</div>
+
+<div id="pesananModal">
+  <div class="modal-card psn-card">
+    <div class="modal-head">
+      <h3 id="pesananJudul">📥 Pesanan Masuk</h3>
+      <button class="modal-close" id="pesananClose" type="button">✕</button>
+    </div>
+
+    <!-- Tampilan 1: daftar pesanan yang menunggu -->
+    <div id="psnDaftar"></div>
+
+    <!-- Tampilan 2: bagi satu pesanan -->
+    <div id="psnBagi" hidden>
+      <div class="psn-info" id="psnInfo"></div>
+
+      <div class="psn-label">1 · Pilih orang, lalu ketuk menu pesanannya</div>
+      <div class="psn-chips" id="psnChips"></div>
+      <select id="psnTambah" class="psn-tambah"></select>
+
+      <div class="psn-label">2 · Menu</div>
+      <div class="psn-menu" id="psnMenu"></div>
+
+      <div class="psn-label">Rincian per orang</div>
+      <div class="psn-ringkas" id="psnRingkas"></div>
+      <div class="psn-status" id="psnStatus"></div>
+
+      <button class="submit-btn" id="psnSimpan" type="button" disabled>Simpan sebagai Dosa</button>
+      <div class="psn-aksi">
+        <button type="button" id="psnKembali">‹ Daftar pesanan</button>
+        <button type="button" id="psnAbaikan">Abaikan pesanan ini</button>
+      </div>
+    </div>
   </div>
 </div>
 

@@ -4,7 +4,8 @@
  * Menjalankan halaman hasil tools/render.cjs di Chromium, dengan
  * google.script.run dipalsukan supaya memakai data contoh. Yang diperiksa:
  * halaman termuat tanpa galat, dasbor ter-render, ketiga tema berputar,
- * grafik saldo terbentuk, dan checkout Kopdos mengirim payload yang benar.
+ * grafik saldo terbentuk, checkout Kopdos mengirim payload yang benar, dan
+ * pembagian invoice Grab (Pesanan Masuk) sampai ke simpanPesanan.
  *
  *   npm i -D playwright        (sekali; Chromium biasanya sudah ada di CI)
  *   node tools/smoke.cjs       → deretan baris OK/GAGAL + kode keluar
@@ -37,7 +38,17 @@ const DATA = {
   },
   katalog: [{ id: 'tissue', nama: 'Tissue', harga: 35000, emoji: '🧻' }],
   resto: [{ nama: 'Ayam Ternate', kunci: 'ayam ternate', varian: 'ayam ternate',
-            jumlah: 13, dipakai: 10, rata: 8707, min: 5682, max: 11142, update: '04 Aug 2026' }]
+            jumlah: 13, dipakai: 10, rata: 8707, min: 5682, max: 11142, update: '04 Aug 2026' }],
+  // Invoice Grab nyata (28 Okt 2026) yang menunggu dibagi
+  pesanan: [{ id: 'A-AWRBEG3WX9C9AV', resto: 'RM Sari Minang', waktu: '28 Oct 26 11:02', total: 86740,
+    detail: { pesananId: 'A-AWRBEG3WX9C9AV', resto: 'RM Sari Minang', waktu: '28 Oct 26 11:02',
+      subtotal: 221500, total: 86740,
+      items: [['nasi gulai ayam', 30500], ['Nasi Gembung goreng', 30500], ['Nasi Ayam +telor', 37500],
+              ['nasi ayam bakar', 30500], ['rendang ati', 22000], ['goreng jengkol', 17000],
+              ['Nasi Ayam Cabe ijo', 30500], ['rendang daging', 23000]].map(([nama, harga]) => ({ nama, qty: 1, harga })),
+      biaya: [{ label: 'Biaya Pengiriman', nominal: 15000 }, { label: 'Biaya Pemesanan', nominal: 2000 }],
+      diskon: [{ label: 'Promo', nominal: 99675, untuk: 'menu' }, { label: 'Group', nominal: 19935, untuk: 'menu' },
+               { label: 'Diskon ongkir', nominal: 10000, untuk: 'biaya' }, { label: '10%', nominal: 22150, untuk: 'menu' }] } }]
 };
 
 const STUB = `<script>
@@ -124,6 +135,37 @@ const cek = (nama, syarat, detail) => {
   cek('payload tanpa harga',
     rpc && JSON.stringify(rpc.args[0]) === '{"nama":"Ochi","items":[{"id":"tissue","qty":2}]}',
     JSON.stringify(rpc && rpc.args[0]));
+
+  // Pesanan Masuk: bagi invoice Grab per orang lalu simpan.
+  cek('banner pesanan menunggu tampil', await page.isVisible('#pesananBanner'),
+    (await page.textContent('#pesananBanner')).replace(/\s+/g, ' ').trim());
+  await page.click('#pesananBanner');
+  await page.waitForTimeout(200);
+  cek('1 pesanan → langsung ke layar bagi', await page.isVisible('#psnBagi'));
+  await page.click('.psn-unit[data-i="0"]');
+  cek('ketuk menu tanpa memilih orang → diingatkan',
+    (await page.textContent('#toast')).includes('Pilih orangnya dulu'));
+  cek('tombol simpan nonaktif sebelum semua terbagi', await page.isDisabled('#psnSimpan'));
+  const tetapkan = async (nama, unit) => {
+    if (nama === 'Saya') await page.click('.psn-chip[data-nama="__SAYA__"]');
+    else await page.selectOption('#psnTambah', nama);
+    for (const i of unit) await page.click(`.psn-unit[data-i="${i}"]`);
+  };
+  await tetapkan('Ochi', [0, 1]);
+  await tetapkan('Jana', [2, 3]);
+  await tetapkan('Saya', [4, 5]);
+  await tetapkan('Kumala', [6, 7]);
+  const status = await page.textContent('#psnStatus');
+  cek('semua terbagi → status hijau & jumlah = total', status.includes('✓') && status.includes('86.740'), status);
+  cek('tombol simpan aktif untuk 3 orang (Saya tidak dicatat)',
+    !(await page.isDisabled('#psnSimpan')) && (await page.textContent('#psnSimpan')).includes('3 orang'));
+  await page.click('#psnSimpan');
+  await page.waitForTimeout(300);
+  const rpcPsn = await page.evaluate(() => window.__rpc);
+  const rk = rpcPsn && rpcPsn.args[2] ? Object.values(rpcPsn.args[2]).reduce((a, b) => a + b, 0) : 0;
+  cek('simpan memanggil simpanPesanan dengan penugasan & ringkas',
+    rpcPsn && rpcPsn.fn === 'simpanPesanan' && rpcPsn.args[1].length === 8 && rk === 86740,
+    rpcPsn && JSON.stringify(rpcPsn.args[2]));
 
   await browser.close();
   console.log(gagal ? `\n${gagal} pemeriksaan GAGAL` : '\nsemua pemeriksaan lolos');

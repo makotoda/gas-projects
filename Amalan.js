@@ -70,27 +70,41 @@ function barisInfaqOtomatis_(now, nama, tipe, ket) {
 function submitAmalanBatch(items) {
   if (!Array.isArray(items) || !items.length) throw new Error('Tidak ada transaksi untuk disimpan.');
 
-  const ketResto = []; // keterangan baris Dosa, untuk pembaruan harga resto
+  let ketResto;
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    const sheet = getSheet_(SHEET_TRANSAKSI);
-    const now = new Date();
-    const rows = [];
-    items.forEach(it => {
-      const nama = String(it && it.nama || '').trim();
-      if (!nama) throw new Error('Nama wajib dipilih.');
-      const nominal = parseNominal_(it.nominal);
-      const tipe = it.tipe === 'Dosa' ? 'Dosa' : 'Pahala';
-      const ket = String(it.keterangan || '').trim();
-      rows.push([now, nama, tipe, nominal, ket]);
-      if (tipe === 'Dosa') ketResto.push(ket);
-      rows.push.apply(rows, barisInfaqOtomatis_(now, nama, tipe, ket));
-    });
-    sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 5).setValues(rows);
+    ketResto = tulisBarisBatch_(items);
   } finally {
     lock.releaseLock();
   }
   perbaruiRestoOtomatis_(ketResto);
   return getDashboardData();
+}
+
+/**
+ * Tulis banyak transaksi (+ baris infaq otomatisnya) ke sheet Transaksi dalam
+ * SATU setValues. PEMANGGIL WAJIB SUDAH MEMEGANG script lock — dipisah dari
+ * submitAmalanBatch supaya simpanPesanan (Pesanan.js) bisa menulis baris DAN
+ * menandai pesanan "tercatat" di bawah satu lock yang sama.
+ * Balikan keterangan baris Dosa, untuk perbaruiRestoOtomatis_ — panggil itu
+ * SETELAH lock dilepas (memindai seluruh sheet; jangan menahan pemakai lain).
+ */
+function tulisBarisBatch_(items) {
+  const sheet = getSheet_(SHEET_TRANSAKSI);
+  const now = new Date();
+  const rows = [];
+  const ketResto = [];
+  items.forEach(it => {
+    const nama = String(it && it.nama || '').trim();
+    if (!nama) throw new Error('Nama wajib dipilih.');
+    const nominal = parseNominal_(it.nominal);
+    const tipe = it.tipe === 'Dosa' ? 'Dosa' : 'Pahala';
+    const ket = String(it.keterangan || '').trim();
+    rows.push([now, nama, tipe, nominal, ket]);
+    if (tipe === 'Dosa') ketResto.push(ket);
+    rows.push.apply(rows, barisInfaqOtomatis_(now, nama, tipe, ket));
+  });
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 5).setValues(rows);
+  return ketResto;
 }

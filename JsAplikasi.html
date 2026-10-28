@@ -48,6 +48,8 @@
     dataAnggota = data.anggota || [];
     dataBulan = data.bulanList || [];
     dataStrukAlias = data.strukAlias || dataStrukAlias;
+    dataPesanan = data.pesanan || [];
+    if (typeof renderBannerPesanan === 'function') renderBannerPesanan();
     if (typeof isiPemilihLaporan === 'function') isiPemilihLaporan();
     renderLeaderboard();
     renderGoldBoard();

@@ -32,6 +32,7 @@ Repo ini diedit dari banyak tempat. Actions men-deploy setiap push ke `main`, ja
 | `Laporan.js` | `getLaporanBulanan` |
 | `Kopdos.js` | katalog belanja (`KATALOG_KOPDOS`) + `submitBelanja` |
 | `Infaq.js` | `getInfaqMap_` / `saveInfaqMap` (kolom C sheet Anggota) |
+| `Pesanan.js` | invoice GrabFood → sheet `Pesanan` → dibagi per orang dengan rumus Grab (`parseInvoiceGrab`, `simpanPesanan`, `abaikanPesanan`, `hitungBagiPesanan_`) |
 
 **Frontend.** `Index.html` cuma kerangka berisi `<?!= include('...') ?>`.
 
@@ -49,6 +50,7 @@ Repo ini diedit dari banyak tempat. Actions men-deploy setiap push ke `main`, ja
 | `JsGrafik` | grafik garis saldo harian (SVG) |
 | `JsAplikasi` | `render(data)` + submit form |
 | `JsKopdos` / `JsStruk` / `JsLaporan` | katalog belanja, upload & review struk, penyusunan PDF |
+| `JsPesanan` + `StylePesanan` | Pesanan Masuk: unggah invoice Grab, layar bagi (ketuk orang → ketuk menu) |
 | `JsTema` | siklus tema + hujan bendera |
 | `JsEfek` | trail kursor, hujan uang, pemutar suara (`playSfx`, `SFX_ALIAS`) |
 | `JsAyat` / `JsMuatAwal` / `JsTutorial` / `JsLogo3D` | pita ayat, panggilan dasbor pertama, tur, logo 3D |
@@ -61,6 +63,7 @@ Peta visual (alur `doGet` + siapa memanggil siapa):
 ```bash
 node tools/render.cjs [keluar.html]   # jahit Index + include jadi satu dokumen
 node tools/smoke.cjs                  # jalankan halaman itu di Chromium (butuh playwright)
+node tools/uji-bagi.cjs               # rumus bagi pesanan Grab: klien = server, order nyata, 2000 acak
 ```
 
 `smoke.cjs` memalsukan `google.script.run`, jadi UI bisa diuji tanpa Google: halaman
@@ -118,6 +121,14 @@ samakan gaya dengan kode sekitarnya secara manual.
   429/5xx dicoba ulang dengan jeda bertahap, lalu pindah ke `GEMINI_MODEL_CADANGAN` (bisa
   ditimpa via Script Property `GEMINI_MODEL_CADANGAN`, dipisah koma). Batas total 90 dtk per
   gambar. 401/403 langsung gagal — itu masalah API key, bukan beban server.
+- **Rumus bagi pesanan Grab ada DUA salinan**: `Pesanan.js` (penentu) dan `JsPesanan.html`
+  (pratinjau), diapit penanda `<bagi-pesanan>`. Ubah keduanya, lalu `node tools/uji-bagi.cjs`.
+  Diskon `untuk: 'biaya'` (mis. diskon ongkir) mengurangi biaya bersama yang dibagi RATA;
+  diskon lain dibagi PRORATA harga menu. Admin ditetapkan sebagai `__SAYA__`: ikut dihitung
+  sebagai pemesan (supaya biaya dibagi sama seperti Grab) tapi tidak ditulis sebagai Dosa.
+- **`tulisBarisBatch_` (Amalan.js) mengandaikan lock SUDAH dipegang pemanggil** — dipakai
+  `submitAmalanBatch` dan `simpanPesanan` supaya menulis baris + menandai pesanan "tercatat"
+  terjadi di bawah satu lock (mencegah satu order tercatat dua kali).
 - **Belanja Kopdos tidak lewat `submitAmalan`.** Harga hidup di server; `submitBelanja` hanya
   menerima `{id, qty}` dan menulis baris Dosa **tanpa** infaq KAS — disengaja.
 - **Tema ada dua, berputar**: `dark` (default) → `light`. Tema `mp` (Merah Putih / kemerdekaan)

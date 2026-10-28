@@ -117,6 +117,13 @@ function setupSheets() {
     rst.setFrozenRows(1);
   }
 
+  let psn = ss.getSheetByName(SHEET_PESANAN);
+  if (!psn) {
+    psn = ss.insertSheet(SHEET_PESANAN);
+    psn.getRange(1, 1, 1, PESANAN_HEADER.length).setValues([PESANAN_HEADER]).setFontWeight('bold');
+    psn.setFrozenRows(1);
+  }
+
   let agt = ss.getSheetByName(SHEET_ANGGOTA);
   if (!agt) {
     agt = ss.insertSheet(SHEET_ANGGOTA);

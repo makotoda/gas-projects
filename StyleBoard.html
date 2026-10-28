@@ -188,7 +188,7 @@
   }
   #transferAdminModal .submit-btn { margin-top: 0; }
 
-  #statModal, #rekModal, #laporanModal, #strukModal, #kopdosModal, #transferAdminModal {
+  #statModal, #rekModal, #laporanModal, #strukModal, #kopdosModal, #transferAdminModal, #pesananModal {
     position: fixed; inset: 0;
     display: grid; place-items: center;
     padding: 20px;
@@ -200,12 +200,12 @@
     transition: opacity .25s;
   }
   #statModal.show, #rekModal.show, #laporanModal.show, #strukModal.show,
-  #kopdosModal.show, #transferAdminModal.show { opacity: 1; pointer-events: auto; }
+  #kopdosModal.show, #transferAdminModal.show, #pesananModal.show { opacity: 1; pointer-events: auto; }
   /* Kunci scroll halaman utama selagi modal terbuka — tanpa ini, gesture
      scroll di mobile "bocor" ke body di belakang begitu isi modal-card
      lebih tinggi dari viewport, alih-alih men-scroll modal itu sendiri. */
   body:has(#statModal.show, #rekModal.show, #laporanModal.show, #strukModal.show,
-           #kopdosModal.show, #transferAdminModal.show) {
+           #kopdosModal.show, #transferAdminModal.show, #pesananModal.show) {
     overflow: hidden;
   }
   .modal-card {

@@ -1,0 +1,361 @@
+  /* ================= Pesanan Masuk: invoice Grab dibagi per orang =================
+     Admin mengunggah screenshot e-receipt Grab (email) → server membaca & menyimpan
+     sebagai pesanan 'menunggu' (Pesanan.js) → di sini admin menetapkan pemilik tiap
+     menu → simpanPesanan menghitung ulang di server lalu mencatat Dosa per orang.
+
+     Cara memilih dirancang untuk HP: ketuk ORANG dulu (jadi "kuas"), lalu ketuk
+     menu-menunya — jauh lebih cepat daripada satu dropdown per menu. */
+  const PSN_SAYA = '__SAYA__';      // sama dengan PESANAN_SAYA di Pesanan.js
+  const PSN_LABEL_SAYA = 'Saya (tidak dicatat)';
+  let dataPesanan = [];             // diisi render(data) dari getDashboardData
+  let psnAktif = null;              // pesanan yang sedang dibagi
+  let psnKuas = '';                 // orang yang sedang dipilih
+  let psnAbaikanTimer = null;
+
+  /* Rumus pembagian — SALINAN PERSIS dari Pesanan.js (antara penanda di bawah).
+     Ubah keduanya bersamaan; tools/uji-bagi.cjs memeriksa keduanya identik.
+     Server tetap penentu akhir: ia menghitung ulang & menolak kalau berbeda. */
+  // <bagi-pesanan>
+  /** Pecah tiap baris menu menjadi unit (qty 2 → 2 unit) supaya tiap unit bisa
+   *  dimiliki orang berbeda. Harga baris dibagi rata; sisa rupiah ke unit awal. */
+  function unitPesanan_(detail) {
+    const units = [];
+    (detail.items || []).forEach((it, i) => {
+      const qty = Math.max(1, Math.floor(Number(it.qty)) || 1);
+      const harga = Math.round(Number(it.harga)) || 0;
+      const dasar = Math.floor(harga / qty);
+      const lebih = harga - dasar * qty;
+      for (let k = 0; k < qty; k++) {
+        units.push({ item: i, nama: String(it.nama || ''), harga: dasar + (k < lebih ? 1 : 0) });
+      }
+    });
+    return units;
+  }
+
+  /**
+   * penugasan[i] = nama pemilik unit ke-i ('' = belum ditetapkan).
+   * Balikan { peserta: [{nama, item, bayar}], total, belum, lengkap, jumlahBayar }.
+   * Urutan peserta = urutan kemunculan pertama di penugasan.
+   */
+  function hitungBagiPesanan_(detail, penugasan) {
+    const units = unitPesanan_(detail);
+    if (!Array.isArray(penugasan) || penugasan.length !== units.length) {
+      throw new Error('Penugasan menu tidak sesuai dengan isi pesanan.');
+    }
+    const jumlah = arr => (arr || []).reduce((a, x) => a + (Math.round(Number(x.nominal)) || 0), 0);
+    const diskon = detail.diskon || [];
+    const subtotal = units.reduce((a, u) => a + u.harga, 0);
+    let diskonMenu = jumlah(diskon.filter(d => d.untuk !== 'biaya'));
+    let biayaBersih = jumlah(detail.biaya) - jumlah(diskon.filter(d => d.untuk === 'biaya'));
+    if (biayaBersih < 0) { diskonMenu += -biayaBersih; biayaBersih = 0; } // diskon ongkir > ongkir
+    const total = subtotal - diskonMenu + biayaBersih;
+
+    const perOrang = Object.create(null);
+    const urutan = [];
+    let belum = 0;
+    penugasan.forEach((nama, i) => {
+      if (!nama) { belum++; return; }
+      if (!(nama in perOrang)) { perOrang[nama] = 0; urutan.push(nama); }
+      perOrang[nama] += units[i].harga;
+    });
+    const n = urutan.length;
+    if (!n || subtotal <= 0) {
+      return { peserta: [], total: total, belum: belum, lengkap: false, jumlahBayar: 0 };
+    }
+
+    // Porsi eksak = item × (subtotal − diskonMenu)/subtotal + biayaBersih/n,
+    // dihitung sebagai pecahan berpenyebut subtotal × n supaya bebas galat float.
+    const penyebut = subtotal * n;
+    const baris = urutan.map((nama, idx) => {
+      const pembilang = perOrang[nama] * (subtotal - diskonMenu) * n + biayaBersih * subtotal;
+      return { nama: nama, item: perOrang[nama], bayar: Math.floor(pembilang / penyebut),
+               sisa: pembilang % penyebut, pembilang: pembilang, idx: idx };
+    });
+    const target = Math.round(baris.reduce((a, b) => a + b.pembilang, 0) / penyebut);
+    let kurang = target - baris.reduce((a, b) => a + b.bayar, 0);
+    baris.slice().sort((a, b) => (b.sisa - a.sisa) || (a.idx - b.idx)).forEach(b => {
+      if (kurang > 0) { b.bayar++; kurang--; }
+    });
+
+    const peserta = baris.map(b => ({ nama: b.nama, item: b.item, bayar: b.bayar }));
+    return {
+      peserta: peserta,
+      total: total,
+      belum: belum,
+      lengkap: belum === 0,
+      jumlahBayar: peserta.reduce((a, p) => a + p.bayar, 0)
+    };
+  }
+  // </bagi-pesanan>
+
+  const psnWarna = i => 'hsl(' + Math.round((i * 137.508 + 20) % 360) + ' 70% 55%)';
+  const psnNamaTampil = n => n === PSN_SAYA ? PSN_LABEL_SAYA : n;
+
+  /* Draf penugasan disimpan per pesanan (di memori + localStorage kalau bisa),
+     supaya menutup modal atau memuat ulang halaman tidak menghapus pekerjaan. */
+  const psnDraf = {};
+  function drafPesanan_(p) {
+    if (psnDraf[p.id]) return psnDraf[p.id];
+    const jml = unitPesanan_(p.detail).length;
+    let d = null;
+    try { d = JSON.parse(localStorage.getItem('kodomoPsnDraf:' + p.id) || 'null'); } catch (e) {}
+    if (!d || !Array.isArray(d.penugasan) || d.penugasan.length !== jml) {
+      d = { penugasan: new Array(jml).fill(''), peserta: [PSN_SAYA] };
+    }
+    psnDraf[p.id] = d;
+    return d;
+  }
+  function simpanDraf_(p) {
+    try { localStorage.setItem('kodomoPsnDraf:' + p.id, JSON.stringify(psnDraf[p.id])); } catch (e) {}
+  }
+  function hapusDraf_(id) {
+    delete psnDraf[id];
+    try { localStorage.removeItem('kodomoPsnDraf:' + id); } catch (e) {}
+  }
+
+  function renderBannerPesanan() {
+    const n = dataPesanan.length;
+    $('pesananBanner').hidden = n === 0;
+    $('pesananJumlah').textContent = n;
+    // Modal terbuka di tampilan daftar → segarkan; pesanan aktif yang sudah
+    // tidak menunggu lagi (dicatat dari perangkat lain) → kembali ke daftar.
+    if (!$('pesananModal').classList.contains('show')) return;
+    if (psnAktif && !dataPesanan.some(p => p.id === psnAktif.id)) psnAktif = null;
+    if (!psnAktif) tampilDaftarPsn_();
+  }
+
+  function bukaPesananModal_() {
+    psnAktif = null;
+    if (dataPesanan.length === 1) bukaBagi_(dataPesanan[0]);
+    else tampilDaftarPsn_();
+    $('pesananModal').classList.add('show');
+  }
+
+  function tampilDaftarPsn_() {
+    $('pesananJudul').textContent = '📥 Pesanan Masuk';
+    $('psnBagi').hidden = true;
+    $('psnDaftar').hidden = false;
+    $('psnDaftar').innerHTML = dataPesanan.length
+      ? dataPesanan.map(p => `
+        <button type="button" class="psn-item" data-id="${esc(p.id)}">
+          <b>${esc(p.resto)}</b>
+          <span class="psn-tot">${fmt(p.total)}</span>
+          <small>${esc(p.waktu || '')} · ${esc(p.id)}</small>
+        </button>`).join('')
+      : '<div class="empty">Tidak ada pesanan yang menunggu. Unggah invoice lewat tombol 🧾 Invoice Grab.</div>';
+    $('psnDaftar').querySelectorAll('.psn-item').forEach(b => b.addEventListener('click', () => {
+      const p = dataPesanan.find(x => x.id === b.dataset.id);
+      if (p) bukaBagi_(p);
+    }));
+  }
+
+  function bukaBagi_(p) {
+    psnAktif = p;
+    psnKuas = '';
+    drafPesanan_(p);
+    $('psnDaftar').hidden = true;
+    $('psnBagi').hidden = false;
+    $('pesananJudul').textContent = '🧾 Bagi Pesanan';
+    $('psnKembali').style.visibility = dataPesanan.length > 1 ? '' : 'hidden';
+    resetAbaikan_();
+    renderBagi_();
+  }
+
+  function renderBagi_() {
+    const p = psnAktif;
+    if (!p) return;
+    const d = drafPesanan_(p);
+    const units = unitPesanan_(p.detail);
+    const warnaDari = nama => psnWarna(Math.max(0, d.peserta.indexOf(nama)));
+    const jumlahUnit = nama => d.penugasan.filter(x => x === nama).length;
+
+    $('psnInfo').innerHTML = `<b>${esc(p.resto)}</b><br>${esc(p.waktu || '')} · ${esc(p.id)} · total <b>${fmt(p.total)}</b>`;
+
+    // Chip orang. Chip tanpa menu boleh dihapus (×) — salah tambah.
+    $('psnChips').innerHTML = d.peserta.map(nama => {
+      const n = jumlahUnit(nama);
+      const hapus = n === 0 && nama !== PSN_SAYA ? `<span class="x" data-hapus="${esc(nama)}" title="Hapus">×</span>` : '';
+      return `<button type="button" class="psn-chip${psnKuas === nama ? ' aktif' : ''}" data-nama="${esc(nama)}" style="--w:${warnaDari(nama)}">
+        <i></i>${esc(psnNamaTampil(nama))}${n ? ` <small>${n}</small>` : ''}${hapus}</button>`;
+    }).join('');
+    $('psnChips').querySelectorAll('.psn-chip').forEach(c => c.addEventListener('click', e => {
+      const hapus = e.target.closest('[data-hapus]');
+      if (hapus) {
+        d.peserta = d.peserta.filter(x => x !== hapus.dataset.hapus);
+        if (psnKuas === hapus.dataset.hapus) psnKuas = '';
+      } else {
+        psnKuas = psnKuas === c.dataset.nama ? '' : c.dataset.nama;
+      }
+      simpanDraf_(p);
+      renderBagi_();
+    }));
+
+    // Tambah orang dari roster (yang belum jadi chip). KAS bukan pemesan.
+    const sisa = dataAnggota.filter(n => n !== KAS_NAMA && d.peserta.indexOf(n) < 0);
+    $('psnTambah').innerHTML = '<option value="">+ Tambah orang yang ikut pesan…</option>' +
+      sisa.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+
+    // Unit menu
+    $('psnMenu').innerHTML = units.map((u, i) => {
+      const pemilik = d.penugasan[i];
+      return `<button type="button" class="psn-unit${pemilik ? '' : ' belum'}" data-i="${i}"${pemilik ? ` style="--w:${warnaDari(pemilik)}"` : ''}>
+        <span class="nm">${esc(u.nama)}</span><span class="hg">${fmt(u.harga)}</span>
+        <span class="ol">${pemilik ? esc(psnNamaTampil(pemilik)) : 'belum ada pemilik'}</span></button>`;
+    }).join('');
+    $('psnMenu').querySelectorAll('.psn-unit').forEach(b => b.addEventListener('click', () => {
+      if (!psnKuas) return toast('Pilih orangnya dulu — ketuk nama di atas.', 'err');
+      const i = Number(b.dataset.i);
+      d.penugasan[i] = d.penugasan[i] === psnKuas ? '' : psnKuas;
+      simpanDraf_(p);
+      renderBagi_();
+    }));
+
+    // Rincian + status
+    const h = hitungBagiPesanan_(p.detail, d.penugasan);
+    $('psnRingkas').innerHTML = h.peserta.length
+      ? h.peserta.map(o => `
+        <div class="rk${o.nama === PSN_SAYA ? ' saya' : ''}" style="--w:${warnaDari(o.nama)}">
+          <i></i><span>${esc(psnNamaTampil(o.nama))}</span>
+          <span class="it">menu ${fmt(o.item)}</span><b>${fmt(o.bayar)}</b>
+        </div>`).join('')
+      : '<div class="kosong">Belum ada menu yang ditetapkan.</div>';
+
+    const status = $('psnStatus');
+    const jmlDicatat = h.peserta.filter(o => o.nama !== PSN_SAYA && o.bayar > 0).length;
+    if (!h.lengkap) {
+      status.className = 'psn-status';
+      status.textContent = `Masih ${h.belum} menu belum punya pemilik. Angka di atas masih sementara — ` +
+        'biaya bersama baru dibagi ke orang yang sudah ditetapkan.';
+    } else if (!jmlDicatat) {
+      status.className = 'psn-status';
+      status.textContent = 'Semua menu milik Anda sendiri — tidak ada dosa yang perlu dicatat. Abaikan saja pesanan ini.';
+    } else {
+      const u = p.detail;
+      const sub = units.reduce((a, x) => a + x.harga, 0);
+      const jm = arr => (arr || []).reduce((a, x) => a + x.nominal, 0);
+      const dMenu = jm((u.diskon || []).filter(x => x.untuk !== 'biaya'));
+      const bBersih = jm(u.biaya) - jm((u.diskon || []).filter(x => x.untuk === 'biaya'));
+      status.className = 'psn-status ok';
+      status.textContent = `✓ Semua menu terbagi ke ${h.peserta.length} orang · jumlah ${fmt(h.jumlahBayar)} ` +
+        `= total tagihan. Diskon menu ${(dMenu / sub * 100).toFixed(1).replace('.0', '')}% dibagi prorata, ` +
+        `biaya bersama ${fmt(Math.max(0, bBersih))} dibagi rata.`;
+    }
+    $('psnSimpan').disabled = !(h.lengkap && jmlDicatat && h.jumlahBayar === p.total);
+    $('psnSimpan').textContent = jmlDicatat ? `Simpan dosa untuk ${jmlDicatat} orang` : 'Simpan sebagai Dosa';
+  }
+
+  $('psnTambah').addEventListener('change', e => {
+    const nama = e.target.value;
+    if (!nama || !psnAktif) return;
+    const d = drafPesanan_(psnAktif);
+    if (d.peserta.indexOf(nama) < 0) d.peserta.push(nama);
+    psnKuas = nama;          // orang baru langsung jadi "kuas"
+    simpanDraf_(psnAktif);
+    renderBagi_();
+  });
+
+  $('psnSimpan').addEventListener('click', () => {
+    const p = psnAktif;
+    if (!p) return;
+    const d = drafPesanan_(p);
+    const h = hitungBagiPesanan_(p.detail, d.penugasan);
+    const ringkas = {};
+    h.peserta.forEach(o => { ringkas[o.nama] = o.bayar; });
+    const btn = $('psnSimpan');
+    btn.disabled = true;
+    btn.textContent = 'Menyimpan…';
+    google.script.run
+      .withSuccessHandler(data => {
+        hapusDraf_(p.id);
+        psnAktif = null;
+        $('pesananModal').classList.remove('show');
+        render(data);
+        const k = h.peserta.filter(o => o.nama !== PSN_SAYA && o.bayar > 0).length;
+        toast(`Pesanan ${p.resto} tercatat ✓ (${k} orang)`, 'ok');
+        if (typeof playCoinBurst === 'function') playCoinBurst();
+      })
+      .withFailureHandler(err => {
+        toast(err.message || 'Gagal menyimpan pesanan.', 'err');
+        renderBagi_();
+      })
+      .simpanPesanan(p.id, d.penugasan, ringkas);
+  });
+
+  // Abaikan: dua langkah (klik → "yakin?" → klik lagi dalam 3 detik). Tidak
+  // memakai confirm() karena dialog bawaan bisa diblokir di iframe Google Sites.
+  function resetAbaikan_() {
+    clearTimeout(psnAbaikanTimer);
+    $('psnAbaikan').classList.remove('yakin');
+    $('psnAbaikan').textContent = 'Abaikan pesanan ini';
+  }
+  $('psnAbaikan').addEventListener('click', () => {
+    const btn = $('psnAbaikan');
+    if (!btn.classList.contains('yakin')) {
+      btn.classList.add('yakin');
+      btn.textContent = 'Yakin abaikan? Klik lagi';
+      psnAbaikanTimer = setTimeout(resetAbaikan_, 3000);
+      return;
+    }
+    resetAbaikan_();
+    const p = psnAktif;
+    google.script.run
+      .withSuccessHandler(data => {
+        hapusDraf_(p.id);
+        psnAktif = null;
+        render(data);
+        toast(`Pesanan ${p.resto} diabaikan.`, 'ok');
+        if (!dataPesanan.length) $('pesananModal').classList.remove('show');
+        else tampilDaftarPsn_();
+      })
+      .withFailureHandler(err => toast(err.message || 'Gagal.', 'err'))
+      .abaikanPesanan(p.id);
+  });
+
+  $('psnKembali').addEventListener('click', () => { psnAktif = null; tampilDaftarPsn_(); });
+  $('pesananBanner').addEventListener('click', bukaPesananModal_);
+  $('pesananClose').addEventListener('click', () => $('pesananModal').classList.remove('show'));
+  $('pesananModal').addEventListener('click', e => {
+    if (e.target === $('pesananModal')) $('pesananModal').classList.remove('show');
+  });
+
+  /* ---- Unggah invoice ---- */
+  $('invoiceBtn').addEventListener('click', () => $('invoiceFile').click());
+  $('invoiceFile').addEventListener('change', async () => {
+    const file = $('invoiceFile').files[0];
+    $('invoiceFile').value = '';
+    if (!file) return;
+    const loader = $('loader');
+    const pesan = $('loaderPesan');
+    if (window.KodomoLogo3D) {
+      loader.classList.add('logo3d');
+      window.KodomoLogo3D.pasang($('loaderLogo'));
+    }
+    loader.classList.add('overlay');
+    loader.classList.remove('hide');
+    pesan.textContent = 'Membaca invoice…';
+    const timerSabar = setTimeout(() => {
+      pesan.textContent = 'Membaca invoice… Server Google sedang ramai, aplikasi mencoba ulang ' +
+        'otomatis — mohon tunggu, bisa sampai 1 menit.';
+    }, 8000);
+    const tutup = () => {
+      clearTimeout(timerSabar);
+      pesan.textContent = '';
+      loader.classList.add('hide');
+      if (window.KodomoLogo3D) window.KodomoLogo3D.keHeader();
+    };
+    try {
+      const base64 = await bacaFileSebagaiBase64_(file);
+      const p = await new Promise((ok, gagal) => google.script.run
+        .withSuccessHandler(ok).withFailureHandler(gagal).parseInvoiceGrab(base64, file.type));
+      tutup();
+      dataPesanan = [p].concat(dataPesanan.filter(x => x.id !== p.id));
+      renderBannerPesanan();
+      bukaBagi_(p);
+      $('pesananModal').classList.add('show');
+    } catch (e) {
+      tutup();
+      const asli = (e && e.message) || 'Gagal membaca invoice.';
+      console.warn(asli);
+      toast(asli.replace(/\s*\[[^\]]*\]\s*$/, ''), 'err');
+    }
+  });
