@@ -2,9 +2,9 @@
  * KODOMO — top-up dari bot WhatsApp (proyek terpisah `wa-bukti-transfer`).
  *
  * Bot mengirim bukti transfer yang masuk lewat chat pribadi ke doPost. Di sini
- * gambar dibaca dengan parseStruk lalu diajukan lewat ajukanTopUp — jalur yang
- * SAMA PERSIS dengan tombol bukti transfer di aplikasi, jadi verifikasi notifikasi
- * bank / persetujuan admin (TopUp.js) ikut berlaku.
+ * gambar dibaca dengan parseStruk lalu Pahala-nya LANGSUNG ditulis — sengaja
+ * tidak lewat ajukanTopUp, jadi verifikasi notifikasi bank / persetujuan admin
+ * (TopUp.js) TIDAK berlaku untuk jalur WA.
  *
  * Dijaga token di Script Property WA_BOT_TOKEN; tanpa token, endpoint menolak
  * semua permintaan. Nomor WA anggota di kolom D 'WA' sheet Anggota (format
@@ -62,13 +62,15 @@ function topUpDariWa_(p) {
   const it = parseStruk(p.base64, p.mimeType, 'transfer')[0];
   if (!it) return { ok: true, terdaftar: true, nama: nama, hasil: 'bukan-bukti' };
 
-  const res = ajukanTopUp([{
+  // Keputusan pemilik: top-up via WA langsung masuk TANPA verifikasi bank/admin —
+  // nomor WA terdaftar dianggap cukup. Bukti hasil edit / dikirim dua kali ikut masuk.
+  submitAmalanBatch([{
     nama: nama,
+    tipe: 'Pahala',
     nominal: it.nominal,
-    keterangan: 'Top-up via WA' + (it.bank ? ' · ' + it.bank : ''),
-    pengirim: it.nama
+    keterangan: 'Top-up via WA' + (it.bank ? ' · ' + it.bank : '') + ' · pengirim: ' + it.nama
   }]);
-  return { ok: true, terdaftar: true, nama: nama, nominal: it.nominal, hasil: res.hasil[0] };
+  return { ok: true, terdaftar: true, nama: nama, nominal: it.nominal, hasil: 'langsung' };
 }
 
 /** Jalankan SEKALI dari editor: buat token bot + kolom 'WA' di Anggota. Aman diulang. */
