@@ -8,7 +8,8 @@
  *
  * Dijaga token di Script Property WA_BOT_TOKEN; tanpa token, endpoint menolak
  * semua permintaan. Nomor WA anggota di kolom D 'WA' sheet Anggota (format
- * bebas: 0812…, +62 812…, 62812…). Jalankan pasangBotWa() sekali dari editor.
+ * bebas: 0812…, +62 812…, 62812…; beberapa nomor dipisah koma). Jalankan
+ * pasangBotWa() sekali dari editor.
  *
  * Bagian dari proyek Kodomo — namespace global bersama.
  */
@@ -42,8 +43,10 @@ function namaDariNomorWa_(nomor) {
   const sheet = getSheet_(SHEET_ANGGOTA);
   const last = sheet.getLastRow();
   if (last < 2) return '';
+  // Satu sel boleh berisi beberapa nomor, dipisah koma / titik koma / baris baru.
   const cocok = sheet.getRange(2, 1, last - 1, WA_KOLOM_NOMOR).getValues()
-    .filter(r => normalisasiNomorWa_(r[WA_KOLOM_NOMOR - 1]) === n)[0];
+    .filter(r => String(r[WA_KOLOM_NOMOR - 1]).split(/[,;\n]/)
+      .some(x => normalisasiNomorWa_(x) === n))[0];
   return cocok ? String(cocok[0]).trim() : '';
 }
 
