@@ -185,10 +185,10 @@ and no cache — see [GAPS.md](GAPS.md) for the scaling implication.
    correctly for Indonesian users regardless, but don't assume the `timeZone` field reflects
    the actual locale — it was probably just left at whatever the Apps Script project
    defaulted to, or copied from a template.
-5. **There is no `doPost`, no REST endpoint, no way to interact with this app except
-   through the served `Index.html` page** (or directly via the Apps Script script editor's
-   "Run" button on individual functions). If you're used to APIs being testable via curl,
-   they're not, here — `google.script.run` only works from within the served HTML context.
+5. **Satu-satunya endpoint HTTP adalah `doPost` di `WaBot.js`** (top-up dari bot WhatsApp,
+   dijaga token `WA_BOT_TOKEN`). Selain itu semua interaksi lewat `Index.html` via
+   `google.script.run`, yang hanya jalan dari dalam halaman yang disajikan — tidak bisa
+   dites dengan curl.
 6. **Nothing in this repo is under version control** (no `.git`). Any "let me check git
    history/blame" instinct will not work — the only record of intent is this file, GAPS.md,
    and CLAUDE.md.
