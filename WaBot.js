@@ -71,7 +71,7 @@ function topUpDariWa_(p) {
     nama: nama,
     tipe: 'Pahala',
     nominal: it.nominal,
-    keterangan: 'Top-up via WA' + (it.bank ? ' · ' + it.bank : '') + ' · pengirim: ' + it.nama
+    keterangan: 'Top-up via WA' + (it.bank ? ' · ' + it.bank : '') + (it.nama ? ' · pengirim: ' + it.nama : '')
   }]);
   return { ok: true, terdaftar: true, nama: nama, nominal: it.nominal, hasil: 'langsung' };
 }

@@ -220,7 +220,9 @@ function parseStruk(base64, mimeType, mode) {
       nominal: Math.round(Number(it.nominal)) || 0,
       bank: String(it.bank || '').trim()
     }))
-    .filter(it => it.nama && it.nominal > 0)
+    // Bukti transfer (terutama e-wallet) sering tanpa nama pengirim — tetap
+    // dipakai: klien minta pilih manual, bot WA sudah tahu nama dari nomornya.
+    .filter(it => it.nominal > 0 && (it.nama || mode === 'transfer'))
     .slice(0, 50);
 }
 
