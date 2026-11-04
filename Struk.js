@@ -78,6 +78,8 @@ function jedaSaranGemini_(teks) {
  */
 function panggilGemini_(apiKey, body) {
   const mulai = Date.now();
+  let isi = JSON.stringify(body);
+  let tanpaThinking = !(body.generationConfig && body.generationConfig.thinkingConfig);
   const jejak = [];          // ringkas, untuk pesan error & log: 'model#coba→kode'
   let galatLain = '';        // galat pertama yang BUKAN "sibuk", untuk diagnosis
   const sisaWaktu = () => GEMINI_BATAS_WAKTU_MS - (Date.now() - mulai);
@@ -97,7 +99,7 @@ function panggilGemini_(apiKey, body) {
           {
             method: 'post',
             contentType: 'application/json',
-            payload: JSON.stringify(body),
+            payload: isi,
             muteHttpExceptions: true
           }
         );
@@ -119,6 +121,16 @@ function panggilGemini_(apiKey, body) {
           'Periksa GEMINI_API_KEY di Script Properties.');
       }
       const sibuk = kode === 0 || kode === 429 || kode >= 500;
+      if (kode === 400 && !tanpaThinking) {
+        // Model ini (mis. cadangan versi lama) tak mengenal thinkingConfig —
+        // buang opsinya untuk SEMUA percobaan berikutnya, ulangi model yang sama.
+        const salinan = JSON.parse(isi);
+        delete salinan.generationConfig.thinkingConfig;
+        isi = JSON.stringify(salinan);
+        tanpaThinking = true;
+        coba--;
+        continue;
+      }
       if (!sibuk) {
         if (!galatLain) galatLain = 'HTTP ' + kode + ': ' + teks.slice(0, 300);
         continue luar; // 400/404: model ini tak bisa dipakai, coba berikutnya
@@ -176,6 +188,10 @@ function parseStruk(base64, mimeType, mode) {
       ]
     }],
     generationConfig: {
+      // Membaca nama + nominal tidak butuh penalaran panjang; mode berpikir
+      // bawaan menambah belasan detik. Model yang tak mengenal opsi ini (HTTP
+      // 400) otomatis dicoba ulang tanpanya oleh panggilGemini_.
+      thinkingConfig: { thinkingLevel: 'low' },
       responseMimeType: 'application/json',
       responseSchema: {
         type: 'ARRAY',

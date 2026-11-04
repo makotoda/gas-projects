@@ -447,9 +447,9 @@
       if (window.KodomoLogo3D) window.KodomoLogo3D.keHeader();
     };
     try {
-      const base64 = await bacaFileSebagaiBase64_(file);
+      const gambar = await siapkanGambar_(file);   // JPEG diperkecil (JsStruk) → unggah & baca lebih cepat
       const p = await new Promise((ok, gagal) => google.script.run
-        .withSuccessHandler(ok).withFailureHandler(gagal).parseInvoiceGrab(base64, file.type));
+        .withSuccessHandler(ok).withFailureHandler(gagal).parseInvoiceGrab(gambar.base64, gambar.mime));
       tutup();
       dataPesanan = [p].concat(dataPesanan.filter(x => x.id !== p.id));
       renderBannerPesanan();

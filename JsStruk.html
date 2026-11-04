@@ -40,6 +40,35 @@
     });
   }
 
+  /**
+   * Kecilkan & ubah ke JPEG sebelum dikirim: screenshot PNG HP bisa 1–3 MB, dan
+   * ukuran itu dibayar dua kali — unggah ke server lalu diteruskan ke Gemini
+   * (lebih banyak piksel = lebih banyak token = lebih lama). Sisi pendek maks
+   * 1100 px masih jauh di atas ukuran teks struk/bukti TF; sisi panjang dibatasi
+   * longgar (4000 px) supaya screenshot panjang split tagihan tetap terbaca.
+   * Gagal apa pun → kirim file asli.
+   */
+  async function siapkanGambar_(file) {
+    const asli = { base64: await bacaFileSebagaiBase64_(file), mime: file.type };
+    try {
+      const bmp = await createImageBitmap(file);
+      const w = bmp.width, h = bmp.height;
+      const skala = Math.min(1, 1100 / Math.min(w, h), 4000 / Math.max(w, h));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(w * skala);
+      cv.height = Math.round(h * skala);
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = '#fff';                      // PNG transparan → latar putih, bukan hitam
+      ctx.fillRect(0, 0, cv.width, cv.height);
+      ctx.drawImage(bmp, 0, 0, cv.width, cv.height);
+      if (bmp.close) bmp.close();
+      const base64 = cv.toDataURL('image/jpeg', 0.85).split(',')[1] || '';
+      return base64 && base64.length < asli.base64.length ? { base64: base64, mime: 'image/jpeg' } : asli;
+    } catch (e) {
+      return asli;
+    }
+  }
+
   function bentukBarisStruk_(list) {
     const roster = dataAnggota.filter(n => n !== KAS_NAMA);
     $('strukList').innerHTML = list.map((it, i) => {
@@ -117,8 +146,8 @@
           pesan.textContent = label + ' Server Google sedang ramai, aplikasi mencoba ulang ' +
             'otomatis — mohon tunggu, bisa sampai 1 menit.';
         }, 8000);
-        const base64 = await bacaFileSebagaiBase64_(files[i]);
-        rows = rows.concat(await parseStrukAsync_(base64, files[i].type, strukMode));
+        const gambar = await siapkanGambar_(files[i]);
+        rows = rows.concat(await parseStrukAsync_(gambar.base64, gambar.mime, strukMode));
       }
       tutupLoader();
       bentukBarisStruk_(rows);
@@ -210,7 +239,7 @@
     // dari bank (kalau verifikasi diaktifkan admin) — bisa langsung masuk, bisa
     // menunggu notifikasi. Perayaan & pengumuman suara hanya untuk yang SUDAH masuk.
     if (strukMode === 'transfer') {
-      $('strukStatus').textContent = 'Mencocokkan dengan notifikasi bank…';
+      $('strukStatus').textContent = 'Menyimpan bukti transfer…';
       google.script.run
         .withSuccessHandler(res => {
           btn.disabled = false;

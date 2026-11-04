@@ -124,7 +124,10 @@ samakan gaya dengan kode sekitarnya secara manual.
 - **Panggilan Gemini (`parseStruk`) tahan server sibuk** lewat `panggilGemini_` di `Struk.js`:
   429/5xx dicoba ulang dengan jeda bertahap, lalu pindah ke `GEMINI_MODEL_CADANGAN` (bisa
   ditimpa via Script Property `GEMINI_MODEL_CADANGAN`, dipisah koma). Batas total 90 dtk per
-  gambar. 401/403 langsung gagal — itu masalah API key, bukan beban server.
+  gambar. 401/403 langsung gagal — itu masalah API key, bukan beban server. `parseStruk`
+  memakai `thinkingLevel: 'low'` (cepat); model yang menolaknya (HTTP 400) diulang tanpa opsi
+  itu. Klien mengecilkan gambar jadi JPEG dulu (`siapkanGambar_` di JsStruk, dipakai juga
+  unggah invoice manual).
 - **Rumus bagi pesanan Grab ada DUA salinan**: `Pesanan.js` (penentu) dan `JsPesanan.html`
   (pratinjau), diapit penanda `<bagi-pesanan>`. Ubah keduanya, lalu `node tools/uji-bagi.cjs`.
   Diskon `untuk: 'biaya'` (mis. diskon ongkir) mengurangi biaya bersama yang dibagi RATA;
