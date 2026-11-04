@@ -225,6 +225,13 @@ const cek = (nama, syarat, detail) => {
   await page.click('#pesananBanner');
   await page.waitForTimeout(200);
   cek('daftar menampilkan rincian kegagalan', await page.isVisible('.psn-gagal'));
+  await page.evaluate(() => { window.__balas = { cobaLagiInvoiceGagal: { ringkas: { baru: 0 }, data: null } }; });
+  await page.evaluate(() => { window.__rpc = null; window.__render0 = render; window.render = () => {}; });
+  await page.click('#psnBacaUlang');
+  await page.waitForTimeout(100);
+  cek('tombol "Baca ulang" memanggil cobaLagiInvoiceGagal',
+    (await page.evaluate(() => window.__rpc && window.__rpc.fn)) === 'cobaLagiInvoiceGagal');
+  await page.evaluate(() => { window.__balas = {}; window.render = window.__render0; });
   await page.click('#psnTutupGagal');
   await page.waitForTimeout(200);
   cek('modal punya jalan cadangan unggah screenshot manual', await page.isVisible('#psnUnggahManual'));

@@ -99,6 +99,32 @@ function jemputInvoiceSekarang() {
   return { ringkas: ringkas, data: getDashboardData() };
 }
 
+/**
+ * Tombol "Baca ulang" di peringatan gagal: lepas tanda "sudah diproses" dari
+ * email yang gagal, hapus peringatannya, lalu jemput lagi. Catatan lama tanpa
+ * ID pesan dicocokkan lewat waktu email (sampai menit).
+ */
+function cobaLagiInvoiceGagal() {
+  if (CacheService.getScriptCache().get('INVOICE_JEMPUT_MANUAL')) {
+    throw new Error('Email baru saja dicek. Coba lagi sebentar lagi.');
+  }
+  const props = PropertiesService.getScriptProperties();
+  const gagal = daftarInvoiceGagal_();
+  const lepas = {}, waktuLama = {};
+  gagal.forEach(g => { if (g.id) lepas[g.id] = true; else waktuLama[g.waktu] = true; });
+  if (Object.keys(waktuLama).length) {
+    const tz = Session.getScriptTimeZone();
+    GmailApp.search(INVOICE_GMAIL_KUERI, 0, 30).forEach(th => th.getMessages().forEach(m => {
+      if (waktuLama[Utilities.formatDate(m.getDate(), tz, 'dd MMM yyyy • HH:mm')]) lepas[m.getId()] = true;
+    }));
+  }
+  let terproses = [];
+  try { terproses = JSON.parse(props.getProperty(INVOICE_PROP_TERPROSES) || '[]'); } catch (e) {}
+  props.setProperty(INVOICE_PROP_TERPROSES, JSON.stringify(terproses.filter(id => !lepas[id])));
+  props.deleteProperty(INVOICE_PROP_GAGAL);
+  return jemputInvoiceSekarang();
+}
+
 /** Hentikan penjemputan otomatis (unggah manual tetap bisa dipakai). */
 function lepasPemicuInvoice() {
   ScriptApp.getProjectTriggers()
@@ -158,7 +184,7 @@ function jemputInvoiceGmail() {
           ringkas.ditunda++;                            // sementara: coba lagi 10 menit lagi
         } else {
           tandai(id); ringkas.gagal++;                  // permanen: beri tahu admin di UI
-          catatInvoiceGagal_(msg.getDate(), alasan);
+          catatInvoiceGagal_(msg.getDate(), alasan, id);
           console.warn('Invoice email gagal dibaca (' + id + '): ' + alasan);
         }
       }
@@ -171,13 +197,14 @@ function jemputInvoiceGmail() {
 }
 
 /** Simpan 10 kegagalan terakhir supaya tampil di Kodomo, bukan hilang di log. */
-function catatInvoiceGagal_(tanggal, alasan) {
+function catatInvoiceGagal_(tanggal, alasan, id) {
   const props = PropertiesService.getScriptProperties();
   let daftar = [];
   try { daftar = JSON.parse(props.getProperty(INVOICE_PROP_GAGAL) || '[]'); } catch (e) {}
   daftar.push({
     waktu: Utilities.formatDate(tanggal, Session.getScriptTimeZone(), 'dd MMM yyyy • HH:mm'),
-    alasan: alasan.replace(/\s*\[[^\]]*\]\s*$/, '').slice(0, 200)
+    alasan: alasan.replace(/\s*\[[^\]]*\]\s*$/, '').slice(0, 200),
+    id: id || ''   // ID pesan Gmail, untuk tombol "Baca ulang"
   });
   props.setProperty(INVOICE_PROP_GAGAL, JSON.stringify(daftar.slice(-10)));
 }

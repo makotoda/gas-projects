@@ -171,7 +171,8 @@
       <div class="psn-gagal">
         <b>⚠️ Invoice email yang gagal dibaca otomatis</b>
         ${dataInvoiceGagal.map(x => `<div><span>${esc(x.waktu)}</span> — ${esc(x.alasan)}</div>`).join('')}
-        <p>Unggah screenshot invoice-nya lewat tautan di bawah.</p>
+        <p>Coba baca ulang otomatis, atau unggah screenshot invoice-nya lewat tautan di bawah.</p>
+        <button type="button" id="psnBacaUlang">↻ Baca ulang</button>
         <button type="button" id="psnTutupGagal">Sudah, tutup peringatan ini</button>
       </div>` : '';
     $('psnDaftar').innerHTML = gagal + (dataPesanan.length
@@ -192,6 +193,26 @@
         .withSuccessHandler(data => { render(data); tampilDaftarPsn_(); })
         .withFailureHandler(err => { tutupGagal.disabled = false; toast(err.message || 'Gagal.', 'err'); })
         .hapusCatatanInvoiceGagal();
+    });
+    const bacaUlang = $('psnBacaUlang');
+    if (bacaUlang) bacaUlang.addEventListener('click', () => {
+      bacaUlang.disabled = true;
+      bacaUlang.textContent = 'Membaca ulang…';
+      google.script.run
+        .withSuccessHandler(res => {
+          render(res.data);
+          const r = res.ringkas || {};
+          toast(r.baru ? `${r.baru} invoice berhasil dibaca ✓` +
+            (dataInvoiceGagal.length ? ` · ${dataInvoiceGagal.length} masih gagal` : '')
+            : 'Masih gagal dibaca — unggah screenshot manual.', r.baru ? 'ok' : 'err');
+          tampilDaftarPsn_();
+        })
+        .withFailureHandler(err => {
+          bacaUlang.disabled = false;
+          bacaUlang.textContent = '↻ Baca ulang';
+          toast(err.message || 'Gagal.', 'err');
+        })
+        .cobaLagiInvoiceGagal();
     });
     $('psnDaftar').querySelectorAll('.psn-item').forEach(b => b.addEventListener('click', () => {
       const p = dataPesanan.find(x => x.id === b.dataset.id);

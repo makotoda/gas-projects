@@ -156,9 +156,11 @@ const PROMPT_INVOICE_GRAB =
   '- subtotal dan total ("TOTAL (INCL. TAX)").\n' +
   '- biaya: setiap biaya tambahan bernilai positif selain subtotal (Biaya Pengiriman, ' +
   'Biaya Pemesanan, Biaya Layanan, Biaya Kemasan, Tip, dll).\n' +
-  '- diskon: setiap potongan (baris bertanda minus), nominal ditulis sebagai angka POSITIF, ' +
-  'dan untuk = "biaya" bila potongan itu khusus untuk ongkos kirim/pengiriman/biaya ' +
-  'layanan, selain itu untuk = "menu".\n' +
+  '- diskon: SETIAP potongan/promo/diskon/voucher/hemat — baik bertanda minus maupun tidak — ' +
+  'nominal ditulis sebagai angka POSITIF, dan untuk = "biaya" bila potongan itu khusus untuk ' +
+  'ongkos kirim/pengiriman/biaya layanan, selain itu untuk = "menu". Jangan masukkan baris ' +
+  'ringkasan yang hanya menjumlahkan potongan lain (mis. "Total hemat").\n' +
+  'Periksa: subtotal + semua biaya − semua diskon HARUS sama persis dengan total.\n' +
   'Abaikan blok "Detail Pembayaran" yang berisi metode bayar (Visa, OVO, dll) — itu bukan ' +
   'biaya. Semua angka bulat tanpa "Rp", titik, atau koma.';
 
@@ -195,6 +197,35 @@ function skemaInvoiceGrab_() {
 function bacaInvoiceGemini_(parts) {
   const apiKey = getGeminiApiKey_();
   if (!apiKey) throw new Error('Fitur baca invoice belum diaktifkan (GEMINI_API_KEY belum diatur).');
+  let detail = mintaInvoiceGemini_(apiKey, parts);
+  let masalah = periksaPesanan_(detail);
+  if (masalah.length) {
+    // Baca ulang SEKALI dengan umpan balik. Gagal seimbang paling sering karena
+    // satu promo terlewat; diberi tahu selisihnya, Gemini biasanya menemukannya.
+    // Pemeriksaan keseimbangan tetap penentu — hasil ulang yang tak seimbang ditolak.
+    const ulang = mintaInvoiceGemini_(apiKey, parts.concat([{ text:
+      'PERIKSA ULANG. Hasil bacaanmu sebelumnya:\n' + JSON.stringify(detail) +
+      '\nTidak seimbang: ' + masalah.join('; ') + '. Cari potongan/promo yang terlewat ' +
+      '(termasuk yang tidak bertanda minus) atau biaya/menu yang salah baca, lalu kembalikan ' +
+      'hasil LENGKAP yang sudah benar.' }]));
+    const masalahUlang = periksaPesanan_(ulang);
+    console.warn('Invoice tidak seimbang, dibaca ulang: ' + JSON.stringify({
+      awal: { biaya: detail.biaya, diskon: detail.diskon, subtotal: detail.subtotal, total: detail.total },
+      ulang: { biaya: ulang.biaya, diskon: ulang.diskon, subtotal: ulang.subtotal, total: ulang.total },
+      seimbang: !masalahUlang.length }));
+    if (!masalahUlang.length) { detail = ulang; masalah = []; }
+  }
+  if (!detail.pesananId) throw new Error('Pesanan ID tidak terbaca — pastikan bagian "Pesanan ID" ikut terlihat.');
+  if (!detail.resto) throw new Error('Nama resto tidak terbaca — pastikan bagian "Pesanan Dari" ikut terlihat.');
+  if (masalah.length) {
+    throw new Error('Hasil baca invoice tidak seimbang (' + masalah.join('; ') + '). ' +
+      'Coba unggah screenshot invoice yang jelas dan utuh.');
+  }
+  return detail;
+}
+
+/** Satu panggilan Gemini → detail pesanan yang sudah dirapikan (belum diperiksa). */
+function mintaInvoiceGemini_(apiKey, parts) {
   const body = {
     contents: [{ parts: [{ text: PROMPT_INVOICE_GRAB }].concat(parts) }],
     generationConfig: { responseMimeType: 'application/json', responseSchema: skemaInvoiceGrab_() }
@@ -213,7 +244,7 @@ function bacaInvoiceGemini_(parts) {
   }
 
   const bulat = v => Math.round(Math.abs(Number(v))) || 0;
-  const detail = {
+  return {
     pesananId: String(mentah.pesananId || '').trim(),
     resto: String(mentah.resto || '').trim(),
     waktu: String(mentah.waktu || '').trim(),
@@ -231,14 +262,6 @@ function bacaInvoiceGemini_(parts) {
       untuk: d.untuk === 'biaya' ? 'biaya' : 'menu'
     })).filter(d => d.nominal > 0)
   };
-  if (!detail.pesananId) throw new Error('Pesanan ID tidak terbaca — pastikan bagian "Pesanan ID" ikut terlihat.');
-  if (!detail.resto) throw new Error('Nama resto tidak terbaca — pastikan bagian "Pesanan Dari" ikut terlihat.');
-  const masalah = periksaPesanan_(detail);
-  if (masalah.length) {
-    throw new Error('Hasil baca invoice tidak seimbang (' + masalah.join('; ') + '). ' +
-      'Coba unggah screenshot invoice yang jelas dan utuh.');
-  }
-  return detail;
 }
 
 /**

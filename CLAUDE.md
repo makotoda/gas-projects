@@ -153,8 +153,10 @@ samakan gaya dengan kode sekitarnya secara manual.
   masuk. Di luar jam → ditandai terproses tanpa memanggil Gemini; pengecualian = unggah manual.
 - **Penjemputan Gmail hanya membaca**, mengambil email setelah `INVOICE_GMAIL_MULAI` (diset
   saat `pasangPemicuInvoice()` pertama kali). Email yang gagal dibaca (tidak seimbang, dll)
-  tidak dicoba lagi tapi tampil sebagai peringatan di Kodomo (`INVOICE_GMAIL_GAGAL`); yang
-  gagal karena Gemini penuh dicoba ulang di jalan berikutnya.
+  tidak dicoba lagi tapi tampil sebagai peringatan di Kodomo (`INVOICE_GMAIL_GAGAL`, + tombol
+  "↻ Baca ulang" → `cobaLagiInvoiceGagal`); yang gagal karena Gemini penuh dicoba ulang di jalan
+  berikutnya. Hasil baca yang tidak seimbang dibaca ulang SEKALI dengan umpan balik selisihnya
+  (`bacaInvoiceGemini_`) — pemeriksaan keseimbangan tetap penentu akhir.
 - **`tulisBarisBatch_` (Amalan.js) mengandaikan lock SUDAH dipegang pemanggil** — dipakai
   `submitAmalanBatch` dan `simpanPesanan` supaya menulis baris + menandai pesanan "tercatat"
   terjadi di bawah satu lock (mencegah satu order tercatat dua kali).
