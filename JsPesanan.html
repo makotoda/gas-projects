@@ -313,8 +313,9 @@
     if (!p) return;
     const d = drafPesanan_(p);
     const h = hitungBagiPesanan_(p.detail, d.penugasan);
-    const ringkas = {};
-    h.peserta.forEach(o => { ringkas[o.nama] = o.bayar; });
+    // Pasangan [slot, bayar], bukan objek: kunci '__SAYA__' hilang kalau dikirim
+    // sebagai nama properti lewat google.script.run (lihat simpanPesanan).
+    const ringkas = h.peserta.map(o => [o.nama, o.bayar]);
     const btn = $('psnSimpan');
     btn.disabled = true;
     btn.textContent = 'Menyimpan…';

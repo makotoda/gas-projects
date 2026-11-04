@@ -130,6 +130,10 @@ samakan gaya dengan kode sekitarnya secara manual.
   Diskon `untuk: 'biaya'` (mis. diskon ongkir) mengurangi biaya bersama yang dibagi RATA;
   diskon lain dibagi PRORATA harga menu. Admin ditetapkan sebagai `__SAYA__`: ikut dihitung
   sebagai pemesan (supaya biaya dibagi sama seperti Grab) tapi tidak ditulis sebagai Dosa.
+- **Jangan kirim objek berkunci `__…__` lewat `google.script.run`.** Ringkasan bagi pesanan
+  dulu dikirim `{__SAYA__: …}` dan kunci itu tidak sampai ke server, sehingga setiap pesanan
+  yang melibatkan "Saya" ditolak "berbeda dengan server". Sekarang dikirim sebagai pasangan
+  `[[slot, bayar], …]`; nilai string `__SAYA__` di dalam array aman.
 - **Titipan = slot `nama#k`** (`dita#2`, `__SAYA__#2`): teman di luar roster yang nitip lewat
   anggota. Tiap slot dihitung sebagai pemesan terpisah (ikut menanggung ongkir), tapi
   `simpanPesanan` menjumlahkan semua slot satu nama jadi SATU baris Dosa (`namaDasarSlot_`).

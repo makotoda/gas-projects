@@ -105,7 +105,8 @@ const cek = (nama, syarat, detail) => {
     (await page.textContent('#viewLeaderboard .bb.neg .bb-nilai')) === '−165K');
   const luas = await page.$$eval('#viewLeaderboard .bb', els => els.map(e => e.getBoundingClientRect().width));
   cek('gelembung terbesar = saldo terbesar', luas[0] > luas[1] && luas[1] > luas[2], luas.join(' '));
-  await page.locator('#viewLeaderboard .bb').first().click();
+  // Gelembung tak pernah diam (fisika jalan terus) → lewati cek "stabil" Playwright.
+  await page.locator('#viewLeaderboard .bb').first().click({ force: true });
   await page.waitForTimeout(150);
   cek('ketuk gelembung → kartu rincian terbuka',
     (await page.locator('#viewLeaderboard .bb-detail .lb-item.open').count()) === 1 &&
@@ -204,12 +205,13 @@ const cek = (nama, syarat, detail) => {
   await page.click('#psnSimpan');
   await page.waitForTimeout(300);
   const rpcPsn = await page.evaluate(() => window.__rpc);
-  const rk = rpcPsn && rpcPsn.args[2] ? Object.values(rpcPsn.args[2]).reduce((a, b) => a + b, 0) : 0;
+  // Ringkas = pasangan [slot, bayar]: kunci objek '__SAYA__' hilang di google.script.run.
+  const rk = rpcPsn && Array.isArray(rpcPsn.args[2]) ? rpcPsn.args[2].reduce((a, x) => a + x[1], 0) : 0;
   cek('simpan memanggil simpanPesanan dengan penugasan & ringkas',
     rpcPsn && rpcPsn.fn === 'simpanPesanan' && rpcPsn.args[1].length === 8 && rk === 86740,
     rpcPsn && JSON.stringify(rpcPsn.args[2]));
   cek('titipan dikirim sebagai slot tersendiri (Jana#2)',
-    rpcPsn && rpcPsn.args[1][3] === 'Jana#2' && 'Jana#2' in rpcPsn.args[2]);
+    rpcPsn && rpcPsn.args[1][3] === 'Jana#2' && rpcPsn.args[2].some(x => x[0] === 'Jana#2'));
 
   // Invoice email yang gagal dibaca otomatis harus terlihat, bukan hilang senyap.
   await page.evaluate(() => {

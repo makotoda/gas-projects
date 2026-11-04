@@ -285,7 +285,7 @@ function parseInvoiceGrab(base64, mimeType) {
 /**
  * Bagi & catat satu pesanan. penugasan = array SLOT per unit menu (lihat
  * unitPesanan_ & namaDasarSlot_), boleh berisi PESANAN_SAYA dan slot titipan.
- * ringkasLayar = { slot: bayar } hasil pratinjau di klien — kalau berbeda dari
+ * ringkasLayar = [[slot, bayar], …] hasil pratinjau di klien — kalau berbeda dari
  * hitungan server, ditolak (tanda salinan rumus di JsPesanan.html sudah beda).
  */
 function simpanPesanan(pesananId, penugasan, ringkasLayar) {
@@ -314,8 +314,21 @@ function simpanPesanan(pesananId, penugasan, ringkasLayar) {
       throw new Error('Pembagian tidak pas dengan total tagihan — muat ulang halaman lalu coba lagi.');
     }
     if (ringkasLayar && typeof ringkasLayar === 'object') {
-      const beda = hasil.peserta.some(p => Number(ringkasLayar[p.nama]) !== p.bayar);
-      if (beda) throw new Error('Hitungan di layar berbeda dengan server — muat ulang halaman lalu coba lagi.');
+      // Klien mengirim pasangan [slot, bayar], BUKAN objek {slot: bayar}: kunci
+      // berakhiran '__' (mis. __SAYA__) hilang di serialisasi google.script.run,
+      // sehingga ringkasan berbentuk objek selalu tampak "beda". Bentuk objek
+      // masih diterima dari halaman lama — kunci yang hilang tidak dibandingkan.
+      const pasangan = Array.isArray(ringkasLayar);
+      const layar = {};
+      if (pasangan) ringkasLayar.forEach(x => { if (Array.isArray(x)) layar[String(x[0])] = Number(x[1]); });
+      else Object.keys(ringkasLayar).forEach(k => { layar[k] = Number(ringkasLayar[k]); });
+      const beda = hasil.peserta.filter(p => (pasangan || p.nama in layar) && layar[p.nama] !== p.bayar);
+      if (beda.length) {
+        throw new Error('Hitungan di layar berbeda dengan server (' + beda.map(p =>
+          (namaDasarSlot_(p.nama) === PESANAN_SAYA ? 'Saya' : p.nama) + ': layar ' +
+          (p.nama in layar ? layar[p.nama] : '–') + ', server ' + p.bayar).join('; ') +
+          ') — muat ulang halaman lalu coba lagi.');
+      }
     }
 
     resto = ada.detail.resto;
