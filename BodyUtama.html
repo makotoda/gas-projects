@@ -80,12 +80,6 @@
       <!-- Top-up yang menunggu notifikasi bank (JsStruk → renderTopUpMenunggu). -->
       <div class="topup-menunggu" id="topupMenunggu" hidden></div>
 
-      <!-- Muncul hanya kalau ada invoice Grab yang belum dibagi (JsPesanan). -->
-      <button class="psn-banner" id="pesananBanner" type="button" hidden>
-        <span id="pesananTeks"></span>
-        <span class="ar">›</span>
-      </button>
-
       <h2><span class="bar"></span>Catat Amalan</h2>
 
       <div id="namaField">
@@ -128,6 +122,12 @@
       <div class="aksi-unggah">
         <button class="music-btn" id="strukBtn" type="button">📷 Upload Struk (split tagihan)</button>
         <button class="music-btn" id="ambilInvoiceBtn" type="button">📧 Ambil invoice Grab</button>
+        <!-- Muncul hanya kalau ada invoice Grab yang belum dibagi (JsPesanan) —
+             tepat di bawah tombol ambil invoice, tempat admin mencarinya. -->
+        <button class="psn-banner" id="pesananBanner" type="button" hidden>
+          <span id="pesananTeks"></span>
+          <span class="ar">›</span>
+        </button>
       </div>
       <input type="file" id="strukFile" accept="image/*" multiple style="display:none">
       <input type="file" id="invoiceFile" accept="image/*" style="display:none">
