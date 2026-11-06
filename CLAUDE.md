@@ -56,7 +56,7 @@ Repo ini diedit dari banyak tempat. Actions men-deploy setiap push ke `main`, ja
 | `JsPesanan` + `StylePesanan` | Pesanan Masuk: unggah invoice Grab, layar bagi (ketuk orang → ketuk menu) |
 | `JsAdmin` + `StyleAdmin` | Mode Admin (🔐 di header): daftar top-up 30 hari, tandai terkonfirmasi email, Setujui/Tolak |
 | `JsTema` | siklus tema + hujan bendera |
-| `JsEfek` | trail kursor, hujan uang, pemutar suara (`playSfx`, `SFX_ALIAS`) |
+| `JsEfek` | trail kursor, hujan uang, pemutar suara (`playSfx`; `SFX_ALIAS` untuk ganti klip musiman, kini kosong) |
 | `JsAyat` / `JsMuatAwal` / `JsTutorial` / `JsLogo3D` | pita ayat, panggilan dasbor pertama, tur, logo 3D |
 
 Peta visual (alur `doGet` + siapa memanggil siapa):
