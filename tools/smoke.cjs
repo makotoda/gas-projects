@@ -251,10 +251,25 @@ const cek = (nama, syarat, detail) => {
     rpcGf && rpcGf.fn === 'parseStrukGofood' && Array.isArray(rpcGf.args[0]) && rpcGf.args[0].length === 2 &&
     rpcGf.args[0].every(g => g.base64 && /^image\//.test(g.mime)), rpcGf && rpcGf.fn);
   await page.evaluate(() => document.getElementById('pesananModal').classList.remove('show'));
+  await page.evaluate(() => {
+    window.__balas = { jemputInvoiceSekarang: { ringkas: { baru: 0, ditunda: 1, luarJam: 2 }, data: null } };
+    window.__tunda = 4000;
+  });
   await page.click('#ambilInvoiceBtn');
-  await page.waitForTimeout(200);
+  await page.waitForTimeout(1500);
+  cek('selama mengecek: tombol menampilkan detik berjalan',
+    /Mengecek email… [1-9]\d* dtk/.test(await page.textContent('#ambilInvoiceBtn')), await page.textContent('#ambilInvoiceBtn'));
+  await page.waitForTimeout(3000);
   cek('tombol "Ambil invoice Grab" memanggil jemputInvoiceSekarang',
     (await page.evaluate(() => window.__rpc && window.__rpc.fn)) === 'jemputInvoiceSekarang');
+  const teksJemput = await page.textContent('#toast');
+  cek('hasil tanpa invoice baru tetap dijelaskan (tertunda + luar jam kerja)',
+    /1 tertunda/.test(teksJemput) && /2 order di luar jam kerja/.test(teksJemput), teksJemput);
+  cek('data null dari server tidak merusak halaman', galat.length === 0, galat[0]);
+  await page.evaluate(() => {
+    window.__balas = {}; window.__tunda = 0;
+    document.getElementById('pesananModal').classList.remove('show'); // terbuka karena ada pesanan menunggu
+  });
 
   // Mode admin: daftar top-up ber-PIN (TopUp.js adminDaftarTopUp / adminPutuskanTopUp)
   const ADM = [

@@ -90,13 +90,21 @@ function pasangPemicuInvoice() {
  * jadi jangan biarkan tombol ini dipakai menghabiskan kuota Gemini.
  */
 function jemputInvoiceSekarang() {
+  return jemputManual_(false);
+}
+
+/** selaluDasbor: true bila pemanggil sudah mengubah data lain (mis. menghapus catatan gagal). */
+function jemputManual_(selaluDasbor) {
   const cache = CacheService.getScriptCache();
   if (cache.get('INVOICE_JEMPUT_MANUAL')) {
     throw new Error('Email baru saja dicek. Coba lagi sebentar lagi.');
   }
   cache.put('INVOICE_JEMPUT_MANUAL', '1', INVOICE_JEDA_MANUAL_DTK);
   const ringkas = jemputInvoiceGmail();
-  return { ringkas: ringkas, data: getDashboardData() };
+  // Dasbor hanya dihitung ulang kalau ada yang berubah — klik "tidak ada yang
+  // baru" (paling sering) jadi jauh lebih cepat. Klien me-render bila ada data.
+  const berubah = selaluDasbor || ringkas.baru || ringkas.gagal;
+  return { ringkas: ringkas, data: berubah ? getDashboardData() : null };
 }
 
 /**
@@ -122,7 +130,7 @@ function cobaLagiInvoiceGagal() {
   try { terproses = JSON.parse(props.getProperty(INVOICE_PROP_TERPROSES) || '[]'); } catch (e) {}
   props.setProperty(INVOICE_PROP_TERPROSES, JSON.stringify(terproses.filter(id => !lepas[id])));
   props.deleteProperty(INVOICE_PROP_GAGAL);
-  return jemputInvoiceSekarang();
+  return jemputManual_(true); // catatan gagal sudah dihapus → dasbor wajib dikirim ulang
 }
 
 /** Hentikan penjemputan otomatis (unggah manual tetap bisa dipakai). */
@@ -134,7 +142,7 @@ function lepasPemicuInvoice() {
 
 /**
  * Dipanggil pemicu (atau manual dari editor untuk mencoba). Balikan ringkasan
- * { baru, dilewati, gagal, ditunda } — juga tercatat di log Executions.
+ * { baru, dilewati, gagal, ditunda, luarJam } — juga tercatat di log Executions.
  */
 function jemputInvoiceGmail() {
   const props = PropertiesService.getScriptProperties();
@@ -151,20 +159,26 @@ function jemputInvoiceGmail() {
   terproses.forEach(id => { sudah[id] = true; });
   const tandai = id => { if (!sudah[id]) { sudah[id] = true; terproses.push(id); } };
 
-  const ringkas = { baru: 0, dilewati: 0, gagal: 0, ditunda: 0 };
+  // luarJam = email Grab 7 hari terakhir di luar jam kerja: TIDAK ditandai
+  // selesai (cek tanggalnya murah), supaya tiap klik tetap bisa memberi tahu
+  // admin bahwa order itu ada tapi harus dicatat lewat unggah screenshot.
+  const ringkas = { baru: 0, dilewati: 0, gagal: 0, ditunda: 0, luarJam: 0 };
   let dikerjakan = 0;
   const mulaiJalan = Date.now();
 
   const threads = GmailApp.search(INVOICE_GMAIL_KUERI, 0, 30);
+  // SATU panggilan Gmail untuk semua thread — dulu getMessages() per thread
+  // (hingga 30 panggilan terpisah) padahal hampir semuanya sudah diproses.
+  const pesanPerThread = threads.length ? GmailApp.getMessagesForThreads(threads) : [];
   luar:
-  for (let t = 0; t < threads.length; t++) {
-    const pesanList = threads[t].getMessages();
+  for (let t = 0; t < pesanPerThread.length; t++) {
+    const pesanList = pesanPerThread[t];
     for (let m = 0; m < pesanList.length; m++) {
       const msg = pesanList[m];
       const id = msg.getId();
       if (sudah[id]) continue;
       if (msg.getDate() < mulai) { tandai(id); continue; } // sebelum fitur dipasang
-      if (!dalamJamKerja_(msg.getDate())) { tandai(id); ringkas.dilewati++; continue; } // order pribadi
+      if (!dalamJamKerja_(msg.getDate())) { ringkas.luarJam++; continue; } // order pribadi / di luar jam kerja
       const teks = String(msg.getPlainBody() || '');
       if (!/GrabFood/i.test(teks)) { tandai(id); ringkas.dilewati++; continue; } // GrabCar, GrabBike, dll
       // sisanya di jalan berikutnya (10 menit lagi)

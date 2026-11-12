@@ -200,7 +200,7 @@
       bacaUlang.textContent = 'Membaca ulang…';
       google.script.run
         .withSuccessHandler(res => {
-          render(res.data);
+          if (res.data) render(res.data);
           const r = res.ringkas || {};
           toast(r.baru ? `${r.baru} invoice berhasil dibaca ✓` +
             (dataInvoiceGagal.length ? ` · ${dataInvoiceGagal.length} masih gagal` : '')
@@ -397,29 +397,43 @@
 
   /* ---- Unggah invoice ---- */
   /* ---- Ambil invoice dari email sekarang (tanpa menunggu jadwal Sen–Kam 15.00) ---- */
+  // Satu kalimat dari ringkasan server (PesananEmail.js) — tiap hasil disebut,
+  // jangan sampai klik berakhir "tidak terjadi apa-apa" tanpa penjelasan.
+  function pesanJemputInvoice_(r, menunggu, gagalLama) {
+    const bagian = [];
+    if (r.baru) bagian.push(`${r.baru} invoice Grab baru masuk ✓`);
+    if (r.ditunda) bagian.push(`${r.ditunda} tertunda — server Google penuh, coba lagi 1–2 menit`);
+    if (r.gagal) bagian.push(`${r.gagal} gagal dibaca — lihat peringatan`);
+    if (r.luarJam) bagian.push(`${r.luarJam} order di luar jam kerja (Sen–Kam 07.00–15.00) tidak diambil otomatis — catat lewat unggah screenshot`);
+    if (!bagian.length) bagian.push(menunggu ? 'Tidak ada invoice baru — ada yang masih menunggu dibagi.'
+      : 'Tidak ada invoice Grab baru dalam 7 hari terakhir.');
+    return {
+      teks: bagian.join(' · '),
+      jenis: !r.baru && (r.ditunda || r.gagal) ? 'err' : 'ok',
+      buka: !!(r.baru || r.gagal || menunggu || gagalLama)
+    };
+  }
+
   $('ambilInvoiceBtn').addEventListener('click', () => {
     const btn = $('ambilInvoiceBtn');
     const label = btn.textContent;
     btn.disabled = true;
-    btn.textContent = '📧 Mengecek email…';
-    const selesai = () => { btn.disabled = false; btn.textContent = label; };
+    // Tiap invoice baru dibaca Gemini (bisa puluhan detik) — tampilkan detik berjalan
+    // supaya jelas masih bekerja, bukan macet.
+    const t0 = Date.now();
+    const detak = () => { btn.textContent = `📧 Mengecek email… ${Math.round((Date.now() - t0) / 1000)} dtk`; };
+    detak();
+    const jam = setInterval(detak, 1000);
+    const selesai = () => { clearInterval(jam); btn.disabled = false; btn.textContent = label; };
     google.script.run
       .withSuccessHandler(res => {
         selesai();
-        render(res.data);
-        const r = res.ringkas || {};
-        if (r.baru) {
-          toast(`${r.baru} invoice Grab baru masuk ✓`, 'ok');
-          bukaPesananModal_();
-        } else if (dataPesanan.length || dataInvoiceGagal.length) {
-          toast('Tidak ada invoice baru — ada yang masih menunggu dibagi.', 'ok');
-          bukaPesananModal_();
-        } else {
-          toast(r.ditunda ? 'Server Google sedang penuh, coba lagi sebentar.' : 'Tidak ada invoice Grab baru di email.',
-            r.ditunda ? 'err' : 'ok');
-        }
+        if (res.data) render(res.data); // null = tidak ada yang berubah di server
+        const pesan = pesanJemputInvoice_(res.ringkas || {}, dataPesanan.length, dataInvoiceGagal.length);
+        toast(pesan.teks, pesan.jenis, 7000);
+        if (pesan.buka) bukaPesananModal_();
       })
-      .withFailureHandler(err => { selesai(); toast(err.message || 'Gagal mengecek email.', 'err'); })
+      .withFailureHandler(err => { selesai(); toast(err.message || 'Gagal mengecek email.', 'err', 7000); })
       .jemputInvoiceSekarang();
   });
 
