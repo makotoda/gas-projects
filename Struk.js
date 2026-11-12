@@ -174,7 +174,9 @@ function parseStruk(base64, mimeType, mode) {
       '(bukan penerima) persis seperti tertulis, nominal uang yang ditransfer sebagai ' +
       'angka bulat tanpa "Rp"/titik/koma, dan nama bank atau dompet digital yang dipakai ' +
       '(field bank, mis. "BCA", "GoPay") kalau terlihat. Abaikan biaya admin. ' +
-      'Biasanya hanya ada satu transfer.'
+      'Biasanya hanya ada satu transfer. Jika gambar ini BUKAN bukti transfer/pembayaran ' +
+      'uang yang BERHASIL (mis. foto biasa, daftar harga, tagihan yang belum dibayar, ' +
+      'transfer gagal/tertunda), balikan daftar kosong [].'
     : 'Ini screenshot daftar split tagihan/utang. Setiap baris berisi nama ' +
       'orang dan nominal uang (Rupiah). Ambil semua baris KECUALI baris milik pemilik akun ' +
       'sendiri (berlabel "You", "Anda", "Kamu", atau "Host"). Untuk tiap baris sisanya, ' +
