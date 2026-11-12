@@ -18,7 +18,9 @@
  * Bagian dari proyek Kodomo — semua berkas .gs berbagi satu namespace global.
  */
 
-const INVOICE_GMAIL_KUERI = 'from:no-reply@grab.com subject:"Your Grab E-Receipt" newer_than:7d';
+// Asli dari Grab ATAU terusan ("Fwd: Your Grab E-Receipt" dari akun lain, yang
+// isinya memuat alamat no-reply@grab.com). {a b} = OR di pencarian Gmail.
+const INVOICE_GMAIL_KUERI = 'subject:"Your Grab E-Receipt" {from:no-reply@grab.com "no-reply@grab.com"} newer_than:7d';
 const INVOICE_PROP_MULAI = 'INVOICE_GMAIL_MULAI';          // ISO: email sebelum ini diabaikan
 const INVOICE_PROP_TERPROSES = 'INVOICE_GMAIL_TERPROSES';  // JSON: ID pesan Gmail yang selesai
 const INVOICE_PROP_GAGAL = 'INVOICE_GMAIL_GAGAL';          // JSON: catatan gagal baca untuk UI
@@ -50,6 +52,17 @@ const INVOICE_JADWAL = { hari: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY'], j
  * tetap bisa dicatat lewat unggah screenshot manual.
  */
 const INVOICE_JAM_KERJA = { mulai: 7, selesai: 15 };
+
+/**
+ * Email terusan: di-forward manual (pengirim bukan Grab / subjek "Fwd:") atau
+ * oleh aturan penerusan Gmail (header X-Forwarded-For). Waktunya = waktu
+ * diteruskan, bukan waktu order, dan meneruskan adalah tindakan sengaja admin —
+ * jadi terusan TIDAK disaring jam kerja.
+ */
+function emailTerusan_(msg) {
+  return !/no-reply@grab\.com/i.test(msg.getFrom()) || /^\s*(fwd?|fw)\s*:/i.test(msg.getSubject()) ||
+    !!msg.getHeader('X-Forwarded-For');
+}
 
 /** Email ini masuk di jam kerja (hari & jam menurut zona WIB)? */
 function dalamJamKerja_(tanggal) {
@@ -178,7 +191,7 @@ function jemputInvoiceGmail() {
       const id = msg.getId();
       if (sudah[id]) continue;
       if (msg.getDate() < mulai) { tandai(id); continue; } // sebelum fitur dipasang
-      if (!dalamJamKerja_(msg.getDate())) { ringkas.luarJam++; continue; } // order pribadi / di luar jam kerja
+      if (!dalamJamKerja_(msg.getDate()) && !emailTerusan_(msg)) { ringkas.luarJam++; continue; } // order pribadi / di luar jam kerja
       const teks = String(msg.getPlainBody() || '');
       if (!/GrabFood/i.test(teks)) { tandai(id); ringkas.dilewati++; continue; } // GrabCar, GrabBike, dll
       // sisanya di jalan berikutnya (10 menit lagi)
