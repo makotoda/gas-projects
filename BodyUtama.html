@@ -122,7 +122,8 @@
       <div class="aksi-unggah">
         <button class="music-btn" id="strukBtn" type="button">📷 Upload Struk (split tagihan)</button>
         <button class="music-btn" id="ambilInvoiceBtn" type="button">📧 Ambil invoice Grab</button>
-        <!-- Muncul hanya kalau ada invoice Grab yang belum dibagi (JsPesanan) —
+        <button class="music-btn" id="gofoodBtn" type="button">🛵 Upload struk GoFood</button>
+        <!-- Muncul hanya kalau ada pesanan Grab/GoFood yang belum dibagi (JsPesanan) —
              tepat di bawah tombol ambil invoice, tempat admin mencarinya. -->
         <button class="psn-banner" id="pesananBanner" type="button" hidden>
           <span id="pesananTeks"></span>
@@ -131,6 +132,7 @@
       </div>
       <input type="file" id="strukFile" accept="image/*" multiple style="display:none">
       <input type="file" id="invoiceFile" accept="image/*" style="display:none">
+      <input type="file" id="gofoodFile" accept="image/*" multiple style="display:none">
     </div>
 
     <!-- ===== Leaderboard & riwayat ===== -->

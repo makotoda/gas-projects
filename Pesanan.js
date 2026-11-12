@@ -193,11 +193,17 @@ function skemaInvoiceGrab_() {
  * Kirim satu invoice ke Gemini (parts = gambar ATAU teks email), rapikan
  * hasilnya, lalu periksa keseimbangannya. Balikan detail pesanan yang sudah
  * aman dipakai, atau lempar Error berbahasa Indonesia.
+ * opsi (untuk struk selain e-receipt Grab, lihat PesananGofood.js):
+ *   prompt     — instruksi baca (bawaan PROMPT_INVOICE_GRAB)
+ *   sumber     — 'grab' (bawaan) / 'gofood', disimpan di detail untuk label UI
+ *   idCadangan — fn(detail) → ID kalau ID pesanan tidak terlihat di gambar
  */
-function bacaInvoiceGemini_(parts) {
+function bacaInvoiceGemini_(parts, opsi) {
+  opsi = opsi || {};
+  const prompt = opsi.prompt || PROMPT_INVOICE_GRAB;
   const apiKey = getGeminiApiKey_();
   if (!apiKey) throw new Error('Fitur baca invoice belum diaktifkan (GEMINI_API_KEY belum diatur).');
-  let detail = mintaInvoiceGemini_(apiKey, parts);
+  let detail = mintaInvoiceGemini_(apiKey, parts, prompt);
   let masalah = periksaPesanan_(detail);
   if (masalah.length) {
     // Baca ulang SEKALI dengan umpan balik. Gagal seimbang paling sering karena
@@ -207,7 +213,7 @@ function bacaInvoiceGemini_(parts) {
       'PERIKSA ULANG. Hasil bacaanmu sebelumnya:\n' + JSON.stringify(detail) +
       '\nTidak seimbang: ' + masalah.join('; ') + '. Cari potongan/promo yang terlewat ' +
       '(termasuk yang tidak bertanda minus) atau biaya/menu yang salah baca, lalu kembalikan ' +
-      'hasil LENGKAP yang sudah benar.' }]));
+      'hasil LENGKAP yang sudah benar.' }]), prompt);
     const masalahUlang = periksaPesanan_(ulang);
     console.warn('Invoice tidak seimbang, dibaca ulang: ' + JSON.stringify({
       awal: { biaya: detail.biaya, diskon: detail.diskon, subtotal: detail.subtotal, total: detail.total },
@@ -215,6 +221,8 @@ function bacaInvoiceGemini_(parts) {
       seimbang: !masalahUlang.length }));
     if (!masalahUlang.length) { detail = ulang; masalah = []; }
   }
+  if (!detail.pesananId && opsi.idCadangan) detail.pesananId = opsi.idCadangan(detail);
+  detail.sumber = opsi.sumber || 'grab';
   if (!detail.pesananId) throw new Error('Pesanan ID tidak terbaca — pastikan bagian "Pesanan ID" ikut terlihat.');
   if (!detail.resto) throw new Error('Nama resto tidak terbaca — pastikan bagian "Pesanan Dari" ikut terlihat.');
   if (masalah.length) {
@@ -225,9 +233,9 @@ function bacaInvoiceGemini_(parts) {
 }
 
 /** Satu panggilan Gemini → detail pesanan yang sudah dirapikan (belum diperiksa). */
-function mintaInvoiceGemini_(apiKey, parts) {
+function mintaInvoiceGemini_(apiKey, parts, prompt) {
   const body = {
-    contents: [{ parts: [{ text: PROMPT_INVOICE_GRAB }].concat(parts) }],
+    contents: [{ parts: [{ text: prompt || PROMPT_INVOICE_GRAB }].concat(parts) }],
     generationConfig: { responseMimeType: 'application/json', responseSchema: skemaInvoiceGrab_() }
   };
   const teks = panggilGemini_(apiKey, body); // coba ulang + model cadangan (Struk.js)
@@ -412,6 +420,7 @@ function daftarPesananMenunggu_() {
 function objekPesanan_(detail) {
   return {
     id: detail.pesananId, resto: detail.resto, waktu: detail.waktu, total: detail.total,
+    sumber: detail.sumber || 'grab',
     detail: {
       pesananId: detail.pesananId, resto: detail.resto, waktu: detail.waktu,
       subtotal: detail.subtotal, total: detail.total,

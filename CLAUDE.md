@@ -33,6 +33,7 @@ Repo ini diedit dari banyak tempat. Actions men-deploy setiap push ke `main`, ja
 | `Kopdos.js` | katalog belanja (`KATALOG_KOPDOS`) + `submitBelanja` |
 | `Infaq.js` | `getInfaqMap_` / `saveInfaqMap` (kolom C sheet Anggota) |
 | `Pesanan.js` | invoice GrabFood → sheet `Pesanan` → dibagi per orang dengan rumus Grab (`parseInvoiceGrab`, `simpanPesanan`, `abaikanPesanan`, `hitungBagiPesanan_`) |
+| `PesananGofood.js` | unggah struk GoFood (1–3 screenshot) → `parseStrukGofood` → pesanan `menunggu` yang sama dengan Grab; ID cadangan `GF-…` bila ID pesanan tak terlihat |
 | `PesananEmail.js` | penjemputan invoice dari Gmail, Sen–Kam 15.00 WIB + tombol "Ambil invoice Grab" (`jemputInvoiceGmail`, `jemputInvoiceSekarang`, `pasangPemicuInvoice`) |
 | `TopUp.js` | verifikasi top-up: bukti TF dicocokkan dengan notifikasi dana masuk bank di Gmail (`ajukanTopUp`, `prosesTopUpMenunggu`, `pasangPemicuTopUp`), sheet `TopUp` & `Mutasi`; mode admin ber-PIN (`adminDaftarTopUp`, `adminPutuskanTopUp`) |
 
@@ -53,7 +54,7 @@ Repo ini diedit dari banyak tempat. Actions men-deploy setiap push ke `main`, ja
 | `JsGelembung` + `StyleGelembung` | leaderboard gelembung ala cryptobubbles (fisika DOM sendiri, seret/ketuk), pemilih mode 🫧 Gelembung / ☰ Daftar |
 | `JsAplikasi` | `render(data)` + submit form |
 | `JsKopdos` / `JsStruk` / `JsLaporan` | katalog belanja, upload & review struk, penyusunan PDF |
-| `JsPesanan` + `StylePesanan` | Pesanan Masuk: unggah invoice Grab, layar bagi (ketuk orang → ketuk menu) |
+| `JsPesanan` + `StylePesanan` | Pesanan Masuk: unggah invoice Grab / struk GoFood, layar bagi (ketuk orang → ketuk menu) |
 | `JsAdmin` + `StyleAdmin` | Mode Admin (🔐 di header): daftar top-up 30 hari, tandai terkonfirmasi email, Setujui/Tolak |
 | `JsTema` | siklus tema + hujan bendera |
 | `JsEfek` | trail kursor, hujan uang, pemutar suara (`playSfx`; `SFX_ALIAS` untuk ganti klip musiman, kini kosong) |
@@ -137,6 +138,9 @@ samakan gaya dengan kode sekitarnya secara manual.
   dulu dikirim `{__SAYA__: …}` dan kunci itu tidak sampai ke server, sehingga setiap pesanan
   yang melibatkan "Saya" ditolak "berbeda dengan server". Sekarang dikirim sebagai pasangan
   `[[slot, bayar], …]`; nilai string `__SAYA__` di dalam array aman.
+- **GoFood memakai jalur Pesanan Grab apa adanya**: `bacaInvoiceGemini_(parts, {prompt, sumber,
+  idCadangan})` + rumus bagi yang sama. Bedanya hanya prompt (`PROMPT_STRUK_GOFOOD`), label
+  `sumber: 'gofood'` di detail, dan ID cadangan sidik SHA-1 kalau "ID pesanan" tak ter-screenshot.
 - **Titipan = slot `nama#k`** (`dita#2`, `__SAYA__#2`): teman di luar roster yang nitip lewat
   anggota. Tiap slot dihitung sebagai pemesan terpisah (ikut menanggung ongkir), tapi
   `simpanPesanan` menjumlahkan semua slot satu nama jadi SATU baris Dosa (`namaDasarSlot_`).

@@ -239,6 +239,17 @@ const cek = (nama, syarat, detail) => {
     (await page.evaluate(() => window.__rpc && window.__rpc.fn)) === 'hapusCatatanInvoiceGagal');
 
   await page.click('#pesananClose');
+  // Struk GoFood: 2 screenshot satu pesanan → parseStrukGofood([{base64, mime}, …])
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  await page.evaluate(() => { window.__rpc = null; window.__render0 = render; });
+  await page.setInputFiles('#gofoodFile', [
+    { name: 'gf1.png', mimeType: 'image/png', buffer: PNG }, { name: 'gf2.png', mimeType: 'image/png', buffer: PNG }]);
+  await page.waitForTimeout(400);
+  const rpcGf = await page.evaluate(() => window.__rpc);
+  cek('upload struk GoFood memanggil parseStrukGofood dengan 2 gambar',
+    rpcGf && rpcGf.fn === 'parseStrukGofood' && Array.isArray(rpcGf.args[0]) && rpcGf.args[0].length === 2 &&
+    rpcGf.args[0].every(g => g.base64 && /^image\//.test(g.mime)), rpcGf && rpcGf.fn);
+  await page.evaluate(() => document.getElementById('pesananModal').classList.remove('show'));
   await page.click('#ambilInvoiceBtn');
   await page.waitForTimeout(200);
   cek('tombol "Ambil invoice Grab" memanggil jemputInvoiceSekarang',

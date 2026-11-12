@@ -144,7 +144,7 @@
     const n = dataPesanan.length, g = dataInvoiceGagal.length;
     $('pesananBanner').hidden = n === 0 && g === 0;
     const bagian = [];
-    if (n) bagian.push(`📥 <b>${n}</b> pesanan Grab menunggu dibagi`);
+    if (n) bagian.push(`📥 <b>${n}</b> pesanan menunggu dibagi`);
     if (g) bagian.push(`⚠️ <b>${g}</b> invoice email gagal dibaca`);
     $('pesananTeks').innerHTML = bagian.join(' · ');
     // Modal terbuka di tampilan daftar → segarkan; pesanan aktif yang sudah
@@ -180,7 +180,7 @@
         <button type="button" class="psn-item" data-id="${esc(p.id)}">
           <b>${esc(p.resto)}</b>
           <span class="psn-tot">${fmt(p.total)}</span>
-          <small>${esc(p.waktu || '')} · ${esc(p.id)}</small>
+          <small>${p.sumber === 'gofood' ? 'GoFood · ' : 'Grab · '}${esc(p.waktu || '')} · ${esc(p.id)}</small>
         </button>`).join('')
       : '<div class="empty">Tidak ada pesanan yang menunggu.</div>') +
       // Jalan cadangan kalau email tidak terbaca otomatis / belum datang.
@@ -240,7 +240,8 @@
     const warnaDari = nama => psnWarna(Math.max(0, d.peserta.indexOf(nama)));
     const jumlahUnit = nama => d.penugasan.filter(x => x === nama).length;
 
-    $('psnInfo').innerHTML = `<b>${esc(p.resto)}</b><br>${esc(p.waktu || '')} · ${esc(p.id)} · total <b>${fmt(p.total)}</b>`;
+    $('psnInfo').innerHTML = `<b>${esc(p.resto)}</b><br>${p.sumber === 'gofood' ? 'GoFood' : 'Grab'} · ` +
+      `${esc(p.waktu || '')} · ${esc(p.id)} · total <b>${fmt(p.total)}</b>`;
 
     // Chip orang. Chip tanpa menu boleh dihapus (×) — salah tambah.
     $('psnChips').innerHTML = d.peserta.map(nama => {
@@ -423,10 +424,11 @@
   });
 
   /* ---- Unggah screenshot invoice manual (cadangan) ---- */
-  $('invoiceFile').addEventListener('change', async () => {
-    const file = $('invoiceFile').files[0];
-    $('invoiceFile').value = '';
-    if (!file) return;
+  // Grab: satu screenshot e-receipt. GoFood: 1–3 screenshot rincian pesanan
+  // (layarnya sering lebih panjang dari satu screenshot) → PesananGofood.js.
+  // Keduanya berakhir sama: pesanan 'menunggu' yang langsung dibuka di layar bagi.
+  async function unggahStrukPesanan_(files, label, kirim) {
+    if (!files.length) return;
     const loader = $('loader');
     const pesan = $('loaderPesan');
     if (window.KodomoLogo3D) {
@@ -435,9 +437,9 @@
     }
     loader.classList.add('overlay');
     loader.classList.remove('hide');
-    pesan.textContent = 'Membaca invoice…';
+    pesan.textContent = `Membaca ${label}…`;
     const timerSabar = setTimeout(() => {
-      pesan.textContent = 'Membaca invoice… Server Google sedang ramai, aplikasi mencoba ulang ' +
+      pesan.textContent = `Membaca ${label}… Server Google sedang ramai, aplikasi mencoba ulang ` +
         'otomatis — mohon tunggu, bisa sampai 1 menit.';
     }, 8000);
     const tutup = () => {
@@ -447,9 +449,10 @@
       if (window.KodomoLogo3D) window.KodomoLogo3D.keHeader();
     };
     try {
-      const gambar = await siapkanGambar_(file);   // JPEG diperkecil (JsStruk) → unggah & baca lebih cepat
-      const p = await new Promise((ok, gagal) => google.script.run
-        .withSuccessHandler(ok).withFailureHandler(gagal).parseInvoiceGrab(gambar.base64, gambar.mime));
+      // JPEG diperkecil (siapkanGambar_, JsStruk) → unggah & baca lebih cepat
+      const gambar = await Promise.all(files.map(siapkanGambar_));
+      const p = await new Promise((ok, gagal) =>
+        kirim(google.script.run.withSuccessHandler(ok).withFailureHandler(gagal), gambar));
       tutup();
       dataPesanan = [p].concat(dataPesanan.filter(x => x.id !== p.id));
       renderBannerPesanan();
@@ -457,8 +460,22 @@
       $('pesananModal').classList.add('show');
     } catch (e) {
       tutup();
-      const asli = (e && e.message) || 'Gagal membaca invoice.';
+      const asli = (e && e.message) || `Gagal membaca ${label}.`;
       console.warn(asli);
       toast(asli.replace(/\s*\[[^\]]*\]\s*$/, ''), 'err');
     }
+  }
+
+  $('invoiceFile').addEventListener('change', () => {
+    const files = [...$('invoiceFile').files].slice(0, 1);
+    $('invoiceFile').value = '';
+    unggahStrukPesanan_(files, 'invoice', (run, g) => run.parseInvoiceGrab(g[0].base64, g[0].mime));
+  });
+
+  $('gofoodBtn').addEventListener('click', () => $('gofoodFile').click());
+  $('gofoodFile').addEventListener('change', () => {
+    const files = [...$('gofoodFile').files];
+    $('gofoodFile').value = '';
+    if (files.length > 3) { toast('Maksimal 3 screenshot untuk satu pesanan GoFood.', 'err'); return; }
+    unggahStrukPesanan_(files, 'struk GoFood', (run, g) => run.parseStrukGofood(g));
   });
