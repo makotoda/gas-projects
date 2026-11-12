@@ -17,15 +17,51 @@
 const WA_PROP_TOKEN = 'WA_BOT_TOKEN';
 const WA_KOLOM_NOMOR = 4;
 
+const SHEET_WA_LOG = 'WA Log';
+const WA_LOG_HEADER = ['Waktu', 'Nomor', 'Nama', 'Hasil', 'Nominal', 'Catatan'];
+const WA_LOG_MAKS = 300;
+
 function doPost(e) {
-  let hasil;
+  let hasil, p = {};
   try {
-    hasil = topUpDariWa_(JSON.parse(e.postData.contents));
+    p = JSON.parse(e.postData.contents) || {};
+    hasil = topUpDariWa_(p);
   } catch (err) {
     hasil = { ok: false, error: err.message };
   }
+  catatLogWa_(p, hasil);
   return ContentService.createTextOutput(JSON.stringify(hasil))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Satu baris per kiriman bot (terbaru di baris 2) — satu-satunya jejak yang
+ * bisa dibaca admin tanpa membuka log eksekusi Apps Script. Kalau bukti
+ * seseorang "tidak terdeteksi": tidak ada barisnya → bot tak pernah mengirim;
+ * 'tidak terdaftar' → nomor WA belum/salah di kolom D Anggota (atau bot
+ * mengirim ID WhatsApp, bukan nomor HP). Gambar tidak disimpan. Gagal mencatat
+ * tidak boleh menggagalkan top-up.
+ */
+function catatLogWa_(p, hasil) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sh = ss.getSheetByName(SHEET_WA_LOG);
+    if (!sh) {
+      sh = ss.insertSheet(SHEET_WA_LOG);
+      sh.getRange(1, 1, 1, WA_LOG_HEADER.length).setValues([WA_LOG_HEADER]).setFontWeight('bold');
+      sh.setFrozenRows(1);
+    }
+    const h = hasil || {};
+    const status = h.error ? 'galat' : h.terdaftar === false ? 'tidak terdaftar' : (h.hasil || '');
+    sh.insertRowBefore(2);
+    sh.getRange(2, 1, 1, WA_LOG_HEADER.length).setValues([[
+      new Date(), "'" + String(p.nomor || ''), h.nama || '', status, h.nominal || '',
+      h.error || (p.base64 ? '' : 'tanpa gambar')
+    ]]);
+    if (sh.getLastRow() > WA_LOG_MAKS + 1) sh.deleteRows(WA_LOG_MAKS + 2, sh.getLastRow() - WA_LOG_MAKS - 1);
+  } catch (err) {
+    console.warn('Log WA gagal: ' + err.message);
+  }
 }
 
 /** '0812-345', '+62 812 345', '812345' → '62812345' */

@@ -33,6 +33,7 @@ Repo ini diedit dari banyak tempat. Actions men-deploy setiap push ke `main`, ja
 | `Kopdos.js` | katalog belanja (`KATALOG_KOPDOS`) + `submitBelanja` |
 | `Infaq.js` | `getInfaqMap_` / `saveInfaqMap` (kolom C sheet Anggota) |
 | `Pesanan.js` | invoice GrabFood → sheet `Pesanan` → dibagi per orang dengan rumus Grab (`parseInvoiceGrab`, `simpanPesanan`, `abaikanPesanan`, `hitungBagiPesanan_`) |
+| `WaBot.js` | `doPost` ber-token untuk bot WhatsApp `wa-bukti-transfer`: nomor WA (kolom D Anggota) → nama, bukti dibaca `parseStruk`, Pahala langsung masuk; setiap kiriman dicatat di sheet `WA Log` (terbaru di atas) |
 | `PesananGofood.js` | unggah struk GoFood (1–3 screenshot) → `parseStrukGofood` → pesanan `menunggu` yang sama dengan Grab; ID cadangan `GF-…` bila ID pesanan tak terlihat |
 | `PesananEmail.js` | penjemputan invoice dari Gmail, Sen–Kam 15.00 WIB + tombol "Ambil invoice Grab" (`jemputInvoiceGmail`, `jemputInvoiceSekarang`, `pasangPemicuInvoice`) |
 | `TopUp.js` | verifikasi top-up: bukti TF dicocokkan dengan notifikasi dana masuk bank di Gmail (`ajukanTopUp`, `prosesTopUpMenunggu`, `pasangPemicuTopUp`), sheet `TopUp` & `Mutasi`; mode admin ber-PIN (`adminDaftarTopUp`, `adminPutuskanTopUp`) |
