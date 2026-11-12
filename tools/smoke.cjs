@@ -58,9 +58,10 @@ const STUB = `<script>
 window.google = { script: { run: new Proxy({}, { get(t, k) {
   if (k === 'withSuccessHandler') return fn => (window.__ok = fn, google.script.run);
   if (k === 'withFailureHandler') return fn => (window.__err = fn, google.script.run);
-  return (...a) => { window.__rpc = { fn: k, args: a };
+  return (...a) => { window.__rpc = { fn: k, args: a }; (window.__rpcs = window.__rpcs || []).push(k);
     const balas = window.__balas && k in window.__balas ? window.__balas[k] : ${JSON.stringify(DATA)};
-    setTimeout(() => window.__ok && window.__ok(balas), 20); };
+    const ok = window.__ok; // handler milik panggilan INI (panggilan berikutnya boleh menggantinya)
+    setTimeout(() => ok && ok(balas), window.__tunda || 20); };
 }})}};
 </script>`;
 
@@ -278,15 +279,26 @@ const cek = (nama, syarat, detail) => {
   await page.evaluate(() => { window.__rpc = null; });
   await page.click('.adm-tolak');
   cek('Tolak butuh dua ketukan', (await page.evaluate(() => window.__rpc)) === null && /Yakin/.test(await page.textContent('.adm-tolak')));
-  await page.evaluate(([d, data]) => { window.__balas = { adminPutuskanTopUp: { daftar: d, data } }; },
-    [ADM.map(t => t.id === 'T1' ? Object.assign({}, t, { status: 'manual' }) : t), DATA]);
+  // Server lambat (600 ms): status harus berubah SEBELUM server membalas (optimistis).
+  await page.evaluate(() => {
+    window.__balas = { adminPutuskanTopUp: { id: 'T1', status: 'manual' } };
+    window.__rpcs = []; window.__tunda = 600;
+  });
   await page.click('.adm-setujui');
-  await page.waitForTimeout(200);
   const rpcPut = await page.evaluate(() => window.__rpc);
   cek('Setujui memanggil adminPutuskanTopUp(pin, id, "setujui")',
     rpcPut && rpcPut.fn === 'adminPutuskanTopUp' && rpcPut.args.join() === '246810,T1,setujui', JSON.stringify(rpcPut));
-  cek('setelah disetujui: antrean kosong, dasbor ter-render ulang',
+  cek('optimistis: antrean langsung kosong sebelum server membalas',
     (await page.textContent('#admJmlMenunggu')) === '0' && await page.isVisible('.adm-kosong'));
+  await page.click('.adm-filter [data-filter="semua"]');
+  cek('selama menyimpan: item bertanda "Menyimpan…"', /Menyimpan/.test(await page.textContent('#admDaftar')));
+  await page.waitForTimeout(1500);
+  const rpcs = await page.evaluate(() => window.__rpcs.join());
+  cek('setelah server membalas: dasbor dimuat ulang sekali',
+    rpcs === 'adminPutuskanTopUp,getDashboardData', rpcs);
+  cek('tanda "Menyimpan…" hilang & status disetujui manual',
+    !/Menyimpan/.test(await page.textContent('#admDaftar')) && /Disetujui manual/.test(await page.textContent('#admDaftar')));
+  await page.evaluate(() => { window.__tunda = 0; });
 
   await browser.close();
   console.log(gagal ? `\n${gagal} pemeriksaan GAGAL` : '\nsemua pemeriksaan lolos');

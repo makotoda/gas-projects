@@ -6,6 +6,7 @@
   let admDaftar = [];
   let admFilter = 'menunggu';
   let admYakinTolak = '';           // id top-up yang tombol Tolak-nya sudah diketuk sekali
+  const admProses = new Map();      // id → status tujuan, untuk keputusan yang sedang dikirim ke server
 
   try { admPin = sessionStorage.getItem(ADM_KUNCI_PIN) || ''; } catch (e) {}
 
@@ -63,6 +64,7 @@
           ${t.keterangan ? `<div class="adm-meta">${esc(t.keterangan)}</div>` : ''}
           <span class="adm-badge ${kelas}">${label}</span>
           ${bukti}${aksi}
+          ${admProses.has(t.id) ? '<div class="adm-meta">Menyimpan…</div>' : ''}
         </div>`;
     }).join('');
   }
@@ -74,6 +76,8 @@
         $('admMuat').disabled = false;
         simpanPinAdm_(pin);
         admDaftar = daftar || [];
+        // Keputusan yang masih dikirim tetap tampil dengan status tujuannya.
+        admDaftar.forEach(x => { if (admProses.has(x.id)) x.status = admProses.get(x.id); });
         renderAdm_();
       })
       .withFailureHandler(err => {
@@ -129,21 +133,37 @@
     if (aksi === 'tolak' && admYakinTolak !== id) { admYakinTolak = id; renderAdm_(); return; }
     admYakinTolak = '';
     const t = admDaftar.find(x => x.id === id);
-    $('admDaftar').querySelectorAll('button').forEach(x => { x.disabled = true; });
+    if (!t || admProses.has(id)) return;
+    // Optimistis: status langsung berubah di layar & tombol lain tetap bisa diklik,
+    // jadi beberapa top-up bisa diputuskan beruntun tanpa menunggu server.
+    const statusLama = t.status;
+    t.status = aksi === 'setujui' ? 'manual' : 'ditolak';
+    admProses.set(id, t.status);
+    renderAdm_();
     google.script.run
       .withSuccessHandler(res => {
-        admDaftar = res.daftar || [];
-        render(res.data);
+        admProses.delete(id);
+        t.status = res.status;
         renderAdm_();
-        if (t) toast(aksi === 'setujui'
+        toast(aksi === 'setujui'
           ? `Top-up ${t.nama} ${fmt(t.nominal)} disetujui ✓` : `Top-up ${t.nama} ditolak.`, 'ok');
+        segarkanDasborAdm_();
       })
       .withFailureHandler(err => {
+        admProses.delete(id);
+        t.status = statusLama;
         toast(err.message || 'Gagal.', 'err');
-        muatAdm_(admPin);
+        muatAdm_(admPin); // ambil keadaan sebenarnya (mis. sudah diputuskan admin lain)
+        segarkanDasborAdm_();
       })
       .adminPutuskanTopUp(admPin, id, aksi);
   });
+
+  // Leaderboard & riwayat dimuat ulang sekali, setelah keputusan terakhir yang sedang jalan selesai.
+  function segarkanDasborAdm_() {
+    if (admProses.size) return;
+    google.script.run.withSuccessHandler(render).getDashboardData();
+  }
 
   $('admMuat').addEventListener('click', () => muatAdm_(admPin));
   $('admKeluar').addEventListener('click', () => {

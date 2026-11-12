@@ -11,6 +11,42 @@
  *  batas ini hanya menjaga payload tidak meledak kalau data sudah bertahun. */
 const DERET_HARI_MAX = 730;
 
+/*
+ * Utilities.formatDate menyeberang ke Java, dan dasbor dulu memanggilnya
+ * beberapa kali untuk SETIAP baris Transaksi (±3 per baris). Dua pemformat
+ * bermemo di bawah memangkasnya tanpa mengubah hasil sedikit pun.
+ */
+
+/** formatDate ber-memo per menit — aman untuk pola yang paling halus menit. */
+function pemformatMenit_(tz, pola) {
+  const memo = {};
+  return t => {
+    const k = Math.floor(t.getTime() / 60000);
+    return memo[k] || (memo[k] = Utilities.formatDate(t, tz, pola));
+  };
+}
+
+/**
+ * Kunci hari 'yyyy-MM-dd'. Satu formatDate juga memberi tahu jam berapa di hari
+ * itu, jadi batas tengah malam berikutnya diketahui dan baris lain di hari yang
+ * sama (baris sheet urut waktu) tidak perlu diformat lagi.
+ * ponytail: hari dianggap 24 jam — benar untuk Asia/Bangkok (tanpa DST); di zona
+ * ber-DST, jam terakhir hari transisi bisa salah hari. Kembali ke formatDate per baris kalau zona berubah.
+ */
+function pemformatHari_(tz) {
+  let kunci = '', mulai = 0, akhir = -1;
+  return t => {
+    const ms = t.getTime();
+    if (ms >= mulai && ms < akhir) return kunci;
+    const s = Utilities.formatDate(t, tz, 'yyyy-MM-dd HH:mm:ss.SSS');
+    const lewat = ((+s.slice(11, 13) * 60 + +s.slice(14, 16)) * 60 + +s.slice(17, 19)) * 1000 + +s.slice(20, 23);
+    kunci = s.slice(0, 10);
+    mulai = ms - lewat;
+    akhir = mulai + 86400000;
+    return kunci;
+  };
+}
+
 /**
  * Saldo kumulatif tiap orang per hari untuk DERET_HARI hari terakhir.
  * Saldo hari pertama sudah memperhitungkan SELURUH transaksi sebelum jendela
@@ -18,7 +54,7 @@ const DERET_HARI_MAX = 730;
  * Dipakai grafik garis di modal Total Pahala/Dosa (tampilan desktop).
  */
 function deretHarian_(rows, tz, fotoMap) {
-  const hariDari = t => Utilities.formatDate(t, tz, 'yyyy-MM-dd');
+  const hariDari = pemformatHari_(tz);
   const tglDari = ts => {
     const t = ts instanceof Date ? ts : new Date(ts);
     return (!t || isNaN(t.getTime())) ? null : t;
@@ -93,6 +129,14 @@ function getDashboardData() {
     sheet.getRange(2, 1, last - 1, 5).getValues();
 
   const tz = Session.getScriptTimeZone();
+  const hariDari = pemformatHari_(tz);
+  const waktuDari = pemformatMenit_(tz, 'dd MMM yyyy • HH:mm');
+  // Item riwayat dibuat untuk tiap baris, tapi yang dikirim ke klien hanya
+  // puluhan terakhir — jadi `waktu` baru diformat untuk yang terkirim saja.
+  const isiWaktu = daftar => {
+    daftar.forEach(x => { if (x.waktu === null) x.waktu = waktuDari(new Date(x.t)); });
+    return daftar;
+  };
   const saldoMap = {};
   const infaqMap = {}; // nama → total infaq ke KAS
   const bulanSet = {}; // 'yyyy-MM' yang punya transaksi (utk pemilih laporan)
@@ -103,7 +147,7 @@ function getDashboardData() {
     const nm = String(nama).trim();
     const val = Number(nominal) || 0;
     if (!nm || !val) return;
-    if (ts instanceof Date) bulanSet[Utilities.formatDate(ts, tz, 'yyyy-MM')] = true;
+    if (ts instanceof Date) bulanSet[hariDari(ts).slice(0, 7)] = true; // 'yyyy-MM'
 
     if (!saldoMap[nm]) saldoMap[nm] = { nama: nm, pahala: 0, dosa: 0, recent: [] };
 
@@ -118,9 +162,7 @@ function getDashboardData() {
     }
 
     const item = {
-      waktu: ts instanceof Date
-        ? Utilities.formatDate(ts, tz, 'dd MMM yyyy • HH:mm')
-        : String(ts),
+      waktu: ts instanceof Date ? null : String(ts), // null → diformat isiWaktu saat terkirim
       nama: nm,
       tipe: isDosa ? 'Dosa' : 'Pahala',
       nominal: val,
@@ -151,8 +193,8 @@ function getDashboardData() {
       pahala: o.pahala,
       dosa: o.dosa,
       saldo: o.pahala - o.dosa,
-      recent: sisipMenunggu_(o.recent.slice(-40).reverse(), // buffer utk panel (client paginasi 10 + filter KAS)
-        tundaRiwayat.filter(x => x.nama === o.nama))
+      recent: isiWaktu(sisipMenunggu_(o.recent.slice(-40).reverse(), // buffer utk panel (client paginasi 10 + filter KAS)
+        tundaRiwayat.filter(x => x.nama === o.nama)))
     }))
     .sort((a, b) => b.saldo - a.saldo);
 
@@ -171,10 +213,10 @@ function getDashboardData() {
     totalDosa: totalDosa,
     totalTransaksi: history.length,
     leaderboard: leaderboard,
-    history: sisipMenunggu_(history.slice(-30).reverse(), tundaRiwayat).slice(0, 30), // 30 terbaru
+    history: isiWaktu(sisipMenunggu_(history.slice(-30).reverse(), tundaRiwayat).slice(0, 30)), // 30 terbaru
     kas: {
       saldo: kasData ? kasData.pahala - kasData.dosa : 0,
-      history: kasData ? kasData.recent.slice(-30).reverse() : [],
+      history: kasData ? isiWaktu(kasData.recent.slice(-30).reverse()) : [],
       leaderboard: Object.keys(infaqMap)
         .map(nm => ({ nama: nm, foto: fotoMap[nm] || '', total: infaqMap[nm] }))
         .sort((a, b) => b.total - a.total)

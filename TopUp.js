@@ -120,7 +120,12 @@ function daftarTopUpAdmin_() {
     .reverse();
 }
 
-/** Setujui / tolak satu top-up yang masih menunggu. Balikan daftar terbaru + dasbor. */
+/**
+ * Setujui / tolak satu top-up yang masih menunggu. Sengaja hanya menulis lalu
+ * membalas status barunya: daftar admin diperbarui klien sendiri (optimistis),
+ * dan dasbor dimuat ulang SEKALI lewat getDashboardData setelah semua keputusan
+ * beruntun selesai — bukan dihitung ulang di setiap klik (JsAdmin.html).
+ */
 function adminPutuskanTopUp(pin, id, keputusan) {
   cekPinAdmin_(pin);
   if (keputusan !== 'setujui' && keputusan !== 'tolak') throw new Error('Keputusan tidak dikenal.');
@@ -146,7 +151,7 @@ function adminPutuskanTopUp(pin, id, keputusan) {
   } finally {
     lock.releaseLock();
   }
-  return { daftar: daftarTopUpAdmin_(), data: getDashboardData() };
+  return { id: String(id), status: keputusan === 'setujui' ? 'manual' : 'ditolak' };
 }
 
 /**
