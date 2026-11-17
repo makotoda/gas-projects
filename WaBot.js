@@ -122,6 +122,30 @@ function topUpDariWa_(p) {
   const nama = namaDariNomorWa_(p.nomor);
   if (!nama || nama === KAS_NAMA) return { ok: true, terdaftar: false };
 
+  // Bot mencoba ulang kiriman yang koneksinya putus — padahal bisa saja kiriman
+  // pertama sudah tercatat. ID pesan WA (idPesan) mencegah pahala ganda: hasil
+  // disimpan 6 jam (batas CacheService) dan dikembalikan apa adanya untuk ulangan.
+  // ponytail: cek-lalu-tandai tanpa lock; dua ulangan dalam milidetik yang sama bisa lolos.
+  const cache = CacheService.getScriptCache();
+  const kunci = p.idPesan ? 'WA_PESAN_' + String(p.idPesan).slice(0, 100) : '';
+  if (kunci) {
+    const lama = cache.get(kunci);
+    if (lama === 'proses') return { ok: false, error: 'Bukti ini masih diproses, coba lagi sebentar.' };
+    if (lama) return JSON.parse(lama);
+    cache.put(kunci, 'proses', 300);
+  }
+  let hasil;
+  try {
+    hasil = topUpBaru_(p, nama);
+  } catch (e) {
+    if (kunci) cache.remove(kunci); // gagal sebelum tercatat → boleh dicoba lagi
+    throw e;
+  }
+  if (kunci) cache.put(kunci, JSON.stringify(hasil), 21600);
+  return hasil;
+}
+
+function topUpBaru_(p, nama) {
   // ponytail: hanya transfer pertama di gambar; bukti TF praktis selalu satu transfer.
   const it = parseStruk(p.base64, p.mimeType, 'transfer')[0];
   if (!it) return { ok: true, terdaftar: true, nama: nama, hasil: 'bukan-bukti' };
