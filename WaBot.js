@@ -25,11 +25,11 @@ function doPost(e) {
   let hasil, p = {};
   try {
     p = JSON.parse(e.postData.contents) || {};
-    hasil = topUpDariWa_(p);
+    hasil = p.aksi === 'saldo' ? saldoDariWa_(p) : topUpDariWa_(p);
   } catch (err) {
     hasil = { ok: false, error: err.message };
   }
-  catatLogWa_(p, hasil);
+  if (p.aksi !== 'saldo') catatLogWa_(p, hasil); // log hanya untuk kiriman bukti transfer
   return ContentService.createTextOutput(JSON.stringify(hasil))
     .setMimeType(ContentService.MimeType.JSON);
 }
@@ -86,13 +86,38 @@ function namaDariNomorWa_(nomor) {
   return cocok ? String(cocok[0]).trim() : '';
 }
 
+function cekTokenWa_(p) {
+  const token = String(PropertiesService.getScriptProperties().getProperty(WA_PROP_TOKEN) || '').trim();
+  if (!token || String(p && p.token || '') !== token) throw new Error('Token bot WA salah.');
+}
+
+/**
+ * Anggota bertanya saldo lewat mention bot di grup. p = { token, aksi: 'saldo', nomor }.
+ * Saldo = pahala − dosa, aturan sama dengan leaderboard (getDashboardData), tapi
+ * hanya membaca kolom Nama..Nominal tanpa menghitung seluruh dasbor.
+ * Balikan { ok, terdaftar, nama, saldo, pahala, dosa }.
+ */
+function saldoDariWa_(p) {
+  cekTokenWa_(p);
+  const nama = namaDariNomorWa_(p.nomor);
+  if (!nama || nama === KAS_NAMA) return { ok: true, terdaftar: false };
+  const sheet = getSheet_(SHEET_TRANSAKSI);
+  const last = sheet.getLastRow();
+  let pahala = 0, dosa = 0;
+  if (last >= 2) sheet.getRange(2, 2, last - 1, 3).getValues().forEach(([nm, tipe, nominal]) => {
+    if (String(nm).trim() !== nama) return;
+    const val = Number(nominal) || 0;
+    if (tipe === 'Dosa') dosa += val; else pahala += val;
+  });
+  return { ok: true, terdaftar: true, nama: nama, saldo: pahala - dosa, pahala: pahala, dosa: dosa };
+}
+
 /**
  * p = { token, nomor, base64, mimeType }.
  * Balikan { ok, terdaftar, nama, nominal, hasil: 'langsung'|'terverifikasi'|'menunggu'|'bukan-bukti' }.
  */
 function topUpDariWa_(p) {
-  const token = String(PropertiesService.getScriptProperties().getProperty(WA_PROP_TOKEN) || '').trim();
-  if (!token || String(p && p.token || '') !== token) throw new Error('Token bot WA salah.');
+  cekTokenWa_(p);
 
   const nama = namaDariNomorWa_(p.nomor);
   if (!nama || nama === KAS_NAMA) return { ok: true, terdaftar: false };
