@@ -177,7 +177,10 @@ function tanyaDariWa_(p) {
     contents: [{ role: 'user', parts: [{ text:
       'DATA KODOMO (JSON):\n' + JSON.stringify(k.data) +
       '\n\nPertanyaan dari ' + (nama || k.data.penanya.nama) + ':\n' + pertanyaan }] }],
-    generationConfig: { temperature: 0.9, maxOutputTokens: 1024 }
+    // thinking rendah: jawaban obrolan singkat tak butuh penalaran panjang, dan
+    // anggota grup menunggu (sama seperti parseStruk). Model yang tak mengenalnya
+    // otomatis dicoba ulang tanpa opsi ini oleh panggilGemini_.
+    generationConfig: { temperature: 0.9, maxOutputTokens: 1024, thinkingConfig: { thinkingLevel: 'low' } }
   };
   const json = JSON.parse(panggilGemini_(apiKey, body));
   const parts = (json.candidates && json.candidates[0] && json.candidates[0].content &&
